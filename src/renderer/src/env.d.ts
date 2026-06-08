@@ -35,6 +35,10 @@ interface LoopAPI {
   shell: {
     openWhatsApp: (whatsappId: string) => Promise<void>
   }
+  photos: {
+    pickHero: () => Promise<string | null>
+    pickChapter: () => Promise<string | null>
+  }
 }
 
 declare global {

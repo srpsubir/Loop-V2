@@ -64,6 +64,11 @@ const loopAPI = {
     openWhatsApp: (whatsappId: string): Promise<void> =>
       ipcRenderer.invoke('shell:openWhatsApp', whatsappId),
   },
+
+  photos: {
+    pickHero: (): Promise<string | null> => ipcRenderer.invoke('photos:pickHero'),
+    pickChapter: (): Promise<string | null> => ipcRenderer.invoke('photos:pickChapter'),
+  },
 }
 
 if (process.contextIsolated) {
