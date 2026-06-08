@@ -5,12 +5,14 @@ import { GardenScreen } from './screens/GardenScreen'
 import { BriefScreen } from './screens/BriefScreen'
 import { ChapterScreen } from './screens/ChapterScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
+import { ChapterInferenceScreen } from './screens/ChapterInferenceScreen'
 
 // ─── Nav state ────────────────────────────────────────────────────────────────
 
 type Nav =
   | { screen: 'welcome' }
   | { screen: 'whatsapp-connect' }
+  | { screen: 'chapter-inference' }
   | { screen: 'garden' }
   | { screen: 'chapter'; chapterId: string }
   | { screen: 'brief'; contactId: string }
@@ -250,7 +252,7 @@ export default function App() {
       return (
         <WelcomeScreen
           onConnect={() => setNav({ screen: 'whatsapp-connect' })}
-          onSkip={goSkip}
+          onSkip={() => setNav({ screen: 'chapter-inference' })}
         />
       )
 
@@ -259,10 +261,18 @@ export default function App() {
         <WhatsAppConnectScreen
           onConnected={async () => {
             try {
-              await window.loop.state.patch({ onboardingComplete: true, whatsappConnected: true })
+              await window.loop.state.patch({ whatsappConnected: true })
             } catch { /* pass */ }
-            goGarden()
+            setNav({ screen: 'chapter-inference' })
           }}
+          onSkip={() => setNav({ screen: 'chapter-inference' })}
+        />
+      )
+
+    case 'chapter-inference':
+      return (
+        <ChapterInferenceScreen
+          onComplete={goGarden}
           onSkip={goSkip}
         />
       )
