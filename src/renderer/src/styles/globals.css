@@ -1,0 +1,160 @@
+/* Loop Design System — renderer entry point */
+
+/* ── Fonts ─────────────────────────────────────────────────────────────────── */
+
+@font-face { font-family: "Inter"; font-weight: 400; font-display: swap; src: url("../assets/fonts/Inter-400.woff2") format("woff2"); }
+@font-face { font-family: "Inter"; font-weight: 500; font-display: swap; src: url("../assets/fonts/Inter-500.woff2") format("woff2"); }
+@font-face { font-family: "Inter"; font-weight: 600; font-display: swap; src: url("../assets/fonts/Inter-600.woff2") format("woff2"); }
+@font-face { font-family: "Inter"; font-weight: 700; font-display: swap; src: url("../assets/fonts/Inter-700.woff2") format("woff2"); }
+@font-face { font-family: "Lora"; font-weight: 400; font-display: swap; src: url("../assets/fonts/Lora-400.woff2") format("woff2"); }
+@font-face { font-family: "Lora"; font-style: italic; font-weight: 400; font-display: swap; src: url("../assets/fonts/Lora-400Italic.woff2") format("woff2"); }
+@font-face { font-family: "Lora"; font-weight: 500; font-display: swap; src: url("../assets/fonts/Lora-500.woff2") format("woff2"); }
+@font-face { font-family: "Lora"; font-style: italic; font-weight: 500; font-display: swap; src: url("../assets/fonts/Lora-500Italic.woff2") format("woff2"); }
+@font-face { font-family: "Lora"; font-weight: 600; font-display: swap; src: url("../assets/fonts/Lora-600.woff2") format("woff2"); }
+@font-face { font-family: "Lora"; font-weight: 700; font-display: swap; src: url("../assets/fonts/Lora-700.woff2") format("woff2"); }
+
+/* ── Color tokens ───────────────────────────────────────────────────────────── */
+
+:root {
+  /* Parchment surfaces */
+  --parchment-bg:       #F9F5EE;
+  --parchment-surface:  #EFE6D6;
+  --parchment-raised:   #E8DBCA;
+
+  /* Terracotta — primary accent */
+  --terracotta:         #B8624A;
+  --terracotta-light:   #D4856E;
+  --terracotta-faint:   #F5EAD8;
+
+  /* Dusty rose — people & relationships */
+  --rose:               #C49A8A;
+  --rose-faint:         #F7EDE8;
+
+  /* Sage — positive / still close */
+  --sage:               #6A9470;
+  --sage-faint:         #EAF2EB;
+
+  /* Ink — never pure black */
+  --ink:                #2A1F1B;
+  --ink-mid:            #6B5447;
+  --ink-muted:          #A38F85;
+
+  /* Hairlines */
+  --line:               #DDD0C0;
+  --line-light:         #EDE3D5;
+
+  /* Semantic aliases */
+  --bg:                 var(--parchment-bg);
+  --surface:            var(--parchment-surface);
+  --surface-raised:     var(--parchment-raised);
+  --text-primary:       var(--ink);
+  --text-secondary:     var(--ink-mid);
+  --text-muted:         var(--ink-muted);
+  --text-on-accent:     var(--parchment-bg);
+  --accent:             var(--terracotta);
+  --accent-hover:       #A6543E;
+  --accent-light:       var(--terracotta-light);
+  --accent-faint:       var(--terracotta-faint);
+  --people:             var(--rose);
+  --people-faint:       var(--rose-faint);
+  --positive:           var(--sage);
+  --positive-faint:     var(--sage-faint);
+  --border:             var(--line);
+  --border-light:       var(--line-light);
+  --focus-ring:         0 0 0 3px rgba(184, 98, 74, 0.28);
+  --selection-bg:       rgba(184, 98, 74, 0.18);
+}
+
+::selection { background: var(--selection-bg); color: var(--text-primary); }
+
+/* ── Typography tokens ──────────────────────────────────────────────────────── */
+
+:root {
+  --font-serif:  "Lora", Georgia, serif;
+  --font-sans:   "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --weight-regular:  400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+
+  --text-display: 40px;
+  --text-h1:      30px;
+  --text-h2:      22px;
+  --text-h3:      18px;
+  --text-body:    15px;
+  --text-sm:      13px;
+  --text-xs:      12px;
+  --text-micro:   11px;
+
+  --leading-tight:   1.15;
+  --leading-snug:    1.3;
+  --leading-normal:  1.55;
+  --leading-relaxed: 1.7;
+
+  --tracking-tight:  -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide:   0.08em;
+}
+
+/* ── Spacing & radii ────────────────────────────────────────────────────────── */
+
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  --radius-xs:   4px;
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-lg:   18px;
+  --radius-xl:   28px;
+  --radius-full: 999px;
+
+  --control-height-sm: 30px;
+  --control-height-md: 38px;
+  --control-height-lg: 46px;
+}
+
+/* ── Shadows ────────────────────────────────────────────────────────────────── */
+
+:root {
+  --shadow-sm:    0 1px 2px rgba(42,31,27,0.05), 0 1px 3px rgba(42,31,27,0.04);
+  --shadow-md:    0 1px 2px rgba(42,31,27,0.05), 0 4px 12px rgba(42,31,27,0.07);
+  --shadow-lg:    0 2px 4px rgba(42,31,27,0.06), 0 12px 28px rgba(42,31,27,0.10);
+  --shadow-xl:    0 8px 16px rgba(42,31,27,0.08), 0 28px 60px rgba(42,31,27,0.16);
+  --shadow-inset: inset 0 1px 2px rgba(42,31,27,0.08);
+
+  --ease-out:    cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.45, 0, 0.2, 1);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+}
+
+/* ── Base reset ─────────────────────────────────────────────────────────────── */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--leading-normal);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+}
+
+/* macOS-style scrollbars */
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-thumb { background: var(--surface-raised); border-radius: 999px; border: 3px solid var(--bg); }
+::-webkit-scrollbar-track { background: transparent; }
