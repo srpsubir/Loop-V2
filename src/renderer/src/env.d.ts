@@ -39,6 +39,15 @@ interface LoopAPI {
     pickHero: () => Promise<string | null>
     pickChapter: () => Promise<string | null>
   }
+  calendar: {
+    addEvent: (payload: {
+      contactName: string
+      occasionType?: string | null
+      occasionDate?: string | null
+      reasonToReachOut: string
+      contextLine?: string
+    }) => Promise<void>
+  }
 }
 
 declare global {

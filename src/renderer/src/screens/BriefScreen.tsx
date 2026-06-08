@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { ArrowLeft, Send, Heart, Camera } from 'lucide-react'
+import { ArrowLeft, Send, Heart, Camera, CalendarPlus, Check } from 'lucide-react'
 import { Avatar, Button, IconButton, Tag } from '../components'
-import type { Contact, Brief, AppState, Chapter } from '@shared/types'
+import type { Contact, Brief, AppState, Chapter, Occasion } from '@shared/types'
 
 interface BriefScreenProps {
   contactId: string
@@ -13,6 +13,7 @@ interface BriefData {
   brief: Brief | null
   chapters: Chapter[]
   lastContactDate: string | null
+  nextOccasion: Occasion | null
 }
 
 // ─── Timeline item ────────────────────────────────────────────────────────────
@@ -85,8 +86,10 @@ export function BriefScreen({ contactId, onBack }: BriefScreenProps) {
     brief: null,
     chapters: [],
     lastContactDate: null,
+    nextOccasion: null,
   })
   const [loading, setLoading] = useState(true)
+  const [calendarAdded, setCalendarAdded] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -108,6 +111,7 @@ export function BriefScreen({ contactId, onBack }: BriefScreenProps) {
           brief,
           chapters,
           lastContactDate: cs?.lastContactDate ?? null,
+          nextOccasion: cs?.nextOccasion ?? null,
         })
       } catch {
         // pass
@@ -118,7 +122,22 @@ export function BriefScreen({ contactId, onBack }: BriefScreenProps) {
     load()
   }, [contactId])
 
-  const { contact, brief, chapters, lastContactDate } = data
+  const { contact, brief, chapters, lastContactDate, nextOccasion } = data
+
+  const handleAddToCalendar = async () => {
+    if (!contact || !brief) return
+    try {
+      await window.loop.calendar.addEvent({
+        contactName: contact.name,
+        occasionType: nextOccasion?.type ?? null,
+        occasionDate: nextOccasion?.date ?? null,
+        reasonToReachOut: brief.reasonToReachOut,
+        contextLine: brief.contextLines[0],
+      })
+      setCalendarAdded(true)
+      setTimeout(() => setCalendarAdded(false), 4000)
+    } catch { /* ignore */ }
+  }
 
   const heroSrc = brief?.heroPhotoPath ? `loop-file://${brief.heroPhotoPath}` : undefined
 
@@ -255,16 +274,25 @@ export function BriefScreen({ contactId, onBack }: BriefScreenProps) {
         </div>
 
         {/* CTAs */}
-        <div style={{ display: 'flex', gap: 12, marginBottom: 40 }}>
-          {contact.whatsappId ? (
+        <div style={{ display: 'flex', gap: 12, marginBottom: 40, alignItems: 'center' }}>
+          <Button
+            iconLeft={calendarAdded
+              ? <Check size={15} strokeWidth={2} />
+              : <CalendarPlus size={15} strokeWidth={1.8} />
+            }
+            onClick={handleAddToCalendar}
+            disabled={!brief || calendarAdded}
+          >
+            {calendarAdded ? 'Added to Calendar' : 'Add to calendar'}
+          </Button>
+          {contact.whatsappId && (
             <Button
-              iconLeft={<Send size={15} strokeWidth={1.8} />}
+              variant="ghost"
+              iconLeft={<Send size={14} strokeWidth={1.8} />}
               onClick={() => contact.whatsappId && window.loop.shell.openWhatsApp(contact.whatsappId)}
             >
               Open WhatsApp
             </Button>
-          ) : (
-            <Button disabled>No WhatsApp linked</Button>
           )}
         </div>
 

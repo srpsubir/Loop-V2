@@ -69,6 +69,16 @@ const loopAPI = {
     pickHero: (): Promise<string | null> => ipcRenderer.invoke('photos:pickHero'),
     pickChapter: (): Promise<string | null> => ipcRenderer.invoke('photos:pickChapter'),
   },
+
+  calendar: {
+    addEvent: (payload: {
+      contactName: string
+      occasionType?: string | null
+      occasionDate?: string | null
+      reasonToReachOut: string
+      contextLine?: string
+    }): Promise<void> => ipcRenderer.invoke('calendar:addEvent', payload),
+  },
 }
 
 if (process.contextIsolated) {
