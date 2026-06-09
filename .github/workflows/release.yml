@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Version tag (e.g. v0.1.0-beta)'
+        required: true
+        default: 'v0.1.0-beta'
+
+permissions:
+  contents: write
+
+jobs:
+  build-mac:
+    runs-on: macos-14  # Apple Silicon runner
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build + package
+        run: npm run dist
+        env:
+          # Notarization — add these secrets once MAV-47 is done
+          # APPLE_ID: ${{ secrets.APPLE_ID }}
+          # APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # CSC_LINK: ${{ secrets.CSC_LINK }}
+          # CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: List dist output
+        run: ls -lh dist/
+
+      - name: Upload .dmg artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Loop-dmg
+          path: dist/*.dmg
+          retention-days: 30
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name || inputs.tag }}
+          name: Loop ${{ github.ref_name || inputs.tag }}
+          draft: true
+          prerelease: true
+          files: dist/*.dmg
+          body: |
+            ## Loop beta
+
+            **Install:** Download the `.dmg` for your Mac, open it, drag Loop to Applications.
+
+            - `Loop-*-arm64.dmg` → Apple Silicon (M1/M2/M3)
+            - `Loop-*-x64.dmg` → Intel Mac
+
+            > Note: First launch may show a Gatekeeper warning until notarization is complete (MAV-47). Right-click → Open to bypass.

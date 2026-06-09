@@ -1,0 +1,19 @@
+<!-- @dsCard group="Colors" viewport="700x180" name="Parchment & surfaces" subtitle="The paper everything is printed on — never pure white" -->
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="../styles.css">
+<style>
+  body{margin:0;background:var(--bg);font-family:var(--font-sans);padding:24px}
+  .row{display:flex;gap:16px}
+  .sw{flex:1;display:flex;flex-direction:column;gap:10px}
+  .chip{height:72px;border-radius:var(--radius-md);box-shadow:var(--shadow-sm)}
+  .meta{display:flex;flex-direction:column;gap:2px}
+  .name{font-size:13px;font-weight:600;color:var(--text-primary)}
+  .hex{font-size:12px;color:var(--text-muted);font-variant-numeric:tabular-nums}
+</style></head>
+<body>
+  <div class="row">
+    <div class="sw"><div class="chip" style="background:var(--parchment-bg)"></div><div class="meta"><span class="name">Background</span><span class="hex">#F9F5EE</span></div></div>
+    <div class="sw"><div class="chip" style="background:var(--parchment-surface)"></div><div class="meta"><span class="name">Surface</span><span class="hex">#EFE6D6</span></div></div>
+    <div class="sw"><div class="chip" style="background:var(--parchment-raised)"></div><div class="meta"><span class="name">Surface raised</span><span class="hex">#E8DBCA</span></div></div>
+  </div>
+</body></html>

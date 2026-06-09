@@ -1,0 +1,95 @@
+<!-- @dsCard group="Components" viewport="760x440" name="Overlays" subtitle="Dialog, dropdown menu, tooltip & toast" -->
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<style>
+  body{margin:0;background:var(--bg);font-family:var(--font-sans);padding:34px 36px}
+  .wrap{display:flex;flex-direction:column;gap:26px;max-width:640px}
+  .row{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+  .eyebrow{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);font-weight:600;margin-bottom:12px}
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+  const { Button, IconButton, Dialog, Toast, Tooltip, Dropdown } = window.LoopDesignSystem_96f8bb;
+  function Ic({ name, size = 16 }) {
+    const ref = React.useRef(null);
+    React.useEffect(() => {
+      if (ref.current && lucide[name]) ref.current.innerHTML = lucide.createElement(lucide[name]).outerHTML;
+      const svg = ref.current && ref.current.querySelector("svg");
+      if (svg) { svg.setAttribute("width", size); svg.setAttribute("height", size); }
+    }, []);
+    return <span ref={ref} style={{display:"inline-flex"}} />;
+  }
+  function Demo(){
+    const [dialog, setDialog] = React.useState(false);
+    const [toast, setToast] = React.useState(false);
+    return (
+      <div className="wrap">
+        <div>
+          <div className="eyebrow">Dialog &amp; toast</div>
+          <div className="row">
+            <Button onClick={() => setDialog(true)}>Archive chapter…</Button>
+            <Button variant="secondary" iconLeft={<Ic name="Check" size={15}/>} onClick={() => setToast(true)}>Save a moment</Button>
+          </div>
+        </div>
+
+        <div>
+          <div className="eyebrow">Dropdown menu &amp; tooltip</div>
+          <div className="row">
+            <Dropdown
+              trigger={<Button variant="secondary" iconRight={<Ic name="ChevronDown" size={15}/>}>Sort people</Button>}
+              items={[
+                { header: "Sort by" },
+                { label: "Recently spoken", icon: <Ic name="Clock" size={16}/>, selected: true },
+                { label: "Name", icon: <Ic name="ArrowDownAZ" size={16}/> },
+                { label: "Drifting first", icon: <Ic name="Wind" size={16}/> },
+              ]}
+            />
+            <Dropdown
+              align="end"
+              trigger={<IconButton variant="soft" label="More" icon={<Ic name="Ellipsis" size={18}/>} />}
+              items={[
+                { label: "Add a moment", icon: <Ic name="Plus" size={16}/> },
+                { label: "Rename chapter", icon: <Ic name="Pencil" size={16}/> },
+                { divider: true },
+                { label: "Archive chapter", icon: <Ic name="Archive" size={16}/>, tone: "accent", onClick: () => setDialog(true) },
+              ]}
+            />
+            <Tooltip label="Add a moment" side="top">
+              <IconButton variant="primary" label="Add a moment" icon={<Ic name="Plus" size={18}/>} />
+            </Tooltip>
+            <span style={{fontSize:13,color:"var(--text-muted)"}}>hover the terracotta button →</span>
+          </div>
+        </div>
+
+        <Dialog
+          open={dialog}
+          onClose={() => setDialog(false)}
+          icon={<Ic name="Archive" size={20}/>}
+          title="Let this chapter close?"
+          description="The London Years will move to your archive. Nothing is deleted — you can reopen it whenever you like."
+          footer={<>
+            <Button variant="ghost" onClick={() => setDialog(false)}>Keep it open</Button>
+            <Button onClick={() => { setDialog(false); setToast(true); }}>Archive chapter</Button>
+          </>}
+        />
+        <Toast
+          open={toast}
+          onClose={() => setToast(false)}
+          tone="positive"
+          icon={<Ic name="Check" size={16}/>}
+          message="Saved to Priya's story."
+          action={{ label: "Undo", onClick: () => setToast(false) }}
+        />
+      </div>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById("root")).render(<Demo/>);
+</script>
+</body></html>

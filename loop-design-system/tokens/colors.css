@@ -1,0 +1,70 @@
+/* Loop — color tokens
+   Warm parchment palette. Paper, not boxes. Never pure white, never pure black.
+   Base values first, then semantic aliases. Use the aliases in components. */
+
+:root {
+  /* ---- Base palette ---------------------------------------------------- */
+
+  /* Parchment / surfaces — the paper the whole app is printed on */
+  --parchment-bg:        #F9F5EE; /* app background */
+  --parchment-surface:   #EFE6D6; /* resting surface */
+  --parchment-raised:    #E8DBCA; /* raised surface / hover well */
+
+  /* Terracotta — the primary warm accent (ink stamp, not a button factory) */
+  --terracotta:          #B8624A;
+  --terracotta-light:    #D4856E;
+  --terracotta-faint:    #F5EAD8;
+
+  /* Dusty rose — secondary warmth, people & relationships */
+  --rose:                #C49A8A;
+  --rose-faint:          #F7EDE8;
+
+  /* Sage — quiet positive / growth / "still close" */
+  --sage:                #6A9470;
+  --sage-faint:          #EAF2EB;
+
+  /* Ink — text browns, never black */
+  --ink:                 #2A1F1B; /* primary text */
+  --ink-mid:             #6B5447; /* secondary text */
+  --ink-muted:           #A38F85; /* metadata, captions, placeholders */
+
+  /* Hairlines */
+  --line:                #DDD0C0; /* standard border */
+  --line-light:          #EDE3D5; /* faint divider */
+
+  /* ---- Semantic aliases ------------------------------------------------ */
+
+  --bg:                  var(--parchment-bg);
+  --surface:             var(--parchment-surface);
+  --surface-raised:      var(--parchment-raised);
+
+  --text-primary:        var(--ink);
+  --text-secondary:      var(--ink-mid);
+  --text-muted:          var(--ink-muted);
+  --text-on-accent:      var(--parchment-bg);
+
+  --accent:              var(--terracotta);
+  --accent-hover:        #A6543E;        /* terracotta, pressed darker */
+  --accent-light:        var(--terracotta-light);
+  --accent-faint:        var(--terracotta-faint);
+
+  --people:              var(--rose);
+  --people-faint:        var(--rose-faint);
+
+  --positive:            var(--sage);
+  --positive-faint:      var(--sage-faint);
+
+  --border:              var(--line);
+  --border-light:        var(--line-light);
+
+  /* Focus ring — terracotta at low opacity, soft and warm */
+  --focus-ring:          0 0 0 3px rgba(184, 98, 74, 0.28);
+
+  /* Selection */
+  --selection-bg:        rgba(184, 98, 74, 0.18);
+}
+
+::selection {
+  background: var(--selection-bg);
+  color: var(--text-primary);
+}

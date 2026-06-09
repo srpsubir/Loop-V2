@@ -1,0 +1,55 @@
+<!-- @dsCard group="Components" viewport="700x300" name="Buttons" subtitle="Pill actions & circular icon buttons" -->
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<style>
+  body{margin:0;background:var(--bg);font-family:var(--font-sans);padding:28px 32px}
+  .grid{display:flex;flex-direction:column;gap:22px}
+  .row{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+  .lbl{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);width:96px;flex:none}
+  .group{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+  const { Button, IconButton } = window.LoopDesignSystem_96f8bb;
+  function Ic({ name, size = 16 }) {
+    const ref = React.useRef(null);
+    React.useEffect(() => {
+      if (ref.current) ref.current.innerHTML = lucide.createElement(lucide[name]).outerHTML;
+      const svg = ref.current && ref.current.querySelector("svg");
+      if (svg) { svg.setAttribute("width", size); svg.setAttribute("height", size); svg.setAttribute("stroke-width", "2"); }
+    }, []);
+    return <span ref={ref} style={{display:"inline-flex"}} />;
+  }
+  function Demo(){
+    return (
+      <div className="grid">
+        <div className="row"><span className="lbl">Variants</span><div className="group">
+          <Button variant="primary">Add to chapter</Button>
+          <Button variant="secondary" iconLeft={<Ic name="Plus"/>}>New person</Button>
+          <Button variant="ghost">Skip for now</Button>
+          <Button variant="primary" disabled>Disabled</Button>
+        </div></div>
+        <div className="row"><span className="lbl">Sizes</span><div className="group">
+          <Button size="sm">Small</Button>
+          <Button size="md">Medium</Button>
+          <Button size="lg">Large</Button>
+        </div></div>
+        <div className="row"><span className="lbl">Icon</span><div className="group">
+          <IconButton variant="primary" label="Add" icon={<Ic name="Plus" size={18}/>} />
+          <IconButton variant="soft" label="Search" icon={<Ic name="Search" size={18}/>} />
+          <IconButton variant="ghost" label="More" icon={<Ic name="Ellipsis" size={18}/>} />
+          <IconButton variant="ghost" label="Close" icon={<Ic name="X" size={18}/>} />
+        </div></div>
+      </div>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById("root")).render(<Demo/>);
+</script>
+</body></html>

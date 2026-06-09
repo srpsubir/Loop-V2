@@ -1,0 +1,43 @@
+/* Loop — elevation & effects
+   Shadows are warm-tinted (brown, never neutral grey) and soft.
+   We lift paper with light, not with borders. Cards = shadow, not stroke. */
+
+:root {
+  /* Warm shadow ink — derived from --ink, applied at low alpha */
+
+  /* Resting paper: barely there, just enough to separate from background */
+  --shadow-sm:
+    0 1px 2px rgba(42, 31, 27, 0.05),
+    0 1px 3px rgba(42, 31, 27, 0.04);
+
+  /* Default card / raised surface */
+  --shadow-md:
+    0 1px 2px rgba(42, 31, 27, 0.05),
+    0 4px 12px rgba(42, 31, 27, 0.07);
+
+  /* Lifted: hovered card, popover */
+  --shadow-lg:
+    0 2px 4px rgba(42, 31, 27, 0.06),
+    0 12px 28px rgba(42, 31, 27, 0.10);
+
+  /* Floating: dialogs, dragged photo */
+  --shadow-xl:
+    0 8px 16px rgba(42, 31, 27, 0.08),
+    0 28px 60px rgba(42, 31, 27, 0.16);
+
+  /* Inset well — pressed pockets, search fields sunk into paper */
+  --shadow-inset:
+    inset 0 1px 2px rgba(42, 31, 27, 0.08);
+
+  /* Photo frame — a slightly stronger, warmer drop for imagery */
+  --shadow-photo:
+    0 2px 6px rgba(42, 31, 27, 0.10),
+    0 16px 32px rgba(42, 31, 27, 0.14);
+
+  /* Motion — gentle, never bouncy. Memories settle, they don't snap. */
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1); /* @kind other */
+  --ease-in-out: cubic-bezier(0.45, 0, 0.2, 1); /* @kind other */
+  --duration-fast: 120ms; /* @kind other */
+  --duration-base: 200ms; /* @kind other */
+  --duration-slow: 320ms; /* @kind other */
+}

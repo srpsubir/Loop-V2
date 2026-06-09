@@ -6,6 +6,7 @@ import { BriefScreen } from './screens/BriefScreen'
 import { ChapterScreen } from './screens/ChapterScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
 import { ChapterInferenceScreen } from './screens/ChapterInferenceScreen'
+import { CrewDetectionScreen } from './screens/CrewDetectionScreen'
 
 // ─── Nav state ────────────────────────────────────────────────────────────────
 
@@ -13,6 +14,7 @@ type Nav =
   | { screen: 'welcome' }
   | { screen: 'whatsapp-connect' }
   | { screen: 'chapter-inference' }
+  | { screen: 'crew-detection' }
   | { screen: 'garden' }
   | { screen: 'chapter'; chapterId: string }
   | { screen: 'brief'; contactId: string }
@@ -272,6 +274,14 @@ export default function App() {
     case 'chapter-inference':
       return (
         <ChapterInferenceScreen
+          onComplete={() => setNav({ screen: 'crew-detection' })}
+          onSkip={goSkip}
+        />
+      )
+
+    case 'crew-detection':
+      return (
+        <CrewDetectionScreen
           onComplete={goGarden}
           onSkip={goSkip}
         />
