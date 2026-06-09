@@ -84,8 +84,10 @@ body {
 /* Hero */
 .hero {
   max-width: 1080px; margin: 0 auto;
-  padding: 100px 44px 72px; text-align: center;
+  padding: 100px 44px 72px;
+  display: flex; align-items: center; gap: 80px;
 }
+.hero-text { flex: 1; }
 .eyebrow {
   font-family: var(--sans); font-size: 11px; letter-spacing: .13em;
   text-transform: uppercase; color: var(--terracotta); font-weight: 600;
@@ -94,15 +96,25 @@ body {
 .hero h1 {
   font-family: var(--serif); font-size: 40px; font-weight: 600;
   color: var(--ink); letter-spacing: -.02em; line-height: 1.3;
-  max-width: 920px; margin: 0 auto 22px;
-  white-space: nowrap;
+  margin-bottom: 22px; white-space: nowrap;
 }
 .hero-sub {
   font-family: var(--sans); font-size: 18px; color: var(--ink-mid);
-  line-height: 1.65; max-width: 520px; margin: 0 auto 44px;
+  line-height: 1.65; max-width: 480px; margin-bottom: 44px;
   text-wrap: pretty;
 }
-.ctas { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 68px; }
+.ctas { display: flex; align-items: center; gap: 14px; }
+.hero-polaroid {
+  flex: none; width: 230px;
+  background: #fff;
+  padding: 11px 11px 38px;
+  box-shadow: 0 8px 24px rgba(42,31,27,.20), 0 2px 6px rgba(42,31,27,.10);
+  transform: rotate(3deg);
+}
+.hero-polaroid img {
+  display: block; width: 100%; height: 200px; object-fit: cover;
+  filter: sepia(30%) saturate(70%) brightness(1.04) contrast(0.93);
+}
 
 /* Mac window shell */
 .mac-win {
@@ -404,13 +416,17 @@ body {
 
 <!-- 2. HERO -->
 <section class="hero">
-  <div class="eyebrow">Free beta · Mac only</div>
-  <h1>An old photo.<br>A name you haven't thought about in a year.<br>The quiet wonder: what are they up to now?</h1>
-  <p class="hero-sub">Loop maps the people from every chapter of your life and keeps you close to them, without the mental load of remembering to reach out.</p>
-  <div class="ctas">
-    <a href="#waitlist" class="btn-primary">Join the waitlist</a>
+  <div class="hero-text">
+    <div class="eyebrow">Free beta · Mac only</div>
+    <h1>An old photo.<br>A name you haven't thought about in a year.<br>The quiet wonder: what are they up to now?</h1>
+    <p class="hero-sub">Loop maps the people from every chapter of your life and keeps you close to them, without the mental load of remembering to reach out.</p>
+    <div class="ctas">
+      <a href="#waitlist" class="btn-primary">Join the waitlist</a>
+    </div>
   </div>
-
+  <div class="hero-polaroid">
+    <img src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=500&q=80" alt="" />
+  </div>
 </section>
 
 
