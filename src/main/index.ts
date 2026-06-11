@@ -19,6 +19,11 @@ function getWindow(): BrowserWindow | null {
 }
 
 async function createWindow(): Promise<void> {
+  const icon = join(__dirname, '../../resources/icon.icns')
+  if (process.platform === 'darwin' && is.dev) {
+    app.dock.setIcon(icon)
+  }
+
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -28,6 +33,7 @@ async function createWindow(): Promise<void> {
     titleBarStyle: 'hiddenInset',
     backgroundColor: '#F9F5EE',
     title: 'Loop',
+    icon,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
