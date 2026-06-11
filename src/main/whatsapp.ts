@@ -64,6 +64,7 @@ class WhatsAppManager extends EventEmitter {
           creds: state.creds,
           keys: makeCacheableSignalKeyStore(state.keys, console),
         },
+        browser: ['Loop', 'Desktop', '3.0.0'],
         printQRInTerminal: false,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         logger: (await import('pino') as any).default({ level: 'silent' }),
