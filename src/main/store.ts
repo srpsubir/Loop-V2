@@ -12,7 +12,13 @@ const DEFAULT_STATE: AppState = {
   whatsappConnected: false,
   lastScanAt: null,
   scanCooldownHours: 4,
+  scanDay: 6,
+  notificationsEnabled: true,
   chapters: [],
+  detectedChapters: [],
+  pendingChapters: [],
+  chapterDetectionComplete: false,
+  onThisDayMemory: null,
   contacts: {},
 }
 

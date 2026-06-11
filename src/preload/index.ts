@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppState, Contact, Brief } from '../shared/types'
+import type { AppState, Contact, Brief, ChapterCandidate } from '../shared/types'
 
 const loopAPI = {
   state: {
@@ -78,6 +78,22 @@ const loopAPI = {
       reasonToReachOut: string
       contextLine?: string
     }): Promise<void> => ipcRenderer.invoke('calendar:addEvent', payload),
+  },
+
+  chapters: {
+    detect: (): Promise<ChapterCandidate[]> => ipcRenderer.invoke('chapters:detect'),
+    confirm: (jids: string[]): Promise<void> => ipcRenderer.invoke('chapters:confirm', jids),
+  },
+
+  analytics: {
+    track: (event: string, properties?: Record<string, unknown>): void => {
+      ipcRenderer.invoke('analytics:track', event, properties)
+    },
+  },
+
+  data: {
+    getDir: (): Promise<string> => ipcRenderer.invoke('data:getDir'),
+    deleteAll: (): Promise<void> => ipcRenderer.invoke('data:deleteAll'),
   },
 }
 

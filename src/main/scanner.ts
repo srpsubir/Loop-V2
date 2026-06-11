@@ -2,7 +2,8 @@ import { BrowserWindow, ipcMain } from 'electron'
 import { listContacts, readState, patchState } from './store'
 import ClaudeClient from './claude'
 import WhatsAppManager from './whatsapp'
-import type { Contact, ContactState, Occasion, Brief, Chapter } from '../shared/types'
+import { track } from './analytics'
+import type { Contact, ContactState, Occasion, Brief, Chapter, OnThisDayMemory } from '../shared/types'
 import type { WAMessage } from './whatsapp'
 
 // ─── Message filters ──────────────────────────────────────────────────────────
@@ -141,6 +142,33 @@ reasonToReachOut: why NOW is a good time — reference time elapsed or something
   }
 }
 
+// ─── On This Day ─────────────────────────────────────────────────────────────
+
+function isAnniversaryWindow(msgDate: Date, today: Date): boolean {
+  // Compare month/day position independent of year, within ±7 days
+  const sameYear = new Date(msgDate.getFullYear(), today.getMonth(), today.getDate())
+  return Math.abs(msgDate.getTime() - sameYear.getTime()) / 86400000 <= 7
+}
+
+async function generateOnThisDaySnippet(
+  contact: Contact,
+  msg: WAMessage,
+  yearsAgo: number
+): Promise<string> {
+  const firstName = contact.name.split(' ')[0]
+  const text = (msg.text ?? '').slice(0, 300)
+  const system = 'You are Loop — a warm personal memory assistant. Be brief and human.'
+  const user = `${yearsAgo} year${yearsAgo === 1 ? '' : 's'} ago today, ${firstName} sent: "${text}"
+
+Write ONE warm sentence (under 20 words) evoking this moment. No output quotes. Past tense.`
+  try {
+    const raw = await ClaudeClient.getInstance().ask(system, user)
+    return raw.trim().replace(/^["']|["']$/g, '').slice(0, 120)
+  } catch {
+    return `A moment from ${yearsAgo} year${yearsAgo === 1 ? '' : 's'} ago today.`
+  }
+}
+
 // ─── Scanner singleton ────────────────────────────────────────────────────────
 
 class Scanner {
@@ -172,7 +200,9 @@ class Scanner {
       const [contacts, state] = await Promise.all([listContacts(), readState()])
       const wa = WhatsAppManager.getInstance()
       const now = new Date().toISOString()
+      const today = new Date()
       const updatedContacts = { ...state.contacts }
+      let onThisDayMemory: OnThisDayMemory | null = null
 
       for (let i = 0; i < contacts.length; i++) {
         const contact = contacts[i]
@@ -198,6 +228,10 @@ class Scanner {
         const nextOccasion = computeNextOccasion(contact, lastContactDate)
         const brief = await generateBrief(contact, messages, state.chapters)
 
+        if (nextOccasion) {
+          track('suggestion_shown', { suggestion_type: nextOccasion.type })
+        }
+
         updatedContacts[contact.id] = {
           lastContactDate,
           lastScanAt: now,
@@ -205,9 +239,29 @@ class Scanner {
           nextOccasion,
           briefOpenedAt: reachOutDate ? null : (prevState?.briefOpenedAt ?? null),
         }
+
+        // On This Day: check messages for anniversary match (±7 days, 1-5 years ago)
+        if (!onThisDayMemory) {
+          for (const msg of messages) {
+            if (!isRealMessage(msg)) continue
+            const msgDate = new Date(msg.timestamp * 1000)
+            const yearsAgo = today.getFullYear() - msgDate.getFullYear()
+            if (yearsAgo < 1 || yearsAgo > 5) continue
+            if (!isAnniversaryWindow(msgDate, today)) continue
+            const snippet = await generateOnThisDaySnippet(contact, msg, yearsAgo)
+            onThisDayMemory = {
+              contactId: contact.id,
+              contactName: contact.name,
+              snippet,
+              yearsAgo,
+              date: msgDate.toISOString(),
+            }
+            break
+          }
+        }
       }
 
-      await patchState({ contacts: updatedContacts, lastScanAt: now })
+      await patchState({ contacts: updatedContacts, lastScanAt: now, onThisDayMemory })
       this.send('scan:complete')
       this.send('state:changed')
       console.log(`[Scanner] Complete — ${contacts.length} contacts scanned`)
@@ -219,13 +273,16 @@ class Scanner {
   }
 
   async maybeRunOnLaunch(): Promise<void> {
+    // Wait for WhatsApp to connect before scanning
+    await new Promise<void>((resolve) => setTimeout(resolve, 30_000))
+
     const state = await readState()
     if (!state.onboardingComplete || !state.whatsappConnected) return
 
-    const cooldownMs = state.scanCooldownHours * 3_600_000
     const lastRun = state.lastScanAt ? new Date(state.lastScanAt).getTime() : 0
+    const ONE_HOUR_MS = 3_600_000
 
-    if (Date.now() - lastRun > cooldownMs) {
+    if (Date.now() - lastRun > ONE_HOUR_MS) {
       console.log('[Scanner] Triggering launch scan')
       this.run().catch(console.error)
     }

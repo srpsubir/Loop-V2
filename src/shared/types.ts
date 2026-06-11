@@ -10,6 +10,30 @@ export interface Chapter {
   coverPhotoPath?: string       // user-selected photo for chapter card
 }
 
+// ─── Chapter candidate (from WhatsApp group scoring) ─────────────────────────
+
+export interface ChapterCandidate {
+  waJid: string                 // WhatsApp group JID (ends in @g.us)
+  name: string
+  memberCount: number
+  memberJids: string[]          // up to 4 JIDs for avatar display
+  lastMessageAt: number         // unix seconds
+  score: number                 // 0-100 computed score
+  active: boolean               // inferred: last message < 90 days
+  inferredStartYear?: number
+  inferredEndYear?: number
+}
+
+// ─── On This Day memory ───────────────────────────────────────────────────────
+
+export interface OnThisDayMemory {
+  contactId: string
+  contactName: string
+  snippet: string               // Claude-generated warm one-liner
+  yearsAgo: number
+  date: string                  // ISO date of the original message
+}
+
 // ─── Contact ─────────────────────────────────────────────────────────────────
 
 export type WarmthTier = 'close' | 'warm'
@@ -59,7 +83,13 @@ export interface AppState {
   whatsappConnected: boolean
   lastScanAt: string | null
   scanCooldownHours: number       // default 4
+  scanDay: number                 // 0=Sun … 6=Sat, default 6 (Saturday)
+  notificationsEnabled: boolean   // default true
   chapters: Chapter[]
+  detectedChapters: ChapterCandidate[]    // top-5 from scoring, awaiting user review
+  pendingChapters: ChapterCandidate[]     // rest, stored for later surfacing
+  chapterDetectionComplete: boolean       // user has reviewed and confirmed
+  onThisDayMemory?: OnThisDayMemory | null
   contacts: Record<string, ContactState>  // keyed by contactId
 }
 

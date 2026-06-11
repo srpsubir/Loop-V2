@@ -3,6 +3,9 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerAllHandlers } from './ipc'
 import Scanner from './scanner'
+import { initAnalytics, track, shutdownAnalytics } from './analytics'
+
+initAnalytics()
 
 // Allow loop-file:// to serve local filesystem paths for photos
 protocol.registerSchemesAsPrivileged([
@@ -58,6 +61,8 @@ app.whenReady().then(async () => {
   electronApp.setAppUserModelId('com.loop.app')
   app.setName('Loop')
 
+  track('app_opened', { version: app.getVersion(), platform: process.platform })
+
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
@@ -72,6 +77,10 @@ app.whenReady().then(async () => {
   app.on('activate', async () => {
     if (BrowserWindow.getAllWindows().length === 0) await createWindow()
   })
+})
+
+app.on('before-quit', () => {
+  shutdownAnalytics().catch(console.error)
 })
 
 app.on('window-all-closed', () => {

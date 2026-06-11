@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { Gift, Plus, Settings, RefreshCw, Send } from 'lucide-react'
-import { Avatar, Button, IconButton, PaperCard, PersonRow, Tag } from '../components'
+import { Avatar, Button, IconButton, PaperCard, PersonRow } from '../components'
+import { OnThisDay } from '../components/OnThisDay'
 import type { AppState, Contact, Chapter, ContactState } from '@shared/types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -312,7 +313,7 @@ function ScanBanner({ onScan, scanning }: { onScan: () => void; scanning: boolea
       }}
     >
       <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--positive)' }}>
-        {scanning ? 'Scanning your people…' : 'Connect WhatsApp to start building your garden.'}
+        {scanning ? 'Scanning your people…' : 'Connect WhatsApp to discover your people.'}
       </span>
       {!scanning && (
         <Button variant="secondary" size="sm" iconLeft={<RefreshCw size={13} strokeWidth={1.8} />} onClick={onScan}>
@@ -329,7 +330,7 @@ function EmptyOnYourMind() {
   return (
     <PaperCard raised style={{ textAlign: 'center', padding: '32px 24px' }}>
       <div style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--text-secondary)', fontStyle: 'italic', marginBottom: 6 }}>
-        Your garden is quiet.
+        Your people are quiet.
       </div>
       <div style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)' }}>
         Run a scan once WhatsApp is connected to see who's on your mind.
@@ -354,7 +355,7 @@ export function GardenScreen({ onOpenChapter, onOpenBrief, onOpenSettings }: Gar
     totalPeople === 0
       ? 'No people yet. Connect WhatsApp to discover your crews.'
       : totalChapters === 0
-        ? `${totalPeople} ${totalPeople === 1 ? 'person' : 'people'} in your garden.`
+        ? `${totalPeople} ${totalPeople === 1 ? 'person' : 'people'}.`
         : hero
           ? `${totalPeople} ${totalPeople === 1 ? 'person' : 'people'} across ${totalChapters} ${totalChapters === 1 ? 'chapter' : 'chapters'}. ${hero.contact.name.split(' ')[0]} has ${hero.reason.toLowerCase()}.`
           : `${totalPeople} ${totalPeople === 1 ? 'person' : 'people'} across ${totalChapters} ${totalChapters === 1 ? 'chapter' : 'chapters'}.`
@@ -420,6 +421,26 @@ export function GardenScreen({ onOpenChapter, onOpenBrief, onOpenSettings }: Gar
         {/* Scan banner if not connected */}
         {state && !state.whatsappConnected && (
           <ScanBanner onScan={handleScan} scanning={scanning} />
+        )}
+
+        {/* On This Day memory card */}
+        {state?.onThisDayMemory && (
+          <div style={{ marginBottom: 40 }}>
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 20 }}>
+              On This Day
+            </div>
+            <OnThisDay
+              yearsAgo={state.onThisDayMemory.yearsAgo}
+              weekLabel={(() => {
+                const d = new Date(state.onThisDayMemory!.date)
+                const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+                return `Week of ${d.getDate()} ${months[d.getMonth()]}`
+              })()}
+              flavourText={state.onThisDayMemory.snippet}
+              person={{ id: state.onThisDayMemory.contactId, name: state.onThisDayMemory.contactName }}
+              rotation={-1.5}
+            />
+          </div>
         )}
 
         {/* On your mind */}

@@ -146,6 +146,35 @@ class WhatsAppManager extends EventEmitter {
     }
   }
 
+  async listGroupsWithMeta(): Promise<{ id: string; name: string; members: string[]; lastMessageAt: number }[]> {
+    if (!this.socket) return []
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sock = this.socket as any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const allChats: any[] = sock.chats?.all?.() ?? []
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const groups = allChats.filter((c: any) => c.id?.endsWith('@g.us'))
+
+      const results = []
+      for (const group of groups.slice(0, 200)) {
+        let members: string[] = []
+        try {
+          const meta = await sock.groupMetadata(group.id)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          members = (meta?.participants ?? []).map((p: any) => p.id as string)
+        } catch { /* skip */ }
+        const lastMessageAt = Number(group.conversationTimestamp ?? group.lastMessageTimestamp ?? 0)
+        if (group.name && group.name !== group.id) {
+          results.push({ id: group.id, name: group.name, members, lastMessageAt })
+        }
+      }
+      return results
+    } catch {
+      return []
+    }
+  }
+
   async listGroups(): Promise<{ id: string; name: string; members: string[] }[]> {
     if (!this.socket) return []
     try {
