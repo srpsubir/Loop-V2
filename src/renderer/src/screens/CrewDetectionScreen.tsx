@@ -384,7 +384,7 @@ export function CrewDetectionScreen({ onComplete, onSkip }: CrewDetectionScreenP
           fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--text-secondary)',
           lineHeight: 1.65, marginBottom: 40, maxWidth: 400,
         }}>
-          Loop can scan your WhatsApp groups and pull in your people —
+          Loop can scan your WhatsApp groups and pull in your people,
           sorted by chapter, ready to tend to.
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 12 }}>

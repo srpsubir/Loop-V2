@@ -168,7 +168,7 @@ function ConfirmDialog({ open, onClose, onConfirm }: { open: boolean; onClose: (
         </div>
         <div style={{ fontFamily: 'var(--font-serif)', fontSize: 22, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.01em', lineHeight: 1.25 }}>Delete everything?</div>
         <div style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.55, marginTop: 8 }}>
-          This clears every person, chapter, and memory Loop holds — it can't be undone. Your actual conversations aren't touched.
+          This clears every person, chapter, and memory Loop holds. It can't be undone. Your actual conversations aren't touched.
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 24 }}>
           <Btn variant="ghost" onClick={onClose}>Keep everything</Btn>
@@ -323,7 +323,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
       setToast({ message: 'Disconnected. Loop keeps what it already remembers.', tone: 'neutral' })
     } else {
       await window.loop.whatsapp.start().catch(() => {})
-      setToast({ message: 'Connecting — scan your phone to link WhatsApp.', tone: 'neutral' })
+      setToast({ message: 'Connecting. Scan your phone to link WhatsApp.', tone: 'neutral' })
     }
   }
 
@@ -395,7 +395,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
                 <div style={{ fontFamily: 'var(--font-sans)', fontSize: 15, fontWeight: 500, color: 'var(--text-primary)' }}>WhatsApp</div>
                 <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.5, color: connected ? 'var(--positive)' : 'var(--text-muted)', marginTop: 3 }}>
                   {connected
-                    ? `Connected — Loop reads on ${dayName}s, never in between.`
+                    ? `Connected. Loop reads on ${dayName}s, never in between.`
                     : 'Not connected. Loop can only remember what it can see.'}
                 </div>
               </div>
@@ -407,7 +407,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
 
           <Section
             label="People"
-            footnote="Removing someone only removes them from Loop — your actual conversations are never touched."
+            footnote="Removing someone only removes them from Loop. Your actual conversations are never touched."
           >
             {contacts.map((contact, i) => (
               <div key={contact.id} style={{ borderTop: i === 0 ? 'none' : '1px solid var(--border-light)' }}>
@@ -455,7 +455,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
             />
             <Row
               divider title="Delete all data"
-              sub="Every chapter, crew, and memory — gone for good."
+              sub="Every chapter, crew, and memory. Gone for good."
               control={
                 <Btn variant="secondary" size="sm" onClick={() => setConfirmOpen(true)}>
                   Delete all data

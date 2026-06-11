@@ -525,7 +525,7 @@ export function GardenScreen({ onOpenChapter, onOpenBrief, onOpenSettings }: Gar
             </div>
             <PaperCard style={{ textAlign: 'center', padding: '32px 24px' }}>
               <div style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)' }}>
-                Chapters organise your people by the periods of your life — London years, Edinburgh, home. Add one to get started.
+                Chapters organise your people by the periods of your life: London years, Edinburgh, home. Add one to get started.
               </div>
             </PaperCard>
           </div>
