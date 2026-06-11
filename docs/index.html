@@ -396,6 +396,84 @@ body {
   text-decoration: none; transition: color 200ms var(--ease);
 }
 .footer-right a:hover { color: var(--terracotta); }
+
+/* ── Mobile ────────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Nav */
+  .nav-inner { padding: 0 20px; height: 60px; }
+  .btn-ghost { padding: 7px 14px; font-size: 13px; }
+
+  /* Hero */
+  .hero {
+    flex-direction: column-reverse; gap: 36px;
+    padding: 48px 20px 40px;
+    align-items: flex-start;
+  }
+  .hero h1 {
+    font-size: 26px; line-height: 1.35;
+    white-space: normal;
+    margin-bottom: 16px;
+  }
+  .hero-sub { font-size: 16px; margin-bottom: 28px; max-width: 100%; }
+  .hero-polaroid { width: 160px; align-self: center; }
+
+  /* Chapters + problem */
+  .chapters-problem { padding: 60px 0 48px; }
+  .chapters-intro { padding: 0 20px 36px; }
+  .chapters-headline { font-size: 28px; }
+  .chapters-sub { font-size: 15px; }
+  .problem-inner {
+    grid-template-columns: 1fr; gap: 32px;
+    padding: 36px 20px 0;
+  }
+  .problem-col h3 { font-size: 22px; }
+
+  /* Memory strip */
+  .strip-track { padding: 0 20px; }
+
+  /* Solution */
+  .solution-mock { padding: 0 20px 52px; }
+  .solution-label { padding: 36px 0 20px; font-size: 16px; }
+  .mac-bar { gap: 8px; }
+  .bar-search { max-width: 160px; }
+
+  /* How it works */
+  .how { padding: 52px 20px 64px; }
+  .how-label { margin-bottom: 40px; }
+  .how-steps { grid-template-columns: 1fr; gap: 40px; }
+
+  /* Brief section */
+  .brief-section { padding: 60px 20px; }
+  .brief-inner {
+    grid-template-columns: 1fr; gap: 40px;
+  }
+  .brief-inner > figure { order: 2; }
+  .brief-inner > .brief-copy { order: 1; }
+  .brief-headline { font-size: 24px; }
+  .brief-body { font-size: 15px; }
+
+  /* Privacy */
+  .privacy { padding: 60px 20px; }
+  .privacy h2 { font-size: 24px; }
+
+  /* Waitlist */
+  .waitlist { padding: 64px 20px; }
+  .waitlist h2 { font-size: 26px; }
+  .waitlist p { font-size: 15px; margin-bottom: 28px; }
+  .waitlist-form { flex-direction: column; align-items: stretch; gap: 12px; }
+  .waitlist-input { width: 100%; }
+  .waitlist .btn-primary { width: 100%; text-align: center; padding: 14px 20px; }
+
+  /* Footer */
+  .footer { padding: 24px 20px; }
+  .footer-inner { flex-direction: column; gap: 6px; text-align: center; }
+}
+
+@media (max-width: 480px) {
+  .hero h1 { font-size: 22px; }
+  .chapters-headline { font-size: 24px; }
+  .hero-polaroid { display: none; }
+}
 </style>
 </head>
 <body>
