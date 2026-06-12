@@ -19,10 +19,6 @@ function getWindow(): BrowserWindow | null {
 }
 
 async function createWindow(): Promise<void> {
-  if (process.platform === 'darwin' && is.dev) {
-    app.dock.setIcon(join(__dirname, '../../resources/icon.png'))
-  }
-
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -56,6 +52,10 @@ async function createWindow(): Promise<void> {
 }
 
 app.whenReady().then(async () => {
+  if (process.platform === 'darwin' && is.dev) {
+    app.dock.setIcon(join(__dirname, '../../resources/icon.png'))
+  }
+
   // Serve local files (photos) via loop-file:// protocol
   protocol.handle('loop-file', (request) => {
     const path = decodeURIComponent(request.url.slice('loop-file://'.length))
