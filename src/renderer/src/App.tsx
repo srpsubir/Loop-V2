@@ -22,7 +22,7 @@ type Nav =
 
 // ─── Welcome screen ───────────────────────────────────────────────────────────
 
-function WelcomeScreen({ onConnect, onSkip }: { onConnect: () => void; onSkip: () => void }) {
+function WelcomeScreen({ onConnect }: { onConnect: () => void }) {
   return (
     <div
       style={{
@@ -61,22 +61,8 @@ function WelcomeScreen({ onConnect, onSkip }: { onConnect: () => void; onSkip: (
       >
         The people who matter, never forgotten.
       </p>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, marginTop: 'var(--space-3)' }}>
+      <div style={{ marginTop: 'var(--space-3)' }}>
         <Button onClick={onConnect}>Connect WhatsApp</Button>
-        <button
-          type="button"
-          onClick={onSkip}
-          style={{
-            background: 'none',
-            border: 'none',
-            fontFamily: 'var(--font-sans)',
-            fontSize: 12,
-            color: 'var(--text-muted)',
-            cursor: 'pointer',
-          }}
-        >
-          Skip for now
-        </button>
       </div>
     </div>
   )
@@ -84,7 +70,7 @@ function WelcomeScreen({ onConnect, onSkip }: { onConnect: () => void; onSkip: (
 
 // ─── WhatsApp connect screen ──────────────────────────────────────────────────
 
-function WhatsAppConnectScreen({ onConnected, onSkip }: { onConnected: () => void; onSkip: () => void }) {
+function WhatsAppConnectScreen({ onConnected }: { onConnected: () => void }) {
   const [status, setStatus] = useState<string>('idle')
   const [qr, setQr] = useState<string | null>(null)
 
@@ -201,21 +187,6 @@ function WhatsAppConnectScreen({ onConnected, onSkip }: { onConnected: () => voi
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={onSkip}
-        style={{
-          background: 'none',
-          border: 'none',
-          fontFamily: 'var(--font-sans)',
-          fontSize: 12,
-          color: 'var(--text-muted)',
-          cursor: 'pointer',
-          marginTop: 8,
-        }}
-      >
-        Skip for now
-      </button>
     </div>
   )
 }
@@ -254,7 +225,6 @@ export default function App() {
       return (
         <WelcomeScreen
           onConnect={() => setNav({ screen: 'whatsapp-connect' })}
-          onSkip={() => setNav({ screen: 'chapter-inference' })}
         />
       )
 
@@ -267,7 +237,6 @@ export default function App() {
             } catch { /* pass */ }
             setNav({ screen: 'chapter-inference' })
           }}
-          onSkip={() => setNav({ screen: 'chapter-inference' })}
         />
       )
 
