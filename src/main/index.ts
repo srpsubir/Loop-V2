@@ -7,6 +7,11 @@ import { initAnalytics, track, shutdownAnalytics } from './analytics'
 
 initAnalytics()
 
+// Set dock icon immediately — before app.whenReady() to avoid Electron icon flash
+if (process.platform === 'darwin' && is.dev) {
+  app.dock.setIcon(join(__dirname, '../../resources/icon.png'))
+}
+
 // Allow loop-file:// to serve local filesystem paths for photos
 protocol.registerSchemesAsPrivileged([
   { scheme: 'loop-file', privileges: { standard: true, secure: true, supportFetchAPI: true, bypassCSP: true } },
@@ -52,10 +57,6 @@ async function createWindow(): Promise<void> {
 }
 
 app.whenReady().then(async () => {
-  if (process.platform === 'darwin' && is.dev) {
-    app.dock.setIcon(join(__dirname, '../../resources/icon.png'))
-  }
-
   // Serve local files (photos) via loop-file:// protocol
   protocol.handle('loop-file', (request) => {
     const path = decodeURIComponent(request.url.slice('loop-file://'.length))
