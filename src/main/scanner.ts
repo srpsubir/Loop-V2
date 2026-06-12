@@ -12,7 +12,9 @@ export function isRealMessage(msg: WAMessage): boolean {
   if (!msg.text) return false
   const text = msg.text.trim()
   if (text.length <= 2) return false
-  if (/^\p{Emoji}+$/u.test(text)) return false
+  // Strip variation selectors, ZWJ, and keycap combiners before emoji check
+  const stripped = text.replace(/[\u{FE0F}\u{20E3}\u{200D}]/gu, '')
+  if (/^\p{Emoji}+$/u.test(stripped)) return false
   if (['[Voice Note]', '[Sticker]', '[Image]', '[Video]'].includes(text)) return false
   return true
 }
@@ -29,9 +31,10 @@ export function computeNextOccasion(
   // Birthday
   if (contact.birthday) {
     const { month, day } = contact.birthday
+    const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate())
     let bd = new Date(today.getFullYear(), month - 1, day)
-    if (bd < today) bd = new Date(today.getFullYear() + 1, month - 1, day)
-    const daysUntil = Math.ceil((bd.getTime() - today.getTime()) / 86400000)
+    if (bd < todayMidnight) bd = new Date(today.getFullYear() + 1, month - 1, day)
+    const daysUntil = Math.round((bd.getTime() - todayMidnight.getTime()) / 86400000)
     if (daysUntil <= 30) {
       candidates.push({
         urgency: 1000 - daysUntil,
