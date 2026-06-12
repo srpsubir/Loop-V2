@@ -111,12 +111,12 @@ async function generateBrief(
     .map((m) => `${m.fromMe ? 'You' : contact.name.split(' ')[0]}: ${(m.text ?? '').slice(0, 200)}`)
     .join('\n')
 
-  const system = `You are Loop — a warm personal memory assistant. You write like a thoughtful friend, not an app. Be specific and human.`
+  const system = `You are Loop — a warm personal memory assistant. You write like a thoughtful friend, not an app. RULES: Only reference things explicitly present in the messages below. Never invent events, plans, topics, or shared history that are not in the messages. If messages are sparse or absent, write only in warm generalities — no invented specifics.`
 
   const user = `${contact.name} is someone the user cares about. Life chapters shared: ${chapterNames || 'unknown'}.
 
 Recent messages (newest first):
-${recentMessages || '(no recent messages available)'}
+${recentMessages || '(no recent messages)'}
 
 Respond ONLY with valid JSON — no markdown, no extra text:
 {
@@ -124,8 +124,8 @@ Respond ONLY with valid JSON — no markdown, no extra text:
   "reasonToReachOut": "one sentence"
 }
 
-contextLines: 2 warm sentences about this relationship. Use specific details from messages if available. Otherwise write something human and warm about staying close.
-reasonToReachOut: why NOW is a good time — reference time elapsed or something from the conversation.`
+contextLines: 2 warm sentences about this relationship. Ground every specific claim in the messages above. If messages are absent or thin, write warm but generic — do not invent.
+reasonToReachOut: one sentence on why now is a good time to reach out. Reference time elapsed or something concrete from the messages — do not fabricate.`
 
   try {
     const raw = await ClaudeClient.getInstance().ask(system, user)
@@ -229,7 +229,18 @@ class Scanner {
           (lastReal ? new Date(lastReal.timestamp * 1000).toISOString() : prevState?.lastContactDate ?? null)
 
         const nextOccasion = computeNextOccasion(contact, lastContactDate)
-        const brief = await generateBrief(contact, messages, state.chapters)
+
+        // Only regenerate brief if there are new messages since the last one
+        const existingBrief = prevState?.brief ?? null
+        const newestMsgAt = messages.find(isRealMessage)?.timestamp ?? 0
+        const briefAge = existingBrief?.generatedAt
+          ? (Date.now() - new Date(existingBrief.generatedAt).getTime()) / 3_600_000
+          : Infinity
+        const hasNewMessages = newestMsgAt > 0 &&
+          (!existingBrief || newestMsgAt * 1000 > new Date(existingBrief.generatedAt).getTime())
+        const brief = (hasNewMessages || briefAge > 168)
+          ? await generateBrief(contact, messages, state.chapters)
+          : existingBrief
 
         if (nextOccasion) {
           track('suggestion_shown', { suggestion_type: nextOccasion.type })
