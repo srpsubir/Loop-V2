@@ -85,8 +85,7 @@ function WhatsAppConnectScreen({ onConnected }: { onConnected: () => void }) {
   }, [])
 
   useEffect(() => {
-    startConnect()
-
+    // Register listeners BEFORE calling start() to avoid missing fast silent reconnects
     const offQR = window.loop.whatsapp.onQR((q) => {
       setQr(q)
       setStatus('qr')
@@ -95,6 +94,19 @@ function WhatsAppConnectScreen({ onConnected }: { onConnected: () => void }) {
       setStatus('connected')
       setTimeout(onConnected, 800)
     })
+
+    const run = async () => {
+      await startConnect()
+      // After start() returns, check status in case connected event already fired
+      try {
+        const { status: s } = await window.loop.whatsapp.status()
+        if (s === 'connected') {
+          setStatus('connected')
+          setTimeout(onConnected, 800)
+        }
+      } catch { /* ignore */ }
+    }
+    run()
 
     return () => {
       offQR()
@@ -181,9 +193,15 @@ function WhatsAppConnectScreen({ onConnected }: { onConnected: () => void }) {
       {status === 'error' && (
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--accent)', marginBottom: 12 }}>
-            Could not start WhatsApp. Is the app running?
+            Could not connect to WhatsApp.
           </div>
-          <Button variant="secondary" onClick={startConnect}>Try again</Button>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+            <Button variant="secondary" onClick={startConnect}>Try again</Button>
+            <Button variant="secondary" onClick={async () => {
+              await window.loop.whatsapp.disconnect()
+              startConnect()
+            }}>Reset and scan QR</Button>
+          </div>
         </div>
       )}
 
