@@ -85,25 +85,31 @@ function WhatsAppConnectScreen({ onConnected }: { onConnected: () => void }) {
   }, [])
 
   useEffect(() => {
+    let proceeded = false
+    const proceed = () => {
+      if (proceeded) return
+      proceeded = true
+      setStatus('connected')
+      setTimeout(onConnected, 800)
+    }
+
     // Register listeners BEFORE calling start() to avoid missing fast silent reconnects
     const offQR = window.loop.whatsapp.onQR((q) => {
       setQr(q)
       setStatus('qr')
     })
-    const offConnected = window.loop.whatsapp.onConnected(() => {
-      setStatus('connected')
-      setTimeout(onConnected, 800)
+    const offConnected = window.loop.whatsapp.onConnected(proceed)
+    const offDisconnected = window.loop.whatsapp.onDisconnected((loggedOut) => {
+      // Only show error if we're not already connected/proceeding
+      if (!proceeded) setStatus(loggedOut ? 'logged-out' : 'error')
     })
 
     const run = async () => {
       await startConnect()
-      // After start() returns, check status in case connected event already fired
+      // Poll status after start() resolves in case connected event already fired
       try {
         const { status: s } = await window.loop.whatsapp.status()
-        if (s === 'connected') {
-          setStatus('connected')
-          setTimeout(onConnected, 800)
-        }
+        if (s === 'connected') proceed()
       } catch { /* ignore */ }
     }
     run()
@@ -111,6 +117,7 @@ function WhatsAppConnectScreen({ onConnected }: { onConnected: () => void }) {
     return () => {
       offQR()
       offConnected()
+      offDisconnected()
     }
   }, [startConnect, onConnected])
 
@@ -190,17 +197,21 @@ function WhatsAppConnectScreen({ onConnected }: { onConnected: () => void }) {
         </div>
       )}
 
-      {status === 'error' && (
+      {(status === 'error' || status === 'logged-out') && (
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--accent)', marginBottom: 12 }}>
-            Could not connect to WhatsApp.
+            {status === 'logged-out'
+              ? 'WhatsApp session expired. Scan to reconnect.'
+              : 'Could not connect to WhatsApp.'}
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-            <Button variant="secondary" onClick={startConnect}>Try again</Button>
             <Button variant="secondary" onClick={async () => {
               await window.loop.whatsapp.disconnect()
               startConnect()
-            }}>Reset and scan QR</Button>
+            }}>Scan QR code</Button>
+            {status === 'error' && (
+              <Button variant="secondary" onClick={startConnect}>Try again</Button>
+            )}
           </div>
         </div>
       )}

@@ -63,6 +63,7 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
   wa.on('disconnected', async ({ statusCode, loggedOut }: { statusCode?: number; loggedOut?: boolean } = {}) => {
     await patchState({ whatsappConnected: false })
     getWindow()?.webContents.send('state:changed')
+    getWindow()?.webContents.send('whatsapp:disconnected', { loggedOut: loggedOut ?? false })
     track('whatsapp_disconnected', { status_code: statusCode, logged_out: loggedOut })
   })
 

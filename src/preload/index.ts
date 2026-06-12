@@ -34,6 +34,12 @@ const loopAPI = {
       ipcRenderer.on('whatsapp:connected', cb)
       return () => ipcRenderer.off('whatsapp:connected', cb)
     },
+    onDisconnected: (cb: (loggedOut: boolean) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, data: { loggedOut: boolean }) =>
+        cb(data?.loggedOut ?? false)
+      ipcRenderer.on('whatsapp:disconnected', handler)
+      return () => ipcRenderer.off('whatsapp:disconnected', handler)
+    },
   },
 
   scan: {
