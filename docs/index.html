@@ -388,12 +388,13 @@ body {
   font-family: var(--sans); font-size: 16px; color: var(--ink-mid);
   line-height: 1.65; margin-bottom: 36px; text-wrap: pretty;
 }
-.waitlist-form { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.waitlist-form { display: flex; flex-direction: column; gap: 10px; align-items: stretch; max-width: 360px; margin: 0 auto; }
+.waitlist-form .btn-primary { width: 100%; text-align: center; }
 .waitlist-input {
   font-family: var(--sans); font-size: 15px; color: var(--ink);
   background: var(--bg); border: 1.5px solid var(--line);
   border-radius: var(--r-full); padding: 13px 22px;
-  outline: none; width: 280px;
+  outline: none; width: 100%;
   transition: border-color 200ms var(--ease);
 }
 .waitlist-input::placeholder { color: var(--ink-muted); }
@@ -480,9 +481,8 @@ body {
   .waitlist { padding: 64px 20px; }
   .waitlist h2 { font-size: 26px; }
   .waitlist p { font-size: 15px; margin-bottom: 28px; }
-  .waitlist-form { flex-direction: column; align-items: stretch; gap: 12px; }
-  .waitlist-input { width: 100%; }
-  .waitlist .btn-primary { width: 100%; text-align: center; padding: 14px 20px; }
+  .waitlist-form { max-width: 100%; }
+  .waitlist .btn-primary { padding: 14px 20px; }
 
   /* Footer */
   .footer { padding: 24px 20px; }
@@ -744,12 +744,13 @@ body {
 <section class="waitlist" id="waitlist">
   <div class="waitlist-inner">
     <h2>Be the first to try Loop.</h2>
-    <p>Private beta, Mac only. Leave your name and we'll reach out directly.</p>
+    <p>Private beta, Mac only. Leave your details and we'll be in touch.</p>
     <form class="waitlist-form" id="waitlist-form">
       <input class="waitlist-input" id="waitlist-name" type="text" placeholder="Your name" required />
+      <input class="waitlist-input" id="waitlist-email" type="email" placeholder="Your email" required />
       <button type="submit" class="btn-primary" id="waitlist-btn">Request access</button>
     </form>
-    <p class="waitlist-note" id="waitlist-note">No emails. We'll find you.</p>
+    <p class="waitlist-note" id="waitlist-note">No spam. Just your invite when it's ready.</p>
   </div>
 </section>
 
@@ -757,13 +758,15 @@ body {
 (function () {
   var form = document.getElementById('waitlist-form');
   var nameInput = document.getElementById('waitlist-name');
+  var emailInput = document.getElementById('waitlist-email');
   var btn = document.getElementById('waitlist-btn');
   var note = document.getElementById('waitlist-note');
 
   form.addEventListener('submit', function (e) {
     e.preventDefault();
     var name = nameInput.value.trim();
-    if (!name) return;
+    var email = emailInput.value.trim();
+    if (!name || !email) return;
 
     btn.disabled = true;
     btn.textContent = 'Done…';
@@ -771,7 +774,7 @@ body {
     fetch('https://srpsubir.app.n8n.cloud/webhook/waitlist', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name, source: 'landing-page' })
+      body: JSON.stringify({ name: name, email: email, source: 'landing-page' })
     })
       .then(function (res) {
         if (res.ok) {
