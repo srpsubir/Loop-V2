@@ -109,6 +109,7 @@ export interface AppState {
   onThisDayMemory?: OnThisDayMemory | null
   contacts: Record<string, ContactState>  // keyed by contactId
   emailCaptured?: boolean                 // true once user submits or skips email capture
+  stayCloseComplete?: boolean             // true once user completes Stay Close onboarding
   inviteCodes?: InviteCode[]              // 3 codes generated on first scan
 }
 
@@ -120,6 +121,7 @@ export type AppScreen =
   | 'chapter-inference'
   | 'chapter-confirm'
   | 'crew-detect'
+  | 'stay-close'
   | 'your-loops'
   | 'chapter'
   | 'your-story'

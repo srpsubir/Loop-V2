@@ -12,6 +12,7 @@ import { ChapterInferenceScreen } from './screens/ChapterInferenceScreen'
 import { CrewDetectionScreen } from './screens/CrewDetectionScreen'
 import { ChapterNamingScreen } from './screens/ChapterNamingScreen'
 import { EmailCaptureScreen } from './screens/EmailCaptureScreen'
+import { StayCloseScreen } from './screens/StayCloseScreen'
 import type { ChapterCandidate } from '@shared/types'
 
 // ─── Nav state ────────────────────────────────────────────────────────────────
@@ -23,6 +24,7 @@ type Nav =
   | { screen: 'crew-detection' }
   | { screen: 'chapter-naming'; candidates: ChapterCandidate[]; index: number }
   | { screen: 'email-capture' }
+  | { screen: 'stay-close' }
   | { screen: 'your-loops' }
   | { screen: 'chapter-detail'; chapterId: string }
   | { screen: 'story'; contactId: string; chapterId: string }
@@ -443,6 +445,13 @@ export default function App() {
   }, [])
 
   const goYourLoops = useCallback(() => setNav({ screen: 'your-loops' }), [])
+  const goStayClose = useCallback(async () => {
+    try {
+      const state = await window.loop.state.get()
+      if (state.stayCloseComplete) { setNav({ screen: 'your-loops' }); return }
+    } catch { /* pass */ }
+    setNav({ screen: 'stay-close' })
+  }, [])
   const goEmailCapture = useCallback(async () => {
     try {
       const state = await window.loop.state.get()
@@ -543,6 +552,13 @@ export default function App() {
     case 'email-capture':
       return (
         <EmailCaptureScreen
+          onDone={goStayClose}
+        />
+      )
+
+    case 'stay-close':
+      return (
+        <StayCloseScreen
           onDone={goYourLoops}
         />
       )
