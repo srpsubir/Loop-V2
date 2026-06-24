@@ -8,6 +8,7 @@ import Scanner, { registerScanHandlers } from './scanner'
 import { registerPhotosHandlers } from './photos'
 import { track } from './analytics'
 import { scoreGroups } from './chapters'
+import { isModelReady, isDownloading, modelExists, downloadModel, initModel } from './inference'
 import type { AppState, Contact, Chapter, InviteCode, Story } from '../shared/types'
 
 export function registerAllHandlers(getWindow: () => BrowserWindow | null): void {
@@ -324,5 +325,27 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
     await shell.openPath(tmpPath)
     // Calendar.app reads the file synchronously on open; clean up after a beat
     setTimeout(() => fs.promises.unlink(tmpPath).catch(() => {}), 3000)
+  })
+
+  // ── On-device model (MAV-78) ──────────────────────────────────────────────
+
+  ipcMain.handle('model:status', () => ({
+    exists: modelExists(),
+    ready:  isModelReady(),
+    downloading: isDownloading(),
+  }))
+
+  ipcMain.handle('model:download', async (): Promise<void> => {
+    const win = getWindow()
+    await downloadModel((downloaded, total) => {
+      win?.webContents.send('model:download-progress', { downloaded, total })
+    })
+    // Auto-load after download
+    try {
+      await initModel()
+      win?.webContents.send('model:ready')
+    } catch (err) {
+      console.error('[IPC] model load after download failed:', err)
+    }
   })
 }

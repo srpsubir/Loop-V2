@@ -111,6 +111,22 @@ const loopAPI = {
     getDir: (): Promise<string> => ipcRenderer.invoke('data:getDir'),
     deleteAll: (): Promise<void> => ipcRenderer.invoke('data:deleteAll'),
   },
+
+  model: {
+    status: (): Promise<{ exists: boolean; ready: boolean; downloading: boolean }> =>
+      ipcRenderer.invoke('model:status'),
+    download: (): Promise<void> => ipcRenderer.invoke('model:download'),
+    onProgress: (cb: (downloaded: number, total: number) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, p: { downloaded: number; total: number }) =>
+        cb(p.downloaded, p.total)
+      ipcRenderer.on('model:download-progress', handler)
+      return () => ipcRenderer.off('model:download-progress', handler)
+    },
+    onReady: (cb: () => void) => {
+      ipcRenderer.on('model:ready', cb)
+      return () => ipcRenderer.off('model:ready', cb)
+    },
+  },
 }
 
 if (process.contextIsolated) {

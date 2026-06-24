@@ -64,6 +64,12 @@ interface LoopAPI {
     getDir: () => Promise<string>
     deleteAll: () => Promise<void>
   }
+  model: {
+    status: () => Promise<{ exists: boolean; ready: boolean; downloading: boolean }>
+    download: () => Promise<void>
+    onProgress: (cb: (downloaded: number, total: number) => void) => () => void
+    onReady: (cb: () => void) => () => void
+  }
 }
 
 declare global {

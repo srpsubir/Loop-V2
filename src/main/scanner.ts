@@ -2,6 +2,7 @@ import { BrowserWindow, ipcMain } from 'electron'
 import { listContacts, readState, patchState } from './store'
 import WhatsAppManager from './whatsapp'
 import { track } from './analytics'
+import { isModelReady, generateStoryWithSLM } from './inference'
 import type { Contact, ContactState, Occasion, Story, Chapter, OnThisDayMemory } from '../shared/types'
 import type { WAMessage } from './whatsapp'
 
@@ -206,6 +207,29 @@ function generateOnThisDaySnippet(
   return `${firstName} sent you this ${yearsAgo} year${yearsAgo === 1 ? '' : 's'} ago today.`
 }
 
+// ─── Story resolver: SLM when ready, template fallback ───────────────────────
+
+async function resolveStory(
+  contact: Contact,
+  messages: WAMessage[],
+  chapters: Chapter[],
+  nextOccasion: Occasion | null,
+  existingStory: Story | null,
+  needsRefresh: boolean
+): Promise<Story> {
+  if (!needsRefresh && existingStory) return existingStory
+
+  if (isModelReady()) {
+    try {
+      return await generateStoryWithSLM(contact, messages, chapters, nextOccasion)
+    } catch {
+      // SLM failed — fall through to template
+    }
+  }
+
+  return generateStory(contact, messages, chapters, nextOccasion)
+}
+
 // ─── Scanner singleton ────────────────────────────────────────────────────────
 
 class Scanner {
@@ -276,7 +300,7 @@ class Scanner {
         const deadThread = birthdayWithin7 ? null : detectDeadThread(messages)
         const nextOccasion: Occasion | null = deadThread ?? baseOccasion
 
-        // Only regenerate brief if there are new messages since the last one
+        // Only regenerate story if there are new messages since the last one
         const existingStory = prevState?.story ?? null
         const newestMsgAt = messages.find(isRealMessage)?.timestamp ?? 0
         const storyAge = existingStory?.generatedAt
@@ -284,9 +308,10 @@ class Scanner {
           : Infinity
         const hasNewMessages = newestMsgAt > 0 &&
           (!existingStory || newestMsgAt * 1000 > new Date(existingStory.generatedAt).getTime())
-        const story = (hasNewMessages || storyAge > 168)
-          ? generateStory(contact, messages, state.chapters, nextOccasion)
-          : existingStory
+        const story = await resolveStory(
+          contact, messages, state.chapters, nextOccasion,
+          existingStory, hasNewMessages || storyAge > 168
+        )
 
         if (nextOccasion) {
           track('suggestion_shown', { suggestion_type: nextOccasion.type })
