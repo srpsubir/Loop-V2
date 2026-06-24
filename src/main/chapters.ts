@@ -19,6 +19,7 @@ export function scoreGroups(groups: GroupMeta[]): {
 
   const scored: ChapterCandidate[] = groups
     .filter((g) => {
+      if (g.id.endsWith('@newsletter')) return false
       if (g.members.length < MIN_MEMBERS) return false
       if (g.members.length > MAX_MEMBERS) return false
       if (!g.name || /^\+?\d[\d\s\-()]+$/.test(g.name.trim())) return false

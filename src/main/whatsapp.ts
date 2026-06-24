@@ -112,7 +112,7 @@ class WhatsAppManager extends EventEmitter {
     } catch (err) {
       console.error('[WhatsApp] Failed to start:', err)
       this.setStatus('disconnected')
-      this.emit('error', err)
+      this.emit('disconnected', { loggedOut: false })
     }
   }
 
@@ -126,6 +126,7 @@ class WhatsAppManager extends EventEmitter {
     }
     this.setStatus('disconnected')
     this.currentQR = null
+    await this.clearAuth()
   }
 
   async clearAuth(): Promise<void> {

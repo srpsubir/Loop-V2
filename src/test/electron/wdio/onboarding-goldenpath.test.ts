@@ -176,8 +176,8 @@ describe('Onboarding golden path (MAV-94)', () => {
   })
 
   it('completing crew detection navigates to Email Capture', async () => {
-    // Step 2 CTA: "Add N people to your garden →" — all members selected by default
-    const addPeopleBtn = await browser.$('button*=to your garden')
+    // Step 2 CTA: "Add N people to Your Loop →" — all members selected by default
+    const addPeopleBtn = await browser.$('button*=to Your Loop')
     await addPeopleBtn.waitForExist({ timeout: 4000 })
     await addPeopleBtn.click()
     await browser.pause(2000)

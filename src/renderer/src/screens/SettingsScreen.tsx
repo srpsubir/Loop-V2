@@ -1,7 +1,9 @@
 // MAV-45 — settings screen (CD design + full IPC wiring)
-import React, { useEffect, useState } from 'react'
-import { ArrowLeft, MessageCircle, Trash2, Folder } from 'lucide-react'
-import type { AppState, Contact, WarmthTier } from '@shared/types'
+import React, { useEffect, useRef, useState } from 'react'
+import { ArrowLeft, MessageCircle, Trash2, Folder, Send, Copy, Check } from 'lucide-react'
+import type { AppState, Contact, InviteCode } from '@shared/types'
+
+const MONO = '"SFMono-Regular","SF Mono",ui-monospace,Menlo,monospace'
 
 type CSS = React.CSSProperties
 
@@ -25,18 +27,6 @@ const TOKEN_CSS = `
   --duration-fast: 120ms; --duration-base: 200ms;
 }`
 
-// ─── Day mapping ─────────────────────────────────────────────────────────────
-// AppState: 0=Sun, 1=Mon … 6=Sat
-
-const DAY_NUM_TO_STR = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const
-const DAY_STR_TO_NUM: Record<string, number> = {
-  sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6,
-}
-const DAY_NAMES: Record<string, string> = {
-  mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday',
-  fri: 'Friday', sat: 'Saturday', sun: 'Sunday',
-}
-
 // ─── Design primitives ────────────────────────────────────────────────────────
 
 function PaperCard({ children, padding = 20, style }: {
@@ -46,37 +36,6 @@ function PaperCard({ children, padding = 20, style }: {
     <div style={{ background: 'var(--bg)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)', padding, ...style }}>
       {children}
     </div>
-  )
-}
-
-type SegmentOption = { value: string; label: string }
-
-function SegmentedControl({ options, value, onChange, style }: {
-  options: SegmentOption[]; value: string
-  onChange?: (v: string) => void; style?: CSS
-}) {
-  return (
-    <div role="tablist" style={{ display: 'inline-flex', padding: 3, gap: 2, background: 'var(--surface)', borderRadius: 'var(--radius-full)', boxShadow: 'var(--shadow-inset)', fontFamily: 'var(--font-sans)', ...style }}>
-      {options.map((opt) => {
-        const active = opt.value === value
-        return (
-          <button key={opt.value} type="button" role="tab" aria-selected={active}
-            onClick={() => onChange?.(opt.value)}
-            style={{ border: 'none', cursor: 'pointer', padding: '6px 16px', fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-sans)', borderRadius: 'var(--radius-full)', color: active ? 'var(--text-primary)' : 'var(--text-muted)', background: active ? 'var(--bg)' : 'transparent', boxShadow: active ? 'var(--shadow-sm)' : 'none', transition: 'all var(--duration-fast) var(--ease-out)' }}
-          >{opt.label}</button>
-        )
-      })}
-    </div>
-  )
-}
-
-function Switch({ checked = false, onChange }: { checked?: boolean; onChange?: (next: boolean) => void }) {
-  return (
-    <button type="button" role="switch" aria-checked={checked} onClick={() => onChange?.(!checked)}
-      style={{ width: 42, height: 24, borderRadius: 'var(--radius-full)', background: checked ? 'var(--accent)' : 'var(--surface-raised)', boxShadow: checked ? 'var(--shadow-sm)' : 'var(--shadow-inset)', position: 'relative', border: 'none', padding: 0, cursor: 'pointer', flex: 'none', transition: 'background var(--duration-base) var(--ease-out)' }}
-    >
-      <span style={{ position: 'absolute', top: 3, left: checked ? 21 : 3, width: 18, height: 18, borderRadius: 'var(--radius-full)', background: 'var(--bg)', boxShadow: '0 1px 2px rgba(42,31,27,0.25)', transition: 'left var(--duration-base) var(--ease-out)' }} />
-    </button>
   )
 }
 
@@ -179,6 +138,56 @@ function ConfirmDialog({ open, onClose, onConfirm }: { open: boolean; onClose: (
   )
 }
 
+function ShareDialog({ open, code, onClose, onCopy }: {
+  open: boolean; code: string; onClose: () => void; onCopy: () => void
+}) {
+  const shareMsg = `I've been using Loop to keep up with the people from our chapter. It quietly reminds you who you've drifted from. Here's an invite to join me: ${code}`
+  const [copied, setCopied] = useState(false)
+  const copyRef = useRef<ReturnType<typeof setTimeout>>()
+
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open, onClose])
+
+  if (!open) return null
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(shareMsg).catch(() => {})
+    setCopied(true)
+    onCopy()
+    clearTimeout(copyRef.current)
+    copyRef.current = setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
+      style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'rgba(42,31,27,0.32)', backdropFilter: 'saturate(1.05) blur(1px)' }}>
+      <div role="dialog" aria-modal="true"
+        style={{ width: '100%', maxWidth: 440, background: 'var(--bg)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-xl)', padding: 28 }}>
+        <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.01em', lineHeight: 1.25, marginBottom: 14 }}>
+          Share an invite
+        </div>
+        <div style={{
+          fontFamily: MONO, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7,
+          background: 'var(--surface)', borderRadius: 10, padding: '14px 16px',
+          userSelect: 'all', marginBottom: 20,
+        }}>
+          {shareMsg}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+          <Btn variant="ghost" onClick={onClose}>Close</Btn>
+          <Btn variant="primary" onClick={handleCopy}>
+            {copied ? <><Check size={13} strokeWidth={2.5} style={{ marginRight: 6 }} />Copied</> : <><Copy size={13} strokeWidth={2} style={{ marginRight: 6 }} />Copy message</>}
+          </Btn>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 type ToastState = { message: string; tone: 'neutral' | 'positive'; action?: { label: string; onClick: () => void } } | null
 
 function Toast({ toast, onClose }: { toast: ToastState; onClose: () => void }) {
@@ -240,18 +249,6 @@ function Row({ title, sub, control, stacked = false, divider = false }: {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const DAYS: SegmentOption[] = [
-  { value: 'mon', label: 'Mon' }, { value: 'tue', label: 'Tue' },
-  { value: 'wed', label: 'Wed' }, { value: 'thu', label: 'Thu' },
-  { value: 'fri', label: 'Fri' }, { value: 'sat', label: 'Sat' },
-  { value: 'sun', label: 'Sun' },
-]
-
-const TIERS: SegmentOption[] = [
-  { value: 'warm', label: 'Warm' },
-  { value: 'close', label: 'Close' },
-]
-
 function contactNote(contact: Contact, appState: AppState | null): string {
   const cs = appState?.contacts[contact.id]
   if (cs?.lastContactDate) {
@@ -269,30 +266,30 @@ function contactNote(contact: Contact, appState: AppState | null): string {
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
-export interface SettingsScreenProps { onBack?: () => void }
+export interface SettingsScreenProps { onBack?: () => void; onConnect?: () => void }
 
-export function SettingsScreen({ onBack }: SettingsScreenProps) {
+export function SettingsScreen({ onBack, onConnect }: SettingsScreenProps) {
   const [appState, setAppState] = useState<AppState | null>(null)
   const [contacts, setContacts] = useState<Contact[]>([])
-  const [scanDay, setScanDay] = useState('sat')
-  const [notify, setNotify] = useState(true)
   const [connected, setConnected] = useState(false)
   const [dataDir, setDataDir] = useState('~/Documents/Loop')
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [toast, setToast] = useState<ToastState>(null)
+  const [inviteCodes, setInviteCodes] = useState<InviteCode[]>([])
+  const [shareDialogOpen, setShareDialogOpen] = useState(false)
 
   useEffect(() => {
     Promise.all([
       window.loop.state.get(),
       window.loop.contacts.list(),
       window.loop.data.getDir(),
-    ]).then(([state, cs, dir]) => {
+      window.loop.invite.generate(),
+    ]).then(([state, cs, dir, codes]) => {
       setAppState(state)
       setContacts(cs)
-      setScanDay(DAY_NUM_TO_STR[state.scanDay] ?? 'sat')
-      setNotify(state.notificationsEnabled)
       setConnected(state.whatsappConnected)
       setDataDir(dir.replace(/^\/Users\/[^/]+/, '~'))
+      setInviteCodes(codes)
     }).catch(() => {})
 
     const unsub = window.loop.state.onChange(() => {
@@ -304,26 +301,13 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
     return () => unsub?.()
   }, [])
 
-  const dayName = DAY_NAMES[scanDay] ?? 'Saturday'
-
-  const handleScanDayChange = (day: string) => {
-    setScanDay(day)
-    window.loop.state.patch({ scanDay: DAY_STR_TO_NUM[day] ?? 6 }).catch(() => {})
-  }
-
-  const handleNotifyChange = (next: boolean) => {
-    setNotify(next)
-    window.loop.state.patch({ notificationsEnabled: next }).catch(() => {})
-  }
-
   const handleToggleConnection = async () => {
     if (connected) {
       await window.loop.whatsapp.disconnect().catch(() => {})
       setConnected(false)
       setToast({ message: 'Disconnected. Loop keeps what it already remembers.', tone: 'neutral' })
     } else {
-      await window.loop.whatsapp.start().catch(() => {})
-      setToast({ message: 'Connecting. Scan your phone to link WhatsApp.', tone: 'neutral' })
+      onConnect?.()
     }
   }
 
@@ -343,12 +327,6 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
         },
       },
     })
-  }
-
-  const handleTierChange = (contact: Contact, tier: string) => {
-    const updated = { ...contact, tier: tier as WarmthTier }
-    setContacts((prev) => prev.map((c) => c.id === contact.id ? updated : c))
-    window.loop.contacts.save(updated).catch(() => {})
   }
 
   const handleDeleteAll = () => {
@@ -373,19 +351,6 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
         </header>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-          <Section label="Scanning">
-            <Row
-              stacked title="Scan day"
-              sub="Once a week, Loop sits down with your conversations. Pick the day."
-              control={<SegmentedControl options={DAYS} value={scanDay} onChange={handleScanDayChange} />}
-            />
-            <Row
-              divider title="Notifications"
-              sub="A quiet note when someone's worth a look. Never a nag."
-              control={<Switch checked={notify} onChange={handleNotifyChange} />}
-            />
-          </Section>
-
           <Section label="WhatsApp">
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 14px' }}>
               <div style={{ width: 42, height: 42, borderRadius: 'var(--radius-full)', flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', background: connected ? 'var(--positive-faint)' : 'var(--surface)', color: connected ? 'var(--positive)' : 'var(--text-muted)', transition: 'all var(--duration-base) var(--ease-out)' }}>
@@ -395,7 +360,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
                 <div style={{ fontFamily: 'var(--font-sans)', fontSize: 15, fontWeight: 500, color: 'var(--text-primary)' }}>WhatsApp</div>
                 <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.5, color: connected ? 'var(--positive)' : 'var(--text-muted)', marginTop: 3 }}>
                   {connected
-                    ? `Connected. Loop reads on ${dayName}s, never in between.`
+                    ? 'Connected. Loop is reading your conversations.'
                     : 'Not connected. Loop can only remember what it can see.'}
                 </div>
               </div>
@@ -404,6 +369,58 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
               </Btn>
             </div>
           </Section>
+
+          {/* ── Invite Your Chapters ───────────────────────────────────────── */}
+          {inviteCodes.length > 0 && (() => {
+            const usedCount = inviteCodes.filter(c => c.usedAt).length
+            const firstAvailable = inviteCodes.find(c => !c.usedAt)
+            const copyCode = (code: string) => {
+              navigator.clipboard.writeText(code).catch(() => {})
+              setToast({ message: 'Code copied.', tone: 'positive' })
+            }
+            return (
+              <Section label="Invite your chapters">
+                <div style={{ padding: '12px 14px 6px' }}>
+                  <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0 0 14px' }}>
+                    Invite the people from your chapters to close the loop.
+                  </p>
+                  <div style={{ borderTop: '1px solid var(--border-light)' }}>
+                    {inviteCodes.map((c, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '11px 4px', borderBottom: '1px solid var(--border-light)' }}>
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontFamily: MONO, fontSize: 14.5, fontWeight: 500, letterSpacing: '.03em', color: c.usedAt ? 'var(--text-muted)' : 'var(--text-primary)' }}>
+                            {c.code}
+                          </span>
+                          {!c.usedAt && (
+                            <IconBtn size={28} label="Copy code" onClick={() => copyCode(c.code)}
+                              icon={<Copy size={13} strokeWidth={2} />} />
+                          )}
+                        </div>
+                        <span style={{
+                          fontFamily: 'var(--font-sans)', fontSize: 11.5, fontWeight: 500, padding: '3px 10px',
+                          borderRadius: 'var(--radius-full)',
+                          background: c.usedAt ? 'var(--surface)' : 'var(--terracotta-faint)',
+                          color: c.usedAt ? 'var(--text-muted)' : 'var(--accent)',
+                        }}>
+                          {c.usedAt ? 'Used' : 'Available'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--text-muted)' }}>
+                      {usedCount} of 3 invites used
+                    </span>
+                    {firstAvailable && (
+                      <Btn variant="secondary" size="sm" onClick={() => setShareDialogOpen(true)}>
+                        <Send size={12} strokeWidth={2} style={{ marginRight: 6 }} />Share an invite
+                      </Btn>
+                    )}
+                  </div>
+                </div>
+              </Section>
+            )
+          })()}
 
           <Section
             label="People"
@@ -416,19 +433,12 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
                   note={contactNote(contact, appState)}
                   ring={contact.tier === 'close' ? 'sage' : 'none'}
                   trailing={
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <SegmentedControl
-                        options={TIERS}
-                        value={contact.tier}
-                        onChange={(tier) => handleTierChange(contact, tier)}
-                      />
-                      <IconBtn
-                        size={30}
-                        label={`Remove ${contact.name.split(' ')[0]}`}
-                        onClick={() => handleRemoveContact(contact)}
-                        icon={<Trash2 size={16} strokeWidth={2} />}
-                      />
-                    </div>
+                    <IconBtn
+                      size={30}
+                      label={`Remove ${contact.name.split(' ')[0]}`}
+                      onClick={() => handleRemoveContact(contact)}
+                      icon={<Trash2 size={16} strokeWidth={2} />}
+                    />
                   }
                 />
               </div>
@@ -470,6 +480,16 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
         onConfirm={handleDeleteAll}
+      />
+
+      <ShareDialog
+        open={shareDialogOpen}
+        code={inviteCodes.find(c => !c.usedAt)?.code ?? ''}
+        onClose={() => setShareDialogOpen(false)}
+        onCopy={() => {
+          setShareDialogOpen(false)
+          setToast({ message: 'Invite copied. Paste it anywhere.', tone: 'positive' })
+        }}
       />
 
       <Toast toast={toast} onClose={() => setToast(null)} />

@@ -373,6 +373,9 @@ export function CrewDetectionScreen({ onComplete, onSkip }: CrewDetectionScreenP
   if (step === 0) return (
     <div style={centered}>
       <div style={panel}>
+        <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>
+          Step 3 of 5
+        </div>
         <div style={eyebrow}>Your crew</div>
         <div style={{
           fontFamily: 'var(--font-serif)', fontSize: 36, fontWeight: 600,
@@ -417,7 +420,7 @@ export function CrewDetectionScreen({ onComplete, onSkip }: CrewDetectionScreenP
             fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-secondary)',
             lineHeight: 1.65, marginBottom: 28, maxWidth: 420,
           }}>
-            Assign each group to a chapter. Anyone in an assigned group lands in your garden.
+            Assign each group to a chapter. Anyone in an assigned group will show up in Your Loop.
           </p>
           <PaperCard raised padding={0} style={{ overflow: 'visible' }}>
             {groups.map((group, i) => (
@@ -475,7 +478,7 @@ export function CrewDetectionScreen({ onComplete, onSkip }: CrewDetectionScreenP
             fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-secondary)',
             lineHeight: 1.65, marginBottom: 36, maxWidth: 420,
           }}>
-            Tap anyone to remove them. Everyone else goes straight into your garden.
+            Tap anyone to remove them. Everyone else shows up in Your Loop.
           </p>
 
           {byChapter.map(({ chapter, crew }) => (
@@ -523,7 +526,7 @@ export function CrewDetectionScreen({ onComplete, onSkip }: CrewDetectionScreenP
           <Button disabled={selectedCount === 0 || saving} onClick={handleComplete}>
             {saving
               ? 'Saving…'
-              : `Add ${selectedCount} ${selectedCount === 1 ? 'person' : 'people'} to your garden →`}
+              : `Add ${selectedCount} ${selectedCount === 1 ? 'person' : 'people'} to Your Loop →`}
           </Button>
         </div>
       </div>

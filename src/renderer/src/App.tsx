@@ -1,12 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { QrCode, Loader2 } from 'lucide-react'
+import QRCode from 'qrcode'
+import { QrCode, Loader2, CheckCircle } from 'lucide-react'
 import { Button } from './components'
-import { GardenScreen } from './screens/GardenScreen'
-import { BriefScreen } from './screens/BriefScreen'
-import { ChapterScreen } from './screens/ChapterScreen'
+
+const MONO = '"SFMono-Regular","SF Mono",ui-monospace,Menlo,monospace'
+import { YourLoopsScreen } from './screens/YourLoopsScreen'
+import { StoryScreen } from './screens/StoryScreen'
+import { ChapterDetailScreen } from './screens/ChapterDetailScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
 import { ChapterInferenceScreen } from './screens/ChapterInferenceScreen'
 import { CrewDetectionScreen } from './screens/CrewDetectionScreen'
+import { ChapterNamingScreen } from './screens/ChapterNamingScreen'
+import { EmailCaptureScreen } from './screens/EmailCaptureScreen'
+import type { ChapterCandidate } from '@shared/types'
 
 // ─── Nav state ────────────────────────────────────────────────────────────────
 
@@ -15,56 +21,230 @@ type Nav =
   | { screen: 'whatsapp-connect' }
   | { screen: 'chapter-inference' }
   | { screen: 'crew-detection' }
-  | { screen: 'garden' }
-  | { screen: 'chapter'; chapterId: string }
-  | { screen: 'brief'; contactId: string }
+  | { screen: 'chapter-naming'; candidates: ChapterCandidate[]; index: number }
+  | { screen: 'email-capture' }
+  | { screen: 'your-loops' }
+  | { screen: 'chapter-detail'; chapterId: string }
+  | { screen: 'story'; contactId: string; chapterId: string }
   | { screen: 'settings' }
 
 // ─── Welcome screen ───────────────────────────────────────────────────────────
 
 function WelcomeScreen({ onConnect }: { onConnect: () => void }) {
+  const [showSheet, setShowSheet] = useState(false)
+  const [code, setCode] = useState('')
+  const [redeeming, setRedeeming] = useState(false)
+  const [success, setSuccess] = useState(false)
+
+  const handleRedeem = async () => {
+    if (!code.trim() || redeeming) return
+    setRedeeming(true)
+    try {
+      const valid = await window.loop.invite.redeem(code.trim())
+      if (valid) {
+        setSuccess(true)
+        setTimeout(() => { setShowSheet(false); setSuccess(false); setCode(''); onConnect() }, 1900)
+      }
+    } catch { /* pass */ } finally {
+      setRedeeming(false)
+    }
+  }
+
   return (
+    <div style={{ position: 'relative', height: '100%' }}>
+      {/* Keyframes for bottom sheet */}
+      <style>{`
+        @keyframes mav91Scrim { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes mav91SheetUp { from { transform: translateY(100%) } to { transform: none } }
+        @keyframes mav91Pop { from { opacity: 0; transform: scale(0.96) } to { opacity: 1; transform: none } }
+      `}</style>
     <div
       style={{
         height: '100%',
         display: 'flex',
-        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
         background: 'var(--bg)',
-        gap: 'var(--space-5)',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-        <img src="/src/assets/images/loop-mark.svg" width={40} height={40} alt="" />
-        <span
-          style={{
-            fontFamily: 'var(--font-serif)',
-            fontSize: 'var(--text-h1)',
-            fontWeight: 'var(--weight-semibold)',
-            color: 'var(--accent)',
-            letterSpacing: 'var(--tracking-tight)',
-          }}
-        >
-          Loop
-        </span>
-      </div>
-      <p
+      <div
         style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 'var(--text-body)',
-          color: 'var(--text-secondary)',
-          textAlign: 'center',
-          maxWidth: 320,
-          lineHeight: 'var(--leading-relaxed)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          width: '100%',
+          maxWidth: 480,
+          padding: '0 32px',
         }}
       >
-        The people who matter, never forgotten.
-      </p>
-      <div style={{ marginTop: 'var(--space-3)' }}>
+        {/* Mark + wordmark */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, marginBottom: 32 }}>
+          <img src="/src/assets/images/loop-mark.svg" width={88} height={88} alt="" />
+          <span
+            style={{
+              fontFamily: 'var(--font-serif)',
+              fontSize: 36,
+              fontWeight: 600,
+              color: '#2A1F1B',
+              letterSpacing: '-0.01em',
+              lineHeight: 1,
+            }}
+          >
+            Loop
+          </span>
+        </div>
+
+        {/* Tagline */}
+        <p
+          style={{
+            fontFamily: 'var(--font-serif)',
+            fontStyle: 'italic',
+            fontSize: 22,
+            color: '#2A1F1B',
+            textAlign: 'center',
+            lineHeight: 1.4,
+            marginBottom: 12,
+          }}
+        >
+          Every chapter of your life, and the people you lived it with.
+        </p>
+
+        {/* Bridge line */}
+        <p
+          style={{
+            fontFamily: 'var(--font-sans)',
+            fontSize: 13,
+            color: '#A38F85',
+            textAlign: 'center',
+            lineHeight: 1.5,
+            marginBottom: 40,
+          }}
+        >
+          Our lives happen in conversations with our people.
+        </p>
+
+        {/* Steps */}
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', gap: 40, width: '100%', marginBottom: 28 }}>
+          {[
+            'Connect WhatsApp',
+            'Loop maps the chapters of your life',
+            'Your people, still in every chapter',
+          ].map((label, i) => (
+            <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, maxWidth: 120 }}>
+              <div
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: '50%',
+                  border: '1.5px solid #B8624A',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 11,
+                  fontWeight: 500,
+                  color: '#B8624A',
+                  flexShrink: 0,
+                }}
+              >
+                {i + 1}
+              </div>
+              <span
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 12.5,
+                  fontWeight: 300,
+                  color: '#A38F85',
+                  textAlign: 'center',
+                  lineHeight: 1.5,
+                }}
+              >
+                {label}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Privacy */}
+        <p
+          style={{
+            fontFamily: 'var(--font-sans)',
+            fontSize: 11.5,
+            color: '#BBA99E',
+            textAlign: 'center',
+            marginBottom: 36,
+            letterSpacing: '0.01em',
+          }}
+        >
+          Your messages never leave your Mac.
+        </p>
+
+        {/* CTA */}
         <Button onClick={onConnect}>Connect WhatsApp</Button>
+
+        {/* Invite code entry */}
+        <button
+          type="button"
+          onClick={() => setShowSheet(true)}
+          style={{ background: 'none', border: 'none', fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--text-muted)', cursor: 'pointer', marginTop: 10, padding: '4px 0' }}
+        >
+          Have an invite code?
+        </button>
       </div>
     </div>
+
+    {/* Bottom sheet — positioned relative to the outer wrapper */}
+    {showSheet && (
+      <>
+        <div
+          style={{ position: 'absolute', inset: 0, zIndex: 40, background: 'rgba(42,31,27,0.32)', backdropFilter: 'blur(1px)', animation: 'mav91Scrim 200ms cubic-bezier(0.22,0.61,0.36,1)' }}
+          onMouseDown={() => setShowSheet(false)}
+        />
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 50, background: 'var(--bg)', borderRadius: '20px 20px 0 0', boxShadow: '0 -8px 40px rgba(42,31,27,0.18)', padding: '14px 24px 32px', animation: 'mav91SheetUp 280ms cubic-bezier(0.22,0.61,0.36,1)' }}
+        >
+          <div style={{ width: 44, height: 5, borderRadius: 999, background: 'var(--border)', margin: '0 auto 20px' }} />
+
+          {success ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '16px 0 8px', animation: 'mav91Pop 260ms cubic-bezier(0.22,0.61,0.36,1)' }}>
+              <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'var(--terracotta-faint)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CheckCircle size={26} strokeWidth={1.8} color="var(--accent)" />
+              </div>
+              <p style={{ fontFamily: 'var(--font-serif)', fontSize: 22, fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>You're in</p>
+              <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13.5, color: 'var(--text-muted)', margin: 0 }}>Setting up your space…</p>
+            </div>
+          ) : (
+            <>
+              <p style={{ fontFamily: 'var(--font-serif)', fontSize: 19, fontWeight: 600, textAlign: 'center', margin: 0, color: 'var(--text-primary)' }}>
+                Have an invite code?
+              </p>
+              <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', margin: '6px 0 0' }}>
+                Someone from your chapters saved you a spot.
+              </p>
+              <input
+                type="text"
+                placeholder="Enter your code"
+                autoCapitalize="characters"
+                spellCheck={false}
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                onKeyDown={(e) => e.key === 'Enter' && handleRedeem()}
+                style={{ width: '100%', boxSizing: 'border-box', fontFamily: MONO, fontSize: 16, fontWeight: 500, letterSpacing: '.12em', textAlign: 'center', background: 'var(--surface)', boxShadow: 'var(--shadow-inset)', border: '1.5px solid transparent', borderRadius: 'var(--radius-md)', padding: '14px 16px', marginTop: 16, outline: 'none' }}
+              />
+              <Button
+                onClick={handleRedeem}
+                style={{ width: '100%', marginTop: 12 }}
+              >
+                {redeeming ? 'Checking…' : 'Redeem'}
+              </Button>
+            </>
+          )}
+        </div>
+      </>
+    )}
+  </div>
   )
 }
 
@@ -73,6 +253,14 @@ function WelcomeScreen({ onConnect }: { onConnect: () => void }) {
 function WhatsAppConnectScreen({ onConnected }: { onConnected: () => void }) {
   const [status, setStatus] = useState<string>('idle')
   const [qr, setQr] = useState<string | null>(null)
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!qr) { setQrDataUrl(null); return }
+    QRCode.toDataURL(qr, { width: 240, margin: 1, color: { dark: '#2A1F1B', light: '#FFFFFF' } })
+      .then(setQrDataUrl)
+      .catch(() => {})
+  }, [qr])
 
   const startConnect = useCallback(async () => {
     setStatus('starting')
@@ -152,7 +340,7 @@ function WhatsAppConnectScreen({ onConnected }: { onConnected: () => void }) {
         </div>
       )}
 
-      {status === 'qr' && qr && (
+      {status === 'qr' && qrDataUrl && (
         <div style={{ textAlign: 'center' }}>
           <div
             style={{
@@ -165,10 +353,10 @@ function WhatsAppConnectScreen({ onConnected }: { onConnected: () => void }) {
             }}
           >
             <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qr)}&size=220x220`}
+              src={qrDataUrl}
               alt="WhatsApp QR code"
-              width={220}
-              height={220}
+              width={240}
+              height={240}
             />
           </div>
           <div style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-secondary)', maxWidth: 300 }}>
@@ -177,7 +365,7 @@ function WhatsAppConnectScreen({ onConnected }: { onConnected: () => void }) {
         </div>
       )}
 
-      {status === 'qr' && !qr && (
+      {status === 'qr' && !qrDataUrl && (
         <div style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 10 }}>
           <QrCode size={20} strokeWidth={1.5} />
           <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14 }}>Generating QR code…</span>
@@ -216,6 +404,19 @@ function WhatsAppConnectScreen({ onConnected }: { onConnected: () => void }) {
         </div>
       )}
 
+      <p style={{
+        fontFamily: 'var(--font-sans)',
+        fontSize: 11.5,
+        color: '#BBA99E',
+        textAlign: 'center',
+        marginTop: 20,
+        letterSpacing: '0.01em',
+        maxWidth: 300,
+        lineHeight: 1.5,
+      }}>
+        Your private journal that no one else can open. Everything stays on your Mac — nothing leaves, nothing uploads.
+      </p>
+
     </div>
   )
 }
@@ -231,7 +432,7 @@ export default function App() {
         try {
           const state = await window.loop.state.get()
           if (state.onboardingComplete) {
-            setNav({ screen: 'garden' })
+            setNav({ screen: 'your-loops' })
           }
         } catch {
           // Main handlers not yet registered — stay on welcome
@@ -241,12 +442,19 @@ export default function App() {
     init()
   }, [])
 
-  const goGarden = useCallback(() => setNav({ screen: 'garden' }), [])
+  const goYourLoops = useCallback(() => setNav({ screen: 'your-loops' }), [])
+  const goEmailCapture = useCallback(async () => {
+    try {
+      const state = await window.loop.state.get()
+      if (state.emailCaptured) { setNav({ screen: 'your-loops' }); return }
+    } catch { /* pass */ }
+    setNav({ screen: 'email-capture' })
+  }, [])
   const goSkip = useCallback(async () => {
     try {
       await window.loop.state.patch({ onboardingComplete: true })
     } catch { /* pass */ }
-    setNav({ screen: 'garden' })
+    setNav({ screen: 'your-loops' })
   }, [])
 
   switch (nav.screen) {
@@ -263,8 +471,11 @@ export default function App() {
           onConnected={async () => {
             try {
               await window.loop.state.patch({ whatsappConnected: true })
-            } catch { /* pass */ }
-            setNav({ screen: 'chapter-inference' })
+              const state = await window.loop.state.get()
+              setNav({ screen: state.onboardingComplete ? 'your-loops' : 'chapter-inference' })
+            } catch {
+              setNav({ screen: 'your-loops' })
+            }
           }}
         />
       )
@@ -280,39 +491,89 @@ export default function App() {
     case 'crew-detection':
       return (
         <CrewDetectionScreen
-          onComplete={goGarden}
+          onComplete={async () => {
+            try {
+              const state = await window.loop.state.get()
+              const unnamedIds = new Set(
+                state.chapters.filter((ch) => ch.confirmed === false).map((ch) => ch.id)
+              )
+              if (unnamedIds.size > 0) {
+                const jidToId = (jid: string) =>
+                  jid.replace(/@g\.us$/, '').replace(/[^a-z0-9]+/gi, '-')
+                const candidates = state.detectedChapters.filter((c) =>
+                  unnamedIds.has(jidToId(c.waJid))
+                )
+                if (candidates.length > 0) {
+                  setNav({ screen: 'chapter-naming', candidates, index: 0 })
+                  return
+                }
+              }
+            } catch { /* pass */ }
+            goEmailCapture()
+          }}
           onSkip={goSkip}
         />
       )
 
-    case 'garden':
+    case 'chapter-naming': {
+      const { candidates, index } = nav
+      const candidate = candidates[index]
+      const chapterId = candidate.waJid.replace(/@g\.us$/, '').replace(/[^a-z0-9]+/gi, '-')
+      const advance = () => {
+        if (index + 1 < candidates.length) {
+          setNav({ screen: 'chapter-naming', candidates, index: index + 1 })
+        } else {
+          goEmailCapture()
+        }
+      }
       return (
-        <GardenScreen
-          onOpenChapter={(chapterId) => setNav({ screen: 'chapter', chapterId })}
-          onOpenBrief={(contactId) => setNav({ screen: 'brief', contactId })}
+        <ChapterNamingScreen
+          candidate={candidate}
+          index={index}
+          total={candidates.length}
+          onConfirm={async (name) => {
+            try { await window.loop.chapters.setName(chapterId, name) } catch { /* pass */ }
+            advance()
+          }}
+          onSkip={advance}
+        />
+      )
+    }
+
+    case 'email-capture':
+      return (
+        <EmailCaptureScreen
+          onDone={goYourLoops}
+        />
+      )
+
+    case 'your-loops':
+      return (
+        <YourLoopsScreen
+          onOpenChapter={(chapterId) => setNav({ screen: 'chapter-detail', chapterId })}
           onOpenSettings={() => setNav({ screen: 'settings' })}
         />
       )
 
-    case 'chapter':
+    case 'chapter-detail':
       return (
-        <ChapterScreen
+        <ChapterDetailScreen
           chapterId={nav.chapterId}
-          onBack={goGarden}
-          onOpenBrief={(contactId) => setNav({ screen: 'brief', contactId })}
+          onBack={goYourLoops}
+          onOpenStory={(contactId) => setNav({ screen: 'story', contactId, chapterId: nav.chapterId })}
         />
       )
 
-    case 'brief':
+    case 'story':
       return (
-        <BriefScreen
+        <StoryScreen
           contactId={nav.contactId}
-          onBack={() => setNav({ screen: 'garden' })}
+          onBack={() => setNav({ screen: 'chapter-detail', chapterId: nav.chapterId })}
         />
       )
 
     case 'settings':
-      return <SettingsScreen onBack={goGarden} />
+      return <SettingsScreen onBack={goYourLoops} onConnect={() => setNav({ screen: 'whatsapp-connect' })} />
 
     default:
       return null

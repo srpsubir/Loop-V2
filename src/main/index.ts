@@ -7,7 +7,8 @@ import { initAnalytics, track, shutdownAnalytics } from './analytics'
 
 initAnalytics()
 
-// Set dock icon immediately — before app.whenReady() to avoid Electron icon flash
+// Set name and dock icon synchronously — before app.whenReady() to avoid flash
+app.setName('Loop')
 if (process.platform === 'darwin' && is.dev) {
   app.dock.setIcon(join(__dirname, '../../resources/icon.png'))
 }
@@ -64,7 +65,6 @@ app.whenReady().then(async () => {
   })
 
   electronApp.setAppUserModelId('com.loop.app')
-  app.setName('Loop')
 
   track('app_opened', { version: app.getVersion(), platform: process.platform })
 

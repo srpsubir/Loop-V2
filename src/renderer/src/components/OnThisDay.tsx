@@ -1,4 +1,4 @@
-// MAV-49 — polaroid memory card for the Garden screen
+// MAV-49 — polaroid memory card for the Your Loop screen
 import React, { useState } from 'react'
 
 type CSS = React.CSSProperties
