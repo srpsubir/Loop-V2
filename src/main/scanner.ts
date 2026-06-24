@@ -118,7 +118,7 @@ export function detectDeadThread(messages: WAMessage[]): Occasion | null {
 
 // ─── Reach-out detection ──────────────────────────────────────────────────────
 
-function detectReachOut(
+export function detectReachOut(
   prevState: ContactState | null,
   messages: WAMessage[]
 ): string | null {
@@ -152,7 +152,7 @@ export function computeReachOutUpdate(prevCount: number): {
 
 // ─── Brief generation (template-based, fully local) ──────────────────────────
 
-function generateStory(
+export function generateStory(
   contact: Contact,
   messages: WAMessage[],
   chapters: Chapter[],
@@ -209,7 +209,7 @@ function generateOnThisDaySnippet(
 
 // ─── Story resolver: SLM when ready, template fallback ───────────────────────
 
-async function resolveStory(
+export async function resolveStory(
   contact: Contact,
   messages: WAMessage[],
   chapters: Chapter[],

@@ -88,12 +88,22 @@ function tintFor(name: string): string {
 }
 
 function isMemberFading(contact: Contact, cs: ContactState): boolean {
-  if (cs.suppressNudge) return false  // nudge suppressed after 2 failed reach-outs
   if (!cs.lastContactDate) return true
   const daysSince = (Date.now() - new Date(cs.lastContactDate).getTime()) / 86400000
   if (daysSince > 90) return true
   if (contact.tier === 'close' && contact.intervalDays && daysSince > contact.intervalDays) return true
   return false
+}
+
+function isNudgeEligible(contact: Contact, cs: ContactState): boolean {
+  if (contact.tier !== 'close' || !contact.whatsappId) return false
+  if (cs.suppressNudge) return false
+  if (!isMemberFading(contact, cs)) return false
+  if (cs.nudgeDismissedAt) {
+    const daysSinceDismiss = (Date.now() - new Date(cs.nudgeDismissedAt).getTime()) / 86400000
+    if (daysSinceDismiss < 7) return false
+  }
+  return true
 }
 
 function deriveAtomState(

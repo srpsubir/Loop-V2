@@ -16,7 +16,12 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
-      include: ['src/main/chapters.ts', 'src/main/scanner.ts'],
+      include: [
+        'src/main/chapters.ts',
+        'src/main/scanner.ts',
+        'src/main/inference.ts',
+        'src/renderer/src/components/ModelUpgradeCard.tsx',
+      ],
     },
     server: {
       deps: {
