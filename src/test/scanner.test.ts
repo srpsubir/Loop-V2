@@ -1,6 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { isRealMessage, computeNextOccasion, detectDeadThread, detectReconnection, computeReachOutUpdate } from '../main/scanner'
-import type { Contact, ContactState } from '../shared/types'
+import {
+  isRealMessage, computeNextOccasion, detectDeadThread, detectReconnection,
+  computeReachOutUpdate, generateStory, resolveStory, detectReachOut,
+} from '../main/scanner'
+import type { Contact, ContactState, Story, Chapter } from '../shared/types'
+
+// ─── Mock inference module for resolveStory tests ────────────────────────────
+
+vi.mock('../main/inference', () => ({
+  isModelReady: vi.fn(() => false),
+  generateStoryWithSLM: vi.fn(),
+}))
 
 // ─── isRealMessage ────────────────────────────────────────────────────────────
 
@@ -311,5 +321,182 @@ describe('computeReachOutUpdate', () => {
     for (const n of [1, 2, 5, 10]) {
       expect(computeReachOutUpdate(n).suppressNudge).toBe(n + 1 >= 2)
     }
+  })
+})
+
+// ─── generateStory (template) ─────────────────────────────────────────────────
+
+const baseContact2: Contact = {
+  id: 'c1', name: 'James Smith',
+  whatsappId: '447700900000@s.whatsapp.net',
+  tier: 'close', chapterIds: ['ch1'], intervalDays: 30,
+}
+const chapters: Chapter[] = [{ id: 'ch1', name: 'University', active: false }]
+const msg = (text: string, daysAgo: number, fromMe = false) => ({
+  id: 't', fromMe, timestamp: Math.floor((Date.now() - daysAgo * 86400000) / 1000), text,
+})
+
+describe('generateStory — template', () => {
+  it('includes chapter name in contextLines[0] when contact has matching chapter', () => {
+    const story = generateStory(baseContact2, [], chapters, null)
+    expect(story.contextLines[0]).toContain('University')
+  })
+
+  it('falls back to generic line when no chapters match', () => {
+    const contact = { ...baseContact2, chapterIds: [] }
+    const story = generateStory(contact, [], chapters, null)
+    expect(story.contextLines[0]).toContain('James')
+  })
+
+  it('line2: "You were in touch today." for message today', () => {
+    const story = generateStory(baseContact2, [msg('hey', 0)], chapters, null)
+    expect(story.contextLines[1]).toBe('You were in touch today.')
+  })
+
+  it('line2: "You spoke yesterday." for message 1 day ago', () => {
+    const story = generateStory(baseContact2, [msg('hey', 1)], chapters, null)
+    expect(story.contextLines[1]).toBe('You spoke yesterday.')
+  })
+
+  it('line2: X days ago for 2-6 days', () => {
+    const story = generateStory(baseContact2, [msg('hey', 4)], chapters, null)
+    expect(story.contextLines[1]).toMatch(/4 days ago/)
+  })
+
+  it('line2: weeks for 7-29 days', () => {
+    const story = generateStory(baseContact2, [msg('hey', 14)], chapters, null)
+    expect(story.contextLines[1]).toMatch(/2 week/)
+  })
+
+  it('line2: months for 30-364 days', () => {
+    const story = generateStory(baseContact2, [msg('hey', 60)], chapters, null)
+    expect(story.contextLines[1]).toMatch(/2 month/)
+  })
+
+  it('line2: over a year for 365+ days', () => {
+    const story = generateStory(baseContact2, [msg('hey', 400)], chapters, null)
+    expect(story.contextLines[1]).toContain('over a year')
+  })
+
+  it('line2: haven\'t spoken when no real messages', () => {
+    const story = generateStory(baseContact2, [], chapters, null)
+    expect(story.contextLines[1]).toContain("haven't spoken")
+  })
+
+  it('uses occasion label as reasonToReachOut when provided', () => {
+    const occasion = { type: 'birthday' as const, date: new Date().toISOString(), label: 'Birthday today!' }
+    const story = generateStory(baseContact2, [], chapters, occasion)
+    expect(story.reasonToReachOut).toBe('Birthday today!')
+  })
+
+  it('falls back to generic reasonToReachOut when no occasion', () => {
+    const story = generateStory(baseContact2, [], chapters, null)
+    expect(story.reasonToReachOut).toContain('James')
+  })
+
+  it('returns generatedAt as ISO string', () => {
+    const story = generateStory(baseContact2, [], chapters, null)
+    expect(() => new Date(story.generatedAt)).not.toThrow()
+  })
+
+  it('singular "week" for exactly 7 days', () => {
+    const story = generateStory(baseContact2, [msg('hey', 7)], chapters, null)
+    expect(story.contextLines[1]).toMatch(/1 week[^s]/)
+  })
+
+  it('singular "month" for exactly 30 days', () => {
+    const story = generateStory(baseContact2, [msg('hey', 30)], chapters, null)
+    expect(story.contextLines[1]).toMatch(/1 month[^s]/)
+  })
+})
+
+// ─── detectReachOut ──────────────────────────────────────────────────────────
+
+describe('detectReachOut', () => {
+  it('returns date when outgoing message exists after storyOpenedAt', () => {
+    const openedAt = new Date(Date.now() - 3600000).toISOString() // 1 hour ago
+    const state = { storyOpenedAt: openedAt } as ContactState
+    const messages = [{ id: '1', fromMe: true, timestamp: Math.floor(Date.now() / 1000) - 1800, text: 'hey' }]
+    expect(detectReachOut(state, messages)).not.toBeNull()
+  })
+
+  it('returns null when no outgoing message after storyOpenedAt', () => {
+    const openedAt = new Date(Date.now() + 3600000).toISOString() // future
+    const state = { storyOpenedAt: openedAt } as ContactState
+    const messages = [{ id: '1', fromMe: true, timestamp: Math.floor(Date.now() / 1000) - 7200, text: 'hey' }]
+    expect(detectReachOut(state, messages)).toBeNull()
+  })
+
+  it('returns null when storyOpenedAt is null', () => {
+    const state = { storyOpenedAt: null } as ContactState
+    const messages = [{ id: '1', fromMe: true, timestamp: Math.floor(Date.now() / 1000), text: 'hey' }]
+    expect(detectReachOut(state, messages)).toBeNull()
+  })
+
+  it('returns null for null prevState', () => {
+    expect(detectReachOut(null, [])).toBeNull()
+  })
+
+  it('ignores incoming messages (fromMe=false)', () => {
+    const openedAt = new Date(Date.now() - 3600000).toISOString()
+    const state = { storyOpenedAt: openedAt } as ContactState
+    const messages = [{ id: '1', fromMe: false, timestamp: Math.floor(Date.now() / 1000), text: 'hey' }]
+    expect(detectReachOut(state, messages)).toBeNull()
+  })
+})
+
+// ─── resolveStory ─────────────────────────────────────────────────────────────
+
+describe('resolveStory', () => {
+  const existingStory: Story = {
+    generatedAt: new Date().toISOString(),
+    contextLines: ['cached line 1', 'cached line 2'],
+    reasonToReachOut: 'cached reason',
+  }
+
+  beforeEach(async () => {
+    const inference = vi.mocked(await import('../main/inference'))
+    vi.mocked(inference.isModelReady).mockReturnValue(false)
+    vi.mocked(inference.generateStoryWithSLM).mockReset()
+  })
+
+  it('returns existingStory when needsRefresh=false and story exists', async () => {
+    const story = await resolveStory(baseContact2, [], chapters, null, existingStory, false)
+    expect(story).toBe(existingStory)
+  })
+
+  it('generates template when needsRefresh=true and model not ready', async () => {
+    const inference = await import('../main/inference')
+    vi.mocked(inference.isModelReady).mockReturnValue(false)
+    const story = await resolveStory(baseContact2, [], chapters, null, null, true)
+    expect(story.contextLines.length).toBeGreaterThan(0)
+    expect(vi.mocked(inference.generateStoryWithSLM)).not.toHaveBeenCalled()
+  })
+
+  it('uses SLM when model is ready', async () => {
+    const inference = await import('../main/inference')
+    const slmStory: Story = { generatedAt: new Date().toISOString(), contextLines: ['SLM line'], reasonToReachOut: 'SLM reason' }
+    vi.mocked(inference.isModelReady).mockReturnValue(true)
+    vi.mocked(inference.generateStoryWithSLM).mockResolvedValue(slmStory)
+    const story = await resolveStory(baseContact2, [], chapters, null, null, true)
+    expect(story).toBe(slmStory)
+  })
+
+  it('falls back to template when SLM throws', async () => {
+    const inference = await import('../main/inference')
+    vi.mocked(inference.isModelReady).mockReturnValue(true)
+    vi.mocked(inference.generateStoryWithSLM).mockRejectedValue(new Error('parse fail'))
+    const story = await resolveStory(baseContact2, [], chapters, null, null, true)
+    // Should still return a valid story from template
+    expect(story.contextLines.length).toBeGreaterThan(0)
+    expect(story.contextLines[0]).toContain('James')
+  })
+
+  it('generates new story when needsRefresh=true even with existingStory', async () => {
+    const inference = await import('../main/inference')
+    vi.mocked(inference.isModelReady).mockReturnValue(false)
+    const story = await resolveStory(baseContact2, [], chapters, null, existingStory, true)
+    // Should be a freshly generated story, not the cached one
+    expect(story).not.toBe(existingStory)
   })
 })

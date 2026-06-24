@@ -92,4 +92,93 @@ describe('scoreGroups', () => {
     const { top } = scoreGroups([withBonus, withoutBonus])
     expect(top[0].waJid).toBe('g1@g.us')
   })
+
+  it('scores large groups (41-80 members) with size=4 (the uncovered branch)', () => {
+    const large = group({ members: Array.from({ length: 60 }, (_, i) => `m${i}`) })
+    const { top, rest } = scoreGroups([large])
+    expect(top.length + rest.length).toBe(1)
+    expect((top[0] ?? rest[0]).score).toBeGreaterThan(0)
+  })
+
+  it('second closed chapter bonus tier: 730-1095 days', () => {
+    const veryOld = group({ lastMessageAt: daysAgo(800), members: ['a', 'b', 'c'] })
+    const { top } = scoreGroups([veryOld])
+    expect(top[0].score).toBeGreaterThan(0)
+  })
+
+  it('filters @newsletter groups', () => {
+    const newsletter = group({ id: 'news@newsletter' })
+    const { top, rest } = scoreGroups([newsletter])
+    expect(top.length + rest.length).toBe(0)
+  })
+
+  // ─── MAV-104: name quality improvements ──────────────────────────────────────
+
+  it('gives emoji-only names 0 name quality points', () => {
+    const emojiGroup = group({ name: '🔥💪' })
+    const regularGroup = group({ id: 'g2@g.us', name: 'Edinburgh mates', lastMessageAt: daysAgo(10) })
+    const { top } = scoreGroups([emojiGroup, regularGroup])
+    // regularGroup should score higher due to better name quality
+    expect(top[0].waJid).toBe('g2@g.us')
+  })
+
+  it('gives year-only names 0 name quality points', () => {
+    const yearGroup = group({ name: '2019' })
+    const regularGroup = group({ id: 'g2@g.us', name: 'Uni friends', lastMessageAt: daysAgo(10) })
+    const { top } = scoreGroups([yearGroup, regularGroup])
+    expect(top[0].waJid).toBe('g2@g.us')
+  })
+
+  it('gives chapter-keyword names (crew/friends/etc) full 15 name quality points', () => {
+    const chapterGroup = group({ name: 'Edinburgh crew' })
+    const plainGroup = group({ id: 'g2@g.us', name: 'Edinburgh trip', lastMessageAt: daysAgo(10) })
+    const { top } = scoreGroups([chapterGroup, plainGroup])
+    // chapterGroup should score higher (15 vs 10 name quality)
+    expect(top[0].waJid).toBe('g1@g.us')
+  })
+
+  it('gives regular real-word names 10 name quality points (not 15)', () => {
+    const plainGroup = group({ name: 'Trip Planning' })
+    const { top } = scoreGroups([plainGroup])
+    // score = recency(40) + size(30) + nameQuality(10) = 80
+    expect(top[0].score).toBe(80)
+  })
+
+  it('gives chapter-keyword name 15 name quality points', () => {
+    const chapterGroup = group({ name: 'Zalando gang' })
+    const { top } = scoreGroups([chapterGroup])
+    // score = recency(40) + size(30) + nameQuality(15) = 85
+    expect(top[0].score).toBe(85)
+  })
+
+  // ─── MAV-104: smoother recency decay ─────────────────────────────────────────
+
+  it('recency cliff between 29 and 31 days is at most 6 pts', () => {
+    const day29 = group({ id: 'g1@g.us', name: 'A', lastMessageAt: daysAgo(29) })
+    const day31 = group({ id: 'g2@g.us', name: 'A', lastMessageAt: daysAgo(31) })
+    const { top: top1 } = scoreGroups([day29])
+    const { top: top2 } = scoreGroups([day31])
+    const diff = top1[0].score - top2[0].score
+    expect(diff).toBeLessThanOrEqual(6)
+  })
+
+  it('groups < 14 days old score max recency (40 pts)', () => {
+    const fresh = group({ name: 'New crew', lastMessageAt: daysAgo(5) })
+    const { top } = scoreGroups([fresh])
+    // recency=40 + size=30 + nameQuality=15 = 85
+    expect(top[0].score).toBe(85)
+  })
+
+  it('groups 14-30 days old score recency=36', () => {
+    const g = group({ name: 'Trip Planning', lastMessageAt: daysAgo(20) })
+    const { top } = scoreGroups([g])
+    // recency=36 + size=30 + nameQuality=10 = 76
+    expect(top[0].score).toBe(76)
+  })
+
+  it('score never exceeds 100', () => {
+    const perfect = group({ name: 'Edinburgh crew', lastMessageAt: daysAgo(5), members: ['a','b','c','d'] })
+    const { top } = scoreGroups([perfect])
+    expect(top[0].score).toBeLessThanOrEqual(100)
+  })
 })

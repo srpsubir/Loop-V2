@@ -25,6 +25,14 @@ let _downloadActive = false
 export function isModelReady(): boolean   { return _ready }
 export function isDownloading(): boolean  { return _downloadActive }
 
+export function _setModelReadyForTest(ctx: unknown): void {
+  _ctx = ctx; _ready = true
+}
+export function _resetModelStateForTest(): void {
+  _llama = null; _model = null; _ctx = null
+  _ready = false; _loading = false; _downloadActive = false
+}
+
 export function modelExists(): boolean {
   try { fs.accessSync(MODEL_PATH, fs.constants.R_OK); return true }
   catch { return false }
@@ -170,10 +178,10 @@ export async function generateStoryWithSLM(
   ].filter(Boolean).join('\n')
 
   const sequence = (_ctx as any).getSequence()
-  const session  = new LlamaChatSession({ contextSequence: sequence, systemPrompt })
 
   let raw = ''
   try {
+    const session = new LlamaChatSession({ contextSequence: sequence, systemPrompt })
     raw = await session.prompt(userPrompt, {
       temperature: 0.3,
       topP: 0.9,
