@@ -3,13 +3,12 @@ import * as os from 'os'
 import * as path from 'path'
 import * as fs from 'fs'
 import { readState, patchState, listContacts, saveContact, deleteContact, LOOP_DIR, STATE_FILE, CONTACTS_DIR } from './store'
-import ClaudeClient from './claude'
 import WhatsAppManager from './whatsapp'
 import Scanner, { registerScanHandlers } from './scanner'
 import { registerPhotosHandlers } from './photos'
 import { track } from './analytics'
 import { scoreGroups } from './chapters'
-import type { AppState, Contact, Chapter } from '../shared/types'
+import type { AppState, Contact, Chapter, InviteCode, Story } from '../shared/types'
 
 export function registerAllHandlers(getWindow: () => BrowserWindow | null): void {
   // ── State ─────────────────────────────────────────────────────────────────
@@ -58,6 +57,57 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
       duration_to_connect_ms: waConnectStart.time ? Date.now() - waConnectStart.time : undefined,
     })
     Scanner.getInstance().run().catch(console.error)
+
+    // DIAGNOSTIC — remove after chat store audit
+    try {
+      const sock = (wa as any).socket as any
+      const allChats: any[] = sock?.chats?.all?.() ?? []
+
+      const groups = allChats.filter((c: any) => c.id?.endsWith('@g.us'))
+      const dms = allChats.filter((c: any) => !c.id?.endsWith('@g.us') && !c.id?.endsWith('@newsletter'))
+
+      const byYear: Record<number, number> = {}
+      for (const c of allChats) {
+        const ts = Number(c.conversationTimestamp ?? 0)
+        if (!ts) continue
+        const year = new Date(ts * 1000).getFullYear()
+        byYear[year] = (byYear[year] ?? 0) + 1
+      }
+
+      const sorted = [...allChats]
+        .filter((c: any) => Number(c.conversationTimestamp ?? 0) > 0)
+        .sort((a: any, b: any) => Number(a.conversationTimestamp) - Number(b.conversationTimestamp))
+
+      const oldest5 = sorted.slice(0, 5).map((c: any) => ({
+        date: new Date(Number(c.conversationTimestamp) * 1000).toISOString().slice(0, 10),
+        id: c.id,
+        name: c.name ?? c.id,
+        isGroup: c.id?.endsWith('@g.us'),
+      }))
+
+      const nowSec = Date.now() / 1000
+      const dmsOlderThan2yr = dms.filter((c: any) => (nowSec - Number(c.conversationTimestamp ?? 0)) > 2 * 365 * 86400).length
+      const dmsOlderThan5yr = dms.filter((c: any) => (nowSec - Number(c.conversationTimestamp ?? 0)) > 5 * 365 * 86400).length
+
+      console.log('\n[DIAG] ── Chat store contents ──────────────────────────')
+      console.log(`  Total chats : ${allChats.length}`)
+      console.log(`  Groups      : ${groups.length}`)
+      console.log(`  DMs         : ${dms.length}`)
+      console.log('\n  By year (conversationTimestamp):')
+      for (const year of Object.keys(byYear).sort()) {
+        console.log(`    ${year}: ${byYear[Number(year)]} chats`)
+      }
+      console.log('\n  Oldest 5 chats:')
+      for (const c of oldest5) {
+        console.log(`    [${c.date}] ${c.isGroup ? 'Group' : 'DM'}: ${c.name}`)
+      }
+      console.log(`\n  DMs older than 2 years : ${dmsOlderThan2yr}`)
+      console.log(`  DMs older than 5 years : ${dmsOlderThan5yr}`)
+      console.log('[DIAG] ──────────────────────────────────────────────────\n')
+    } catch (e) {
+      console.warn('[DIAG] Chat store read failed:', e)
+    }
+    // END DIAGNOSTIC
   })
 
   wa.on('disconnected', async ({ statusCode, loggedOut }: { statusCode?: number; loggedOut?: boolean } = {}) => {
@@ -108,6 +158,7 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
       active: c.active,
       startYear: c.inferredStartYear,
       endYear: c.inferredEndYear,
+      confirmed: false,
     }))
 
     await patchState({
@@ -118,32 +169,34 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
     getWindow()?.webContents.send('state:changed')
   })
 
+  ipcMain.handle('chapters:setName', async (_e, chapterId: string, name: string) => {
+    const state = await readState()
+    const chapters = state.chapters.map((ch) =>
+      ch.id === chapterId ? { ...ch, name, confirmed: true } : ch
+    )
+    await patchState({ chapters })
+    getWindow()?.webContents.send('state:changed')
+  })
+
   // ── Scan ─────────────────────────────────────────────────────────────────
 
   registerScanHandlers(getWindow)
 
-  // ── Claude ────────────────────────────────────────────────────────────────
+  // ── Story ─────────────────────────────────────────────────────────────────
 
-  ipcMain.handle('claude:ask', async (_e, system: string, user: string): Promise<string> => {
-    return ClaudeClient.getInstance().ask(system, user)
-  })
-
-  // ── Brief ─────────────────────────────────────────────────────────────────
-
-  ipcMain.handle('brief:open', async (_e, contactId: string) => {
+  ipcMain.handle('story:open', async (_e, contactId: string): Promise<Story | null> => {
     const state = await readState()
     const cs = state.contacts[contactId]
     if (!cs) return null
 
-    // Stamp open time for reach-out detection on next scan
     await patchState({
       contacts: {
         ...state.contacts,
-        [contactId]: { ...cs, briefOpenedAt: new Date().toISOString() },
+        [contactId]: { ...cs, storyOpenedAt: new Date().toISOString() },
       },
     })
 
-    return cs.brief
+    return cs.story ?? null
   })
 
   // ── Shell ─────────────────────────────────────────────────────────────────
@@ -165,6 +218,42 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
     } catch { /* dir may not exist */ }
     try { await fs.promises.unlink(STATE_FILE) } catch { /* may not exist */ }
     getWindow()?.webContents.reload()
+  })
+
+  // ── Invite codes ─────────────────────────────────────────────────────────────
+
+  function generateCode(): string {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+    return 'LOOP-' + Array.from({ length: 5 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+  }
+
+  ipcMain.handle('invite:generate', async (): Promise<InviteCode[]> => {
+    const state = await readState()
+    if (state.inviteCodes && state.inviteCodes.length > 0) return state.inviteCodes
+    const codes: InviteCode[] = [generateCode(), generateCode(), generateCode()].map((code) => ({ code }))
+    await patchState({ inviteCodes: codes })
+    return codes
+  })
+
+  ipcMain.handle('invite:redeem', async (_e, code: string): Promise<boolean> => {
+    const upper = code.toUpperCase().trim()
+    try {
+      const res = await fetch('https://srpsubir.app.n8n.cloud/webhook/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: upper }),
+      })
+      const json = await res.json() as { valid: boolean }
+      return json.valid
+    } catch {
+      return /^LOOP-[A-Z0-9]{5}$/.test(upper)
+    }
+  })
+
+  // ── Shell: open external URL ──────────────────────────────────────────────
+
+  ipcMain.handle('shell:openExternal', async (_e, url: string) => {
+    await shell.openExternal(url)
   })
 
   // ── Analytics bridge ──────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppState, Contact, Brief, ChapterCandidate } from '../shared/types'
+import type { AppState, Contact, Story, ChapterCandidate, InviteCode } from '../shared/types'
 
 const loopAPI = {
   state: {
@@ -56,19 +56,21 @@ const loopAPI = {
     },
   },
 
-  claude: {
-    ask: (system: string, user: string): Promise<string> =>
-      ipcRenderer.invoke('claude:ask', system, user),
-  },
-
-  brief: {
-    open: (contactId: string): Promise<Brief | null> =>
-      ipcRenderer.invoke('brief:open', contactId),
+  story: {
+    open: (contactId: string): Promise<Story | null> =>
+      ipcRenderer.invoke('story:open', contactId),
   },
 
   shell: {
     openWhatsApp: (whatsappId: string): Promise<void> =>
       ipcRenderer.invoke('shell:openWhatsApp', whatsappId),
+    openExternal: (url: string): Promise<void> =>
+      ipcRenderer.invoke('shell:openExternal', url),
+  },
+
+  invite: {
+    generate: (): Promise<InviteCode[]> => ipcRenderer.invoke('invite:generate'),
+    redeem: (code: string): Promise<boolean> => ipcRenderer.invoke('invite:redeem', code),
   },
 
   photos: {
@@ -89,6 +91,14 @@ const loopAPI = {
   chapters: {
     detect: (): Promise<ChapterCandidate[]> => ipcRenderer.invoke('chapters:detect'),
     confirm: (jids: string[]): Promise<void> => ipcRenderer.invoke('chapters:confirm', jids),
+    setName: (chapterId: string, name: string): Promise<void> =>
+      ipcRenderer.invoke('chapters:setName', chapterId, name),
+  },
+
+  onReconnection: (cb: (contactId: string) => void) => {
+    const handler = (_e: Electron.IpcRendererEvent, contactId: string) => cb(contactId)
+    ipcRenderer.on('reconnection:detected', handler)
+    return () => ipcRenderer.off('reconnection:detected', handler)
   },
 
   analytics: {

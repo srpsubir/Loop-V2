@@ -8,6 +8,19 @@ export interface Chapter {
   endYear?: number              // null = active/ongoing
   active: boolean
   coverPhotoPath?: string       // user-selected photo for chapter card
+  confirmed?: boolean           // false = created by inference, not yet named by user
+  echoAnniversary?: {
+    years: number
+    triggeredAt: string         // ISO date — when the echo was first detected
+    seenAt?: string             // ISO date — set when user opens the card
+  }
+}
+
+// ─── Invite code ─────────────────────────────────────────────────────────────
+
+export interface InviteCode {
+  code: string                  // e.g. "LOOP-A3X9K"
+  usedAt?: string               // ISO date — set when someone redeems it
 }
 
 // ─── Chapter candidate (from WhatsApp group scoring) ─────────────────────────
@@ -29,7 +42,7 @@ export interface ChapterCandidate {
 export interface OnThisDayMemory {
   contactId: string
   contactName: string
-  snippet: string               // Claude-generated warm one-liner
+  snippet: string               // template-generated warm one-liner
   yearsAgo: number
   date: string                  // ISO date of the original message
 }
@@ -49,19 +62,19 @@ export interface Contact {
   createdAt: string
 }
 
-// ─── Brief ───────────────────────────────────────────────────────────────────
+// ─── Story ───────────────────────────────────────────────────────────────────
 
-export interface Brief {
+export interface Story {
   generatedAt: string
   heroPhotoPath?: string        // local path from macOS Photos face-match
-  contextLines: string[]        // 2-3 lines from Claude
+  contextLines: string[]        // template-generated context lines
   reasonToReachOut: string      // "Birthday in 3 days" / "7 weeks since you spoke"
 }
 
 // ─── Occasion ────────────────────────────────────────────────────────────────
 
 export interface Occasion {
-  type: 'birthday' | 'interval' | 'milestone' | 'chapter-anniversary'
+  type: 'birthday' | 'interval' | 'milestone' | 'chapter-anniversary' | 'dead-thread'
   date: string
   label: string
 }
@@ -71,9 +84,13 @@ export interface Occasion {
 export interface ContactState {
   lastContactDate: string | null
   lastScanAt: string | null
-  brief: Brief | null
+  story: Story | null
   nextOccasion: Occasion | null
-  briefOpenedAt?: string | null   // timestamp when brief was opened (reach-out detection)
+  storyOpenedAt?: string | null   // timestamp when story screen opened
+  reachOutCount?: number          // increments each time user taps "Open in WhatsApp"
+  lastReachOutAt?: string | null  // ISO timestamp of most recent reach-out
+  reconnectedAt?: string | null   // ISO timestamp when reply detected after reach-out
+  suppressNudge?: boolean         // true after 2 failed reach-outs
 }
 
 // ─── App state ───────────────────────────────────────────────────────────────
@@ -91,6 +108,8 @@ export interface AppState {
   chapterDetectionComplete: boolean       // user has reviewed and confirmed
   onThisDayMemory?: OnThisDayMemory | null
   contacts: Record<string, ContactState>  // keyed by contactId
+  emailCaptured?: boolean                 // true once user submits or skips email capture
+  inviteCodes?: InviteCode[]              // 3 codes generated on first scan
 }
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
@@ -101,7 +120,7 @@ export type AppScreen =
   | 'chapter-inference'
   | 'chapter-confirm'
   | 'crew-detect'
-  | 'garden'
+  | 'your-loops'
   | 'chapter'
-  | 'brief'
+  | 'your-story'
   | 'settings'

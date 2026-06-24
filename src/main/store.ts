@@ -71,12 +71,15 @@ export async function listContacts(): Promise<Contact[]> {
 
 export async function saveContact(contact: Contact): Promise<Contact> {
   await ensureLoopDir()
+  const toSave = contact.tier === 'close' && !contact.intervalDays
+    ? { ...contact, intervalDays: 30 }
+    : contact
   await fs.writeFile(
-    join(CONTACTS_DIR, `${contact.id}.json`),
-    JSON.stringify(contact, null, 2),
+    join(CONTACTS_DIR, `${toSave.id}.json`),
+    JSON.stringify(toSave, null, 2),
     'utf-8'
   )
-  return contact
+  return toSave
 }
 
 export async function deleteContact(id: string): Promise<void> {

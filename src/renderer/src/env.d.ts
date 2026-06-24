@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import type { AppState, Contact, Brief } from '@shared/types'
+import type { AppState, Contact, Story, InviteCode } from '@shared/types'
 
 interface LoopAPI {
   state: {
@@ -20,20 +20,23 @@ interface LoopAPI {
     listGroups: () => Promise<{ id: string; name: string; members: string[] }[]>
     onQR: (cb: (qr: string) => void) => () => void
     onConnected: (cb: () => void) => () => void
+    onDisconnected: (cb: (loggedOut: boolean) => void) => () => void
   }
   scan: {
     run: () => Promise<void>
     onProgress: (cb: (name: string, current: number, total: number) => void) => () => void
     onComplete: (cb: () => void) => () => void
   }
-  claude: {
-    ask: (system: string, user: string) => Promise<string>
-  }
-  brief: {
-    open: (contactId: string) => Promise<Brief | null>
+  story: {
+    open: (contactId: string) => Promise<Story | null>
   }
   shell: {
     openWhatsApp: (whatsappId: string) => Promise<void>
+    openExternal: (url: string) => Promise<void>
+  }
+  invite: {
+    generate: () => Promise<InviteCode[]>
+    redeem: (code: string) => Promise<boolean>
   }
   photos: {
     pickHero: () => Promise<string | null>
@@ -47,6 +50,19 @@ interface LoopAPI {
       reasonToReachOut: string
       contextLine?: string
     }) => Promise<void>
+  }
+  onReconnection: (cb: (contactId: string) => void) => () => void
+  chapters: {
+    detect: () => Promise<import('@shared/types').ChapterCandidate[]>
+    confirm: (jids: string[]) => Promise<void>
+    setName: (chapterId: string, name: string) => Promise<void>
+  }
+  analytics: {
+    track: (event: string, properties?: Record<string, unknown>) => void
+  }
+  data: {
+    getDir: () => Promise<string>
+    deleteAll: () => Promise<void>
   }
 }
 

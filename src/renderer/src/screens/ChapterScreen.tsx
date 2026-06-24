@@ -6,7 +6,7 @@ import type { Chapter, Contact, AppState } from '@shared/types'
 interface ChapterScreenProps {
   chapterId: string
   onBack: () => void
-  onOpenBrief: (contactId: string) => void
+  onOpenStory: (contactId: string) => void
 }
 
 interface ChapterData {
@@ -14,7 +14,7 @@ interface ChapterData {
   contacts: Contact[]
 }
 
-export function ChapterScreen({ chapterId, onBack, onOpenBrief }: ChapterScreenProps) {
+export function ChapterScreen({ chapterId, onBack, onOpenStory }: ChapterScreenProps) {
   const [data, setData] = useState<ChapterData>({ chapter: null, contacts: [] })
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState('People')
@@ -201,7 +201,7 @@ export function ChapterScreen({ chapterId, onBack, onOpenBrief }: ChapterScreenP
                       name={contact.name}
                       meta={meta}
                       ring={contact.tier === 'close' ? 'sage' : 'none'}
-                      onClick={() => onOpenBrief(contact.id)}
+                      onClick={() => onOpenStory(contact.id)}
                       trailing={
                         contact.tier === 'close' ? (
                           <Tag tone="positive">Close</Tag>

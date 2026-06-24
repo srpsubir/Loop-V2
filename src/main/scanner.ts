@@ -1,9 +1,8 @@
 import { BrowserWindow, ipcMain } from 'electron'
 import { listContacts, readState, patchState } from './store'
-import ClaudeClient from './claude'
 import WhatsAppManager from './whatsapp'
 import { track } from './analytics'
-import type { Contact, ContactState, Occasion, Brief, Chapter, OnThisDayMemory } from '../shared/types'
+import type { Contact, ContactState, Occasion, Story, Chapter, OnThisDayMemory } from '../shared/types'
 import type { WAMessage } from './whatsapp'
 
 // ─── Message filters ──────────────────────────────────────────────────────────
@@ -79,69 +78,114 @@ export function computeNextOccasion(
   return candidates[0]?.occasion ?? null
 }
 
+// ─── Dead thread detection ────────────────────────────────────────────────────
+
+const DEAD_THREAD_PHRASES = [
+  "let's catch up", "lets catch up", "we should catch up",
+  "we should meet", "let's meet", "lets meet",
+  "let's get together", "lets get together",
+  "let's do this", "lets do this",
+  "let's plan", "lets plan",
+  "i'll call you", "i'll ring you", "call you soon",
+  "speak soon", "talk soon",
+]
+
+// messages must be sorted newest-first (Baileys default)
+export function detectDeadThread(messages: WAMessage[]): Occasion | null {
+  const SILENCE_DAYS = 14
+  const now = Date.now()
+
+  const phraseIdx = messages.findIndex((msg) => {
+    if (!msg.text) return false
+    const lower = msg.text.toLowerCase()
+    return DEAD_THREAD_PHRASES.some((p) => lower.includes(p))
+  })
+
+  if (phraseIdx < 0) return null
+  // Newer messages exist after the commitment phrase — conversation continued
+  if (phraseIdx > 0) return null
+
+  const phraseMs = messages[phraseIdx].timestamp * 1000
+  if ((now - phraseMs) / 86400000 < SILENCE_DAYS) return null
+
+  return {
+    type: 'dead-thread',
+    date: new Date(phraseMs).toISOString(),
+    label: 'Commitment made, never followed through',
+  }
+}
+
 // ─── Reach-out detection ──────────────────────────────────────────────────────
 
 function detectReachOut(
   prevState: ContactState | null,
   messages: WAMessage[]
 ): string | null {
-  if (!prevState?.briefOpenedAt) return null
-  const openedAtSeconds = new Date(prevState.briefOpenedAt).getTime() / 1000
+  if (!prevState?.storyOpenedAt) return null
+  const openedAtSeconds = new Date(prevState.storyOpenedAt).getTime() / 1000
   const outgoing = messages.find(
     (m) => m.fromMe && isRealMessage(m) && m.timestamp > openedAtSeconds
   )
   return outgoing ? new Date(outgoing.timestamp * 1000).toISOString() : null
 }
 
-// ─── Brief generation ─────────────────────────────────────────────────────────
-
-async function generateBrief(
-  contact: Contact,
-  messages: WAMessage[],
-  chapters: Chapter[]
-): Promise<Brief> {
-  const chapterNames = chapters
-    .filter((ch) => contact.chapterIds.includes(ch.id))
-    .map((ch) => `${ch.name}${ch.location ? ` (${ch.location})` : ''}`)
-    .join(', ')
-
-  const recentMessages = messages
-    .filter(isRealMessage)
-    .slice(0, 10)
-    .map((m) => `${m.fromMe ? 'You' : contact.name.split(' ')[0]}: ${(m.text ?? '').slice(0, 200)}`)
-    .join('\n')
-
-  const system = `You are Loop — a warm personal memory assistant. You write like a thoughtful friend, not an app. RULES: Only reference things explicitly present in the messages below. Never invent events, plans, topics, or shared history that are not in the messages. If messages are sparse or absent, write only in warm generalities — no invented specifics.`
-
-  const user = `${contact.name} is someone the user cares about. Life chapters shared: ${chapterNames || 'unknown'}.
-
-Recent messages (newest first):
-${recentMessages || '(no recent messages)'}
-
-Respond ONLY with valid JSON — no markdown, no extra text:
-{
-  "contextLines": ["sentence 1", "sentence 2"],
-  "reasonToReachOut": "one sentence"
+// Returns true if a reply was received after the most recent reach-out
+export function detectReconnection(
+  prevState: ContactState | null,
+  messages: WAMessage[]
+): boolean {
+  if (!prevState?.lastReachOutAt || prevState?.reconnectedAt) return false
+  const reachOutSec = new Date(prevState.lastReachOutAt).getTime() / 1000
+  const replied = messages.find((m) => !m.fromMe && m.timestamp > reachOutSec)
+  return !!replied
 }
 
-contextLines: 2 warm sentences about this relationship. Ground every specific claim in the messages above. If messages are absent or thin, write warm but generic — do not invent.
-reasonToReachOut: one sentence on why now is a good time to reach out. Reference time elapsed or something concrete from the messages — do not fabricate.`
+// Computes new reachOutCount and suppressNudge after a reach-out tap
+export function computeReachOutUpdate(prevCount: number): {
+  reachOutCount: number
+  suppressNudge: boolean
+} {
+  const reachOutCount = prevCount + 1
+  return { reachOutCount, suppressNudge: reachOutCount >= 2 }
+}
 
-  try {
-    const raw = await ClaudeClient.getInstance().ask(system, user)
-    const cleaned = raw.trim().replace(/^```json\n?/, '').replace(/\n?```$/, '')
-    const parsed = JSON.parse(cleaned) as { contextLines: string[]; reasonToReachOut: string }
-    return {
-      generatedAt: new Date().toISOString(),
-      contextLines: Array.isArray(parsed.contextLines) ? parsed.contextLines : [],
-      reasonToReachOut: typeof parsed.reasonToReachOut === 'string' ? parsed.reasonToReachOut : '',
-    }
-  } catch {
-    return {
-      generatedAt: new Date().toISOString(),
-      contextLines: [`${contact.name} is someone worth staying close to.`],
-      reasonToReachOut: 'A good time to check in.',
-    }
+// ─── Brief generation (template-based, fully local) ──────────────────────────
+
+function generateStory(
+  contact: Contact,
+  messages: WAMessage[],
+  chapters: Chapter[],
+  nextOccasion: Occasion | null
+): Story {
+  const firstName = contact.name.split(' ')[0]
+
+  const chapterNames = chapters
+    .filter((ch) => contact.chapterIds.includes(ch.id))
+    .map((ch) => ch.name)
+    .join(' and ')
+
+  const line1 = chapterNames
+    ? `You and ${firstName} go back to your ${chapterNames} days.`
+    : `${firstName} is someone you've stayed close to.`
+
+  const lastReal = messages.find(isRealMessage)
+  let line2: string
+  if (lastReal) {
+    const days = Math.floor((Date.now() - lastReal.timestamp * 1000) / 86400000)
+    if (days === 0)      line2 = 'You were in touch today.'
+    else if (days === 1) line2 = 'You spoke yesterday.'
+    else if (days < 7)   line2 = `You last spoke ${days} days ago.`
+    else if (days < 30)  line2 = `It has been ${Math.floor(days / 7)} week${Math.floor(days / 7) === 1 ? '' : 's'} since you last spoke.`
+    else if (days < 365) line2 = `It has been ${Math.floor(days / 30)} month${Math.floor(days / 30) === 1 ? '' : 's'} since you last spoke.`
+    else                 line2 = 'It has been over a year since you last spoke.'
+  } else {
+    line2 = "You haven't spoken in a while."
+  }
+
+  return {
+    generatedAt: new Date().toISOString(),
+    contextLines: [line1, line2],
+    reasonToReachOut: nextOccasion?.label ?? `A good time to check in with ${firstName}.`,
   }
 }
 
@@ -153,23 +197,13 @@ function isAnniversaryWindow(msgDate: Date, today: Date): boolean {
   return Math.abs(msgDate.getTime() - sameYear.getTime()) / 86400000 <= 7
 }
 
-async function generateOnThisDaySnippet(
+function generateOnThisDaySnippet(
   contact: Contact,
-  msg: WAMessage,
+  _msg: WAMessage,
   yearsAgo: number
-): Promise<string> {
+): string {
   const firstName = contact.name.split(' ')[0]
-  const text = (msg.text ?? '').slice(0, 300)
-  const system = 'You are Loop — a warm personal memory assistant. Be brief and human.'
-  const user = `${yearsAgo} year${yearsAgo === 1 ? '' : 's'} ago today, ${firstName} sent: "${text}"
-
-Write ONE warm sentence (under 20 words) evoking this moment. No output quotes. Past tense.`
-  try {
-    const raw = await ClaudeClient.getInstance().ask(system, user)
-    return raw.trim().replace(/^["']|["']$/g, '').slice(0, 120)
-  } catch {
-    return `A moment from ${yearsAgo} year${yearsAgo === 1 ? '' : 's'} ago today.`
-  }
+  return `${firstName} sent you this ${yearsAgo} year${yearsAgo === 1 ? '' : 's'} ago today.`
 }
 
 // ─── Scanner singleton ────────────────────────────────────────────────────────
@@ -206,6 +240,7 @@ class Scanner {
       const today = new Date()
       const updatedContacts = { ...state.contacts }
       let onThisDayMemory: OnThisDayMemory | null = null
+      const minMsgTsByChapter = new Map<string, number>()
 
       for (let i = 0; i < contacts.length; i++) {
         const contact = contacts[i]
@@ -216,10 +251,16 @@ class Scanner {
         let messages: WAMessage[] = []
         if (contact.whatsappId && wa.isConnected()) {
           try {
-            messages = await wa.getMessages(contact.whatsappId, 30)
+            messages = await wa.getMessages(contact.whatsappId, 50)
           } catch {
             console.warn(`[Scanner] Could not fetch messages for ${contact.name}`)
           }
+        }
+
+        // Reconnection detection: did they reply after our last reach-out?
+        const justReconnected = detectReconnection(prevState, messages)
+        if (justReconnected) {
+          this.send('reconnection:detected', contact.id)
         }
 
         const reachOutDate = detectReachOut(prevState, messages)
@@ -228,19 +269,24 @@ class Scanner {
           reachOutDate ??
           (lastReal ? new Date(lastReal.timestamp * 1000).toISOString() : prevState?.lastContactDate ?? null)
 
-        const nextOccasion = computeNextOccasion(contact, lastContactDate)
+        const baseOccasion = computeNextOccasion(contact, lastContactDate)
+        // Dead thread only fires when there's no active birthday signal within 7 days
+        const birthdayWithin7 = baseOccasion?.type === 'birthday' &&
+          (new Date(baseOccasion.date).getTime() - Date.now()) / 86400000 <= 7
+        const deadThread = birthdayWithin7 ? null : detectDeadThread(messages)
+        const nextOccasion: Occasion | null = deadThread ?? baseOccasion
 
         // Only regenerate brief if there are new messages since the last one
-        const existingBrief = prevState?.brief ?? null
+        const existingStory = prevState?.story ?? null
         const newestMsgAt = messages.find(isRealMessage)?.timestamp ?? 0
-        const briefAge = existingBrief?.generatedAt
-          ? (Date.now() - new Date(existingBrief.generatedAt).getTime()) / 3_600_000
+        const storyAge = existingStory?.generatedAt
+          ? (Date.now() - new Date(existingStory.generatedAt).getTime()) / 3_600_000
           : Infinity
         const hasNewMessages = newestMsgAt > 0 &&
-          (!existingBrief || newestMsgAt * 1000 > new Date(existingBrief.generatedAt).getTime())
-        const brief = (hasNewMessages || briefAge > 168)
-          ? await generateBrief(contact, messages, state.chapters)
-          : existingBrief
+          (!existingStory || newestMsgAt * 1000 > new Date(existingStory.generatedAt).getTime())
+        const story = (hasNewMessages || storyAge > 168)
+          ? generateStory(contact, messages, state.chapters, nextOccasion)
+          : existingStory
 
         if (nextOccasion) {
           track('suggestion_shown', { suggestion_type: nextOccasion.type })
@@ -249,9 +295,21 @@ class Scanner {
         updatedContacts[contact.id] = {
           lastContactDate,
           lastScanAt: now,
-          brief,
+          story,
           nextOccasion,
-          briefOpenedAt: reachOutDate ? null : (prevState?.briefOpenedAt ?? null),
+          storyOpenedAt: reachOutDate ? null : (prevState?.storyOpenedAt ?? null),
+          reachOutCount:   justReconnected ? 0 : (prevState?.reachOutCount ?? 0),
+          lastReachOutAt:  justReconnected ? null : (prevState?.lastReachOutAt ?? null),
+          reconnectedAt:   justReconnected ? now : (prevState?.reconnectedAt ?? null),
+          suppressNudge:   justReconnected ? false : (prevState?.suppressNudge ?? false),
+        }
+
+        // Track earliest message per chapter for Echo anniversary detection
+        for (const msg of messages) {
+          for (const chId of contact.chapterIds) {
+            const prev = minMsgTsByChapter.get(chId) ?? Infinity
+            if (msg.timestamp < prev) minMsgTsByChapter.set(chId, msg.timestamp)
+          }
         }
 
         // On This Day: check messages for anniversary match (±7 days, 1-5 years ago)
@@ -262,7 +320,7 @@ class Scanner {
             const yearsAgo = today.getFullYear() - msgDate.getFullYear()
             if (yearsAgo < 1 || yearsAgo > 5) continue
             if (!isAnniversaryWindow(msgDate, today)) continue
-            const snippet = await generateOnThisDaySnippet(contact, msg, yearsAgo)
+            const snippet = generateOnThisDaySnippet(contact, msg, yearsAgo)
             onThisDayMemory = {
               contactId: contact.id,
               contactName: contact.name,
@@ -275,7 +333,20 @@ class Scanner {
         }
       }
 
-      await patchState({ contacts: updatedContacts, lastScanAt: now, onThisDayMemory })
+      // Echo anniversary detection: fire when chapter has a first-message anniversary today
+      const updatedChapters = state.chapters.map((chapter) => {
+        const firstMsgTs = minMsgTsByChapter.get(chapter.id)
+        if (!firstMsgTs) return chapter
+        const first = new Date(firstMsgTs * 1000)
+        const sameDay = first.getMonth() === today.getMonth() && first.getDate() === today.getDate()
+        const years = today.getFullYear() - first.getFullYear()
+        if (!sameDay || years < 1) return chapter
+        const alreadySeen = chapter.echoAnniversary?.seenAt?.startsWith(String(today.getFullYear()))
+        if (alreadySeen) return chapter
+        return { ...chapter, echoAnniversary: { years, triggeredAt: today.toISOString() } }
+      })
+
+      await patchState({ chapters: updatedChapters, contacts: updatedContacts, lastScanAt: now, onThisDayMemory })
       this.send('scan:complete')
       this.send('state:changed')
       console.log(`[Scanner] Complete — ${contacts.length} contacts scanned`)

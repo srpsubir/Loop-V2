@@ -1,32 +1,33 @@
 import React, { useState, useEffect } from 'react'
-import { ArrowLeft, Send, Heart, Camera, CalendarPlus, Check } from 'lucide-react'
+import { ArrowLeft, Send, Camera } from 'lucide-react'
 import { Avatar, Button, IconButton, Tag } from '../components'
-import type { Contact, Brief, AppState, Chapter, Occasion } from '@shared/types'
+import type { Contact, Story, AppState, Chapter } from '@shared/types'
 
-interface BriefScreenProps {
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface StoryScreenProps {
   contactId: string
   onBack: () => void
 }
 
-interface BriefData {
+interface StoryData {
   contact: Contact | null
-  brief: Brief | null
+  brief: Story | null
   chapters: Chapter[]
   lastContactDate: string | null
-  nextOccasion: Occasion | null
 }
 
 // ─── Timeline item ────────────────────────────────────────────────────────────
 
 function TimelineItem({
   dot,
-  date,
+  label,
   text,
   serif,
   last,
 }: {
   dot: 'accent' | 'rose'
-  date: string
+  label: string
   text: string
   serif?: boolean
   last?: boolean
@@ -34,43 +35,35 @@ function TimelineItem({
   return (
     <div style={{ display: 'flex', gap: 18 }}>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, width: 14 }}>
-        <span
-          style={{
-            width: 11,
-            height: 11,
-            borderRadius: '50%',
-            background: dot === 'accent' ? 'var(--accent)' : 'var(--people)',
-            boxShadow: '0 0 0 4px var(--bg)',
-            marginTop: 4,
-            flexShrink: 0,
-          }}
-        />
-        {!last && (
-          <span style={{ width: 2, flex: 1, background: 'var(--border-light)', marginTop: 4 }} />
-        )}
+        <span style={{
+          width: 11,
+          height: 11,
+          borderRadius: '50%',
+          background: dot === 'accent' ? 'var(--accent)' : 'var(--people)',
+          boxShadow: '0 0 0 4px var(--bg)',
+          marginTop: 4,
+          flexShrink: 0,
+        }} />
+        {!last && <span style={{ width: 2, flex: 1, background: 'var(--border-light)', marginTop: 4 }} />}
       </div>
       <div style={{ paddingBottom: 28, flex: 1 }}>
-        <div
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 11,
-            letterSpacing: '.06em',
-            textTransform: 'uppercase',
-            color: 'var(--text-muted)',
-            marginBottom: 6,
-          }}
-        >
-          {date}
+        <div style={{
+          fontFamily: 'var(--font-sans)',
+          fontSize: 11,
+          letterSpacing: '.06em',
+          textTransform: 'uppercase',
+          color: 'var(--text-muted)',
+          marginBottom: 6,
+        }}>
+          {label}
         </div>
-        <div
-          style={{
-            fontFamily: serif ? 'var(--font-serif)' : 'var(--font-sans)',
-            fontSize: serif ? 16 : 14,
-            fontStyle: serif ? 'italic' : 'normal',
-            color: serif ? 'var(--text-primary)' : 'var(--text-secondary)',
-            lineHeight: 1.65,
-          }}
-        >
+        <div style={{
+          fontFamily: serif ? 'var(--font-serif)' : 'var(--font-sans)',
+          fontSize: serif ? 16 : 14,
+          fontStyle: serif ? 'italic' : 'normal',
+          color: serif ? 'var(--text-muted)' : 'var(--text-secondary)',
+          lineHeight: 1.65,
+        }}>
           {text}
         </div>
       </div>
@@ -80,65 +73,52 @@ function TimelineItem({
 
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
-export function BriefScreen({ contactId, onBack }: BriefScreenProps) {
-  const [data, setData] = useState<BriefData>({
+export function StoryScreen({ contactId, onBack }: StoryScreenProps) {
+  const [data, setData] = useState<StoryData>({
     contact: null,
     brief: null,
     chapters: [],
     lastContactDate: null,
-    nextOccasion: null,
   })
   const [loading, setLoading] = useState(true)
-  const [calendarAdded, setCalendarAdded] = useState(false)
 
   useEffect(() => {
     async function load() {
       try {
         const [brief, contacts, state] = await Promise.all([
-          window.loop.brief.open(contactId),
+          window.loop.story.open(contactId),
           window.loop.contacts.list(),
           window.loop.state.get() as Promise<AppState>,
         ])
-
         const contact = contacts.find((c) => c.id === contactId) ?? null
         const cs = state.contacts[contactId]
         const chapters = contact
           ? state.chapters.filter((ch) => contact.chapterIds.includes(ch.id))
           : []
-
         setData({
           contact,
           brief,
           chapters,
           lastContactDate: cs?.lastContactDate ?? null,
-          nextOccasion: cs?.nextOccasion ?? null,
         })
-      } catch {
-        // pass
-      } finally {
+
+        // Mark story as opened for reconnection detection (MAV-83)
+        if (cs !== undefined) {
+          await window.loop.state.patch({
+            contacts: {
+              ...state.contacts,
+              [contactId]: { ...cs, storyOpenedAt: new Date().toISOString() },
+            },
+          })
+        }
+      } catch { /* pass */ } finally {
         setLoading(false)
       }
     }
     load()
   }, [contactId])
 
-  const { contact, brief, chapters, lastContactDate, nextOccasion } = data
-
-  const handleAddToCalendar = async () => {
-    if (!contact || !brief) return
-    try {
-      await window.loop.calendar.addEvent({
-        contactName: contact.name,
-        occasionType: nextOccasion?.type ?? null,
-        occasionDate: nextOccasion?.date ?? null,
-        reasonToReachOut: brief.reasonToReachOut,
-        contextLine: brief.contextLines[0],
-      })
-      setCalendarAdded(true)
-      setTimeout(() => setCalendarAdded(false), 4000)
-    } catch { /* ignore */ }
-  }
-
+  const { contact, brief, chapters, lastContactDate } = data
   const heroSrc = brief?.heroPhotoPath ? `loop-file://${brief.heroPhotoPath}` : undefined
 
   function formatLastContact(iso: string | null): string {
@@ -157,20 +137,16 @@ export function BriefScreen({ contactId, onBack }: BriefScreenProps) {
 
   const handlePickPhoto = async () => {
     try {
-      // @ts-ignore — photos:pickHero is not in the typed bridge yet
+      // @ts-ignore — photos:pickHero not in typed bridge
       const path: string | null = await window.loop.photos?.pickHero?.()
       if (path && brief && contact) {
-        // Save updated brief heroPhotoPath via state patch
         const state = await window.loop.state.get()
         const cs = state.contacts[contactId]
-        if (cs && cs.brief) {
+        if (cs && cs.story) {
           await window.loop.state.patch({
             contacts: {
               ...state.contacts,
-              [contactId]: {
-                ...cs,
-                brief: { ...cs.brief, heroPhotoPath: path },
-              },
+              [contactId]: { ...cs, story: { ...cs.story, heroPhotoPath: path } },
             },
           })
           setData((d) => ({
@@ -205,21 +181,53 @@ export function BriefScreen({ contactId, onBack }: BriefScreenProps) {
 
   return (
     <div style={{ height: '100%', overflowY: 'auto', background: 'var(--bg)' }}>
-      <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 56px 80px' }}>
-        {/* Back */}
-        <div style={{ marginBottom: 24 }}>
+      <div style={{ maxWidth: 680, margin: '0 auto', padding: '28px 52px 80px' }}>
+
+        {/* Top bar — back + ghost CTA */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
           <IconButton
             variant="ghost"
             label="Back"
             icon={<ArrowLeft size={18} strokeWidth={1.8} />}
             onClick={onBack}
           />
+          {contact.whatsappId && (
+            <Button
+              variant="ghost"
+              iconLeft={<Send size={13} strokeWidth={1.8} />}
+              onClick={async () => {
+                if (!contact.whatsappId) return
+                try {
+                  const state = await window.loop.state.get() as AppState
+                  const cs = state.contacts[contactId]
+                  if (cs) {
+                    const newCount = (cs.reachOutCount ?? 0) + 1
+                    await window.loop.state.patch({
+                      contacts: {
+                        ...state.contacts,
+                        [contactId]: {
+                          ...cs,
+                          lastReachOutAt: new Date().toISOString(),
+                          reachOutCount: newCount,
+                          suppressNudge: newCount >= 2,
+                        },
+                      },
+                    })
+                  }
+                } catch { /* non-critical */ }
+                window.loop.shell.openWhatsApp(contact.whatsappId)
+              }}
+            >
+              Open WhatsApp
+            </Button>
+          )}
         </div>
 
         {/* Hero section */}
-        <div style={{ display: 'flex', gap: 22, alignItems: 'center', marginBottom: 24 }}>
+        <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', marginBottom: 28 }}>
+          {/* Avatar with photo-pick overlay */}
           <div style={{ position: 'relative', flexShrink: 0 }}>
-            <Avatar name={contact.name} src={heroSrc} size={88} ring={contact.tier === 'close' ? 'sage' : 'none'} />
+            <Avatar name={contact.name} src={heroSrc} size={88} />
             <button
               type="button"
               onClick={handlePickPhoto}
@@ -243,100 +251,80 @@ export function BriefScreen({ contactId, onBack }: BriefScreenProps) {
               <Camera size={12} strokeWidth={1.8} />
             </button>
           </div>
+
           <div style={{ flex: 1 }}>
-            <div
-              style={{
-                fontFamily: 'var(--font-serif)',
-                fontSize: 32,
-                fontWeight: 600,
-                color: 'var(--text-primary)',
-                letterSpacing: '-0.02em',
-              }}
-            >
+            {/* Name — 38px Lora 600, no tier badge */}
+            <div style={{
+              fontFamily: 'var(--font-serif)',
+              fontSize: 38,
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              letterSpacing: '-0.02em',
+              lineHeight: 1.1,
+            }}>
               {contact.name}
             </div>
-            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
+
+            {/* Last contact */}
+            <div style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 13,
+              color: 'var(--text-muted)',
+              marginTop: 6,
+            }}>
               Last contact: {formatLastContact(lastContactDate)}
             </div>
-            {(chapters.length > 0 || contact.tier === 'close') && (
+
+            {/* Chapter tags — quiet context, never classification */}
+            {chapters.length > 0 && (
               <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                 {chapters.map((ch) => (
                   <Tag key={ch.id} tone="chapter">{ch.name}</Tag>
                 ))}
-                {contact.tier === 'close' && (
-                  <Tag tone="positive" icon={<Heart size={11} strokeWidth={1.8} />}>
-                    Close
-                  </Tag>
-                )}
               </div>
             )}
           </div>
         </div>
 
-        {/* CTAs */}
-        <div style={{ display: 'flex', gap: 12, marginBottom: 40, alignItems: 'center' }}>
-          <Button
-            iconLeft={calendarAdded
-              ? <Check size={15} strokeWidth={2} />
-              : <CalendarPlus size={15} strokeWidth={1.8} />
-            }
-            onClick={handleAddToCalendar}
-            disabled={!brief || calendarAdded}
-          >
-            {calendarAdded ? 'Added to Calendar' : 'Add to calendar'}
-          </Button>
-          {contact.whatsappId && (
-            <Button
-              variant="ghost"
-              iconLeft={<Send size={14} strokeWidth={1.8} />}
-              onClick={() => contact.whatsappId && window.loop.shell.openWhatsApp(contact.whatsappId)}
-            >
-              Open WhatsApp
-            </Button>
-          )}
-        </div>
-
-        {/* Brief context */}
+        {/* Story content */}
         {brief ? (
           <>
-            {/* Reason to reach out */}
+            {/* Reason to reach out — warm observation, not a warning */}
             {brief.reasonToReachOut && (
-              <div
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 14,
-                  color: 'var(--accent)',
-                  fontWeight: 600,
-                  background: 'var(--accent-faint)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '10px 16px',
-                  marginBottom: 32,
-                }}
-              >
+              <div style={{
+                fontFamily: 'var(--font-serif)',
+                fontStyle: 'italic',
+                fontSize: 15,
+                color: 'var(--accent)',
+                background: 'var(--accent-faint)',
+                borderRadius: 'var(--radius-md)',
+                padding: '12px 18px',
+                marginBottom: 36,
+                lineHeight: 1.6,
+              }}>
                 {brief.reasonToReachOut}
               </div>
             )}
 
-            {/* Timeline */}
-            <div
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 11,
-                letterSpacing: '.1em',
-                textTransform: 'uppercase',
-                color: 'var(--text-muted)',
-                fontWeight: 600,
-                marginBottom: 22,
-              }}
-            >
+            {/* Your story together */}
+            <div style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 11,
+              letterSpacing: '.1em',
+              textTransform: 'uppercase',
+              color: 'var(--text-muted)',
+              fontWeight: 600,
+              marginBottom: 24,
+            }}>
               Your story together
             </div>
+
             <div>
               {brief.contextLines.map((line, i) => (
                 <TimelineItem
                   key={i}
                   dot={i === 0 ? 'accent' : 'rose'}
-                  date={i === 0 ? 'Recently' : 'Earlier'}
+                  label={i === 0 ? 'Recently' : 'Earlier'}
                   text={line}
                   serif={i === brief.contextLines.length - 1}
                   last={i === brief.contextLines.length - 1}
@@ -345,17 +333,15 @@ export function BriefScreen({ contactId, onBack }: BriefScreenProps) {
             </div>
           </>
         ) : (
-          <div
-            style={{
-              textAlign: 'center',
-              padding: '48px 24px',
-              color: 'var(--text-muted)',
-              fontFamily: 'var(--font-serif)',
-              fontSize: 17,
-              fontStyle: 'italic',
-            }}
-          >
-            Brief not yet generated.
+          <div style={{
+            textAlign: 'center',
+            padding: '48px 24px',
+            color: 'var(--text-muted)',
+            fontFamily: 'var(--font-serif)',
+            fontSize: 17,
+            fontStyle: 'italic',
+          }}>
+            Still coming together.
             <div style={{ fontFamily: 'var(--font-sans)', fontSize: 14, fontStyle: 'normal', marginTop: 8 }}>
               Run a scan to let Loop read your conversation history.
             </div>

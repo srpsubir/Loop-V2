@@ -3,6 +3,12 @@ import { render, screen, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import React from 'react'
 
+vi.mock('qrcode', () => ({
+  default: {
+    toDataURL: vi.fn().mockResolvedValue('data:image/png;base64,FAKE'),
+  },
+}))
+
 // ─── Mock window.loop ─────────────────────────────────────────────────────────
 
 type QRHandler = (qr: string) => void
@@ -46,8 +52,7 @@ const mockLoop = {
   shell: { openWhatsApp: vi.fn() },
   photos: { pickHero: vi.fn(), pickChapter: vi.fn() },
   calendar: { addEvent: vi.fn() },
-  brief: { open: vi.fn() },
-  claude: { ask: vi.fn() },
+  story: { open: vi.fn() },
   analytics: { track: vi.fn() },
   data: { getDir: vi.fn().mockResolvedValue('~/Documents/Loop'), deleteAll: vi.fn() },
 }
@@ -81,13 +86,13 @@ describe('WhatsApp connect screen', () => {
 
   it('shows Connect WhatsApp button on welcome screen', async () => {
     await renderConnectScreen()
-    expect(screen.getByText('Connect WhatsApp')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Connect WhatsApp' })).toBeInTheDocument()
   })
 
   it('shows Starting… after clicking Connect WhatsApp', async () => {
     await renderConnectScreen()
     await act(async () => {
-      await userEvent.click(screen.getByText('Connect WhatsApp'))
+      await userEvent.click(screen.getByRole('button', { name: 'Connect WhatsApp' }))
     })
     expect(screen.getByText(/Starting/)).toBeInTheDocument()
   })
@@ -95,10 +100,12 @@ describe('WhatsApp connect screen', () => {
   it('shows QR code area when QR event fires', async () => {
     await renderConnectScreen()
     await act(async () => {
-      await userEvent.click(screen.getByText('Connect WhatsApp'))
+      await userEvent.click(screen.getByRole('button', { name: 'Connect WhatsApp' }))
     })
     await act(async () => {
       fireQR('some-qr-string')
+      // Wait for qrcode.toDataURL promise to resolve
+      await new Promise((r) => setTimeout(r, 10))
     })
     expect(screen.getByAltText('WhatsApp QR code')).toBeInTheDocument()
   })
@@ -106,7 +113,7 @@ describe('WhatsApp connect screen', () => {
   it('shows Connected when connected event fires', async () => {
     await renderConnectScreen()
     await act(async () => {
-      await userEvent.click(screen.getByText('Connect WhatsApp'))
+      await userEvent.click(screen.getByRole('button', { name: 'Connect WhatsApp' }))
     })
     await act(async () => {
       fireConnected()
@@ -117,7 +124,7 @@ describe('WhatsApp connect screen', () => {
   it('shows error state when disconnected event fires (not logged out)', async () => {
     await renderConnectScreen()
     await act(async () => {
-      await userEvent.click(screen.getByText('Connect WhatsApp'))
+      await userEvent.click(screen.getByRole('button', { name: 'Connect WhatsApp' }))
     })
     await act(async () => {
       fireDisconnected(false)
@@ -129,7 +136,7 @@ describe('WhatsApp connect screen', () => {
   it('shows session expired state when logged out', async () => {
     await renderConnectScreen()
     await act(async () => {
-      await userEvent.click(screen.getByText('Connect WhatsApp'))
+      await userEvent.click(screen.getByRole('button', { name: 'Connect WhatsApp' }))
     })
     await act(async () => {
       fireDisconnected(true)
@@ -142,7 +149,7 @@ describe('WhatsApp connect screen', () => {
     mockLoop.state.patch.mockResolvedValue({})
     await renderConnectScreen()
     await act(async () => {
-      await userEvent.click(screen.getByText('Connect WhatsApp'))
+      await userEvent.click(screen.getByRole('button', { name: 'Connect WhatsApp' }))
     })
     await act(async () => {
       fireConnected()
@@ -158,7 +165,7 @@ describe('WhatsApp connect screen', () => {
     mockLoop.whatsapp.status.mockResolvedValue({ status: 'connected', qr: null })
     await renderConnectScreen()
     await act(async () => {
-      await userEvent.click(screen.getByText('Connect WhatsApp'))
+      await userEvent.click(screen.getByRole('button', { name: 'Connect WhatsApp' }))
     })
     // Connected event never fires — but status poll should catch it
     await act(async () => { await new Promise((r) => setTimeout(r, 50)) })

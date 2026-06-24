@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Gift, Plus, Settings, RefreshCw, Send } from 'lucide-react'
+import { Gift, Plus, Settings, RefreshCw } from 'lucide-react'
 import { Avatar, Button, IconButton, PaperCard, PersonRow } from '../components'
 import { OnThisDay } from '../components/OnThisDay'
 import type { AppState, Contact, Chapter, ContactState } from '@shared/types'
@@ -16,7 +16,7 @@ interface OnYourMindEntry {
 
 interface GardenScreenProps {
   onOpenChapter: (chapterId: string) => void
-  onOpenBrief: (contactId: string) => void
+  onOpenStory: (contactId: string) => void
   onOpenSettings: () => void
 }
 
@@ -59,7 +59,7 @@ function buildOnYourMind(contacts: Contact[], appState: AppState): OnYourMindEnt
 
   for (const contact of contacts) {
     const cs = appState.contacts[contact.id]
-    if (!cs || !cs.brief) continue
+    if (!cs || !cs.story) continue
 
     let reason = cs.nextOccasion?.label ?? ''
     let urgency = 0
@@ -102,8 +102,8 @@ function timeGreeting(): string {
 
 function MindHero({ entry, onOpen }: { entry: OnYourMindEntry; onOpen: () => void }) {
   const { contact, contactState, reason } = entry
-  const heroSrc = contactState.brief?.heroPhotoPath
-    ? `loop-file://${contactState.brief.heroPhotoPath}`
+  const heroSrc = contactState.story?.heroPhotoPath
+    ? `loop-file://${contactState.story.heroPhotoPath}`
     : undefined
 
   return (
@@ -156,7 +156,7 @@ function MindHero({ entry, onOpen }: { entry: OnYourMindEntry; onOpen: () => voi
         >
           {contact.name}
         </div>
-        {contactState.brief?.contextLines?.[0] && (
+        {contactState.story?.contextLines?.[0] && (
           <div
             style={{
               fontFamily: 'var(--font-sans)',
@@ -166,22 +166,11 @@ function MindHero({ entry, onOpen }: { entry: OnYourMindEntry; onOpen: () => voi
               maxWidth: 480,
             }}
           >
-            {contactState.brief.contextLines[0]}
+            {contactState.story.contextLines[0]}
           </div>
         )}
         <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-          <Button onClick={onOpen}>Open brief</Button>
-          {contact.whatsappId && (
-            <Button
-              variant="secondary"
-              iconLeft={<Send size={14} strokeWidth={1.8} />}
-              onClick={async () => {
-                if (contact.whatsappId) await window.loop.shell.openWhatsApp(contact.whatsappId)
-              }}
-            >
-              Say hi
-            </Button>
-          )}
+          <Button onClick={onOpen}>Open your story</Button>
         </div>
       </div>
     </PaperCard>
@@ -341,7 +330,7 @@ function EmptyOnYourMind() {
 
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
-export function GardenScreen({ onOpenChapter, onOpenBrief, onOpenSettings }: GardenScreenProps) {
+export function GardenScreen({ onOpenChapter, onOpenStory, onOpenSettings }: GardenScreenProps) {
   const { state, contacts, loading, reload } = useGardenData()
   const [scanning, setScanning] = useState(false)
 
@@ -450,7 +439,7 @@ export function GardenScreen({ onOpenChapter, onOpenBrief, onOpenSettings }: Gar
 
         {hero ? (
           <>
-            <MindHero entry={hero} onOpen={() => onOpenBrief(hero.contact.id)} />
+            <MindHero entry={hero} onOpen={() => onOpenStory(hero.contact.id)} />
             {rest.length > 0 && (
               <div style={{ marginTop: 12 }}>
                 <PaperCard padding={8}>
@@ -459,12 +448,8 @@ export function GardenScreen({ onOpenChapter, onOpenBrief, onOpenSettings }: Gar
                       <PersonRow
                         name={e.contact.name}
                         note={e.reason}
-                        onClick={() => onOpenBrief(e.contact.id)}
-                        trailing={
-                          <Button variant="secondary" size="sm" iconLeft={<Send size={13} strokeWidth={1.8} />}>
-                            Say hi
-                          </Button>
-                        }
+                        onClick={() => onOpenStory(e.contact.id)}
+                        trailing={undefined}
                       />
                       {i < rest.length - 1 && (
                         <div style={{ height: 1, background: 'var(--border-light)', margin: '0 12px' }} />
