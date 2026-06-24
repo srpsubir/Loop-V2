@@ -3,6 +3,7 @@ import { Settings, X } from 'lucide-react'
 import { IconButton } from '../components'
 import { ModelUpgradeCard } from '../components/ModelUpgradeCard'
 import type { UpgradeStatus } from '../components/ModelUpgradeCard'
+import { NudgeCard } from '../components/NudgeCard'
 import type { AppState, Contact, ContactState, OnThisDayMemory, Chapter } from '@shared/types'
 import { toPng } from 'html-to-image'
 
@@ -484,6 +485,57 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings }: YourLoopsScre
     })
   }, [state, contacts])
 
+  // Nudge card: most-overdue close contact eligible for a nudge
+  const nudgeContact = useMemo(() => {
+    if (!state) return null
+    const eligible = contacts.filter((c) => {
+      const cs = state.contacts[c.id]
+      return cs && isNudgeEligible(c, cs)
+    })
+    eligible.sort((a, b) => {
+      const dA = state.contacts[a.id]?.lastContactDate
+        ? Date.now() - new Date(state.contacts[a.id].lastContactDate!).getTime()
+        : Infinity
+      const dB = state.contacts[b.id]?.lastContactDate
+        ? Date.now() - new Date(state.contacts[b.id].lastContactDate!).getTime()
+        : Infinity
+      return dB - dA
+    })
+    return eligible[0] ?? null
+  }, [contacts, state])
+
+  const handleNudgeMessage = useCallback(async () => {
+    if (!nudgeContact || !state) return
+    const cs = state.contacts[nudgeContact.id]
+    if (cs) {
+      const newCount = (cs.reachOutCount ?? 0) + 1
+      await window.loop.state.patch({
+        contacts: {
+          ...state.contacts,
+          [nudgeContact.id]: {
+            ...cs,
+            lastReachOutAt: new Date().toISOString(),
+            reachOutCount: newCount,
+            suppressNudge: newCount >= 2,
+          },
+        },
+      }).catch(() => {})
+    }
+    if (nudgeContact.whatsappId) window.loop.shell.openWhatsApp(nudgeContact.whatsappId).catch(() => {})
+  }, [nudgeContact, state])
+
+  const handleNudgeDismiss = useCallback(async () => {
+    if (!nudgeContact || !state) return
+    const cs = state.contacts[nudgeContact.id]
+    if (!cs) return
+    await window.loop.state.patch({
+      contacts: {
+        ...state.contacts,
+        [nudgeContact.id]: { ...cs, nudgeDismissedAt: new Date().toISOString() },
+      },
+    }).catch(() => {})
+  }, [nudgeContact, state])
+
   // Opening moment: only when there are zero urgent signals
   const hasSignals = chapterAtoms.some(
     (a) => a.atomState === 'fading' || a.atomState === 'birthday-live' || a.atomState === 'dead-thread'
@@ -597,6 +649,19 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings }: YourLoopsScre
             onDismiss={() => setUpgradeStatus(null)}
             onUpgrade={handleUpgrade}
             onCancel={handleCancelUpgrade}
+          />
+        </div>
+      )}
+
+      {/* Nudge card — most overdue close contact */}
+      {nudgeContact && (
+        <div style={{ padding: '16px 44px 0', flexShrink: 0 }}>
+          <NudgeCard
+            contactName={nudgeContact.name}
+            contactInitials={nudgeContact.name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
+            nudgeText={`You've been quiet with ${nudgeContact.name.split(' ')[0]}. Worth a message.`}
+            onMessage={handleNudgeMessage}
+            onDismiss={handleNudgeDismiss}
           />
         </div>
       )}
