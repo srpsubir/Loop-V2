@@ -15,6 +15,9 @@ mac:
   target:
     - target: dmg
       arch: [arm64, x64]
-  hardenedRuntime: false
+  hardenedRuntime: true
   gatekeeperAssess: false
-  notarize: false
+  entitlements: resources/entitlements.mac.plist
+  entitlementsInherit: resources/entitlements.mac.plist
+  notarize:
+    teamId: ${APPLE_TEAM_ID}
