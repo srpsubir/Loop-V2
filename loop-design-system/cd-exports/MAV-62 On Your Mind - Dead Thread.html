@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loop — On Your Mind: Dead Thread (MAV-62)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #19120D; }
+  body { display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-family: "Inter", -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+  #root { width: 100%; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState } = React;
+
+/* ── Design tokens ─────────────────────────────────────────────────── */
+const T = {
+  bg:              '#F9F5EE',
+  surface:         '#EFE6D6',
+  surfaceRaised:   '#E8DBCA',
+  ink:             '#2A1F1B',
+  inkMid:          '#6B5447',
+  inkMuted:        '#A38F85',
+  terracotta:      '#B8624A',
+  terracottaHover: '#A6543E',
+  terracottaFaint: '#F5EAD8',
+  rose:            '#C49A8A',
+  roseFaint:       '#F7EDE8',
+  sage:            '#6A9470',
+  sageFaint:       '#EAF2EB',
+  line:            '#DDD0C0',
+  lineLight:       '#EDE3D5',
+};
+
+/* Dead thread surface tokens — heavier paper, muted warmth */
+const DT = {
+  panelBg:    '#E9D6C0',   /* amber-dust — more weight than terracottaFaint, not alarming */
+  accentColor:'#9A6E5E',   /* rose-terracotta hybrid — muted, human, not urgent */
+  accentFaint:'#EEE1D6',   /* used for avatar ring */
+};
+
+const serif = '"Lora", Georgia, serif';
+const sans  = '"Inter", -apple-system, sans-serif';
+const ease  = 'cubic-bezier(0.22, 0.61, 0.36, 1)';
+
+/* ── Loop mark ─────────────────────────────────────────────────────── */
+function LoopMark({ size = 18, color = T.terracotta }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 120 120" fill="none" aria-hidden="true">
+      <path
+        d="M67 40 C 92 40, 96 74, 72 82 C 48 90, 30 74, 33 54 C 36 36, 58 28, 74 36 C 92 45, 92 78, 66 84 C 44 89, 26 76, 26 76"
+        stroke={color} strokeWidth="10" strokeLinecap="round" fill="none"
+      />
+    </svg>
+  );
+}
+
+/* ── Avatar ────────────────────────────────────────────────────────── */
+function Avatar({ name, size = 52, tint, ring }) {
+  const initials = name.trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const palette = [T.rose, '#D4856E', T.sage, T.rose, T.terracotta];
+  let h = 0; for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: 999, flexShrink: 0,
+      background: tint || palette[h % palette.length],
+      color: T.bg,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontFamily: sans, fontWeight: 600, fontSize: Math.round(size * 0.36),
+      userSelect: 'none',
+      boxShadow: ring
+        ? `0 0 0 2.5px ${ring}, 0 2px 8px rgba(42,31,27,0.14)`
+        : '0 2px 8px rgba(42,31,27,0.12)',
+    }}>{initials}</div>
+  );
+}
+
+/* ── Drift icon: clock ─────────────────────────────────────────────── */
+function ClockIcon({ size = 13, color }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10"/>
+      <polyline points="12 6 12 12 16 14"/>
+    </svg>
+  );
+}
+
+/* ── Dead thread icon: sent into silence ───────────────────────────── */
+/* Reads as: you (solid dot) → graceful arc → them (dashed circle, silent) */
+function DroppedThreadIcon({ size = 14, color }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* You — present, solid */}
+      <circle cx="4.5" cy="12" r="2.8" fill={color} opacity="0.9"/>
+      {/* The arc you sent */}
+      <path
+        d="M7.2 11 C 9 8.5, 13.5 8.5, 15.8 11"
+        stroke={color} strokeWidth="1.65" strokeLinecap="round" fill="none" opacity="0.7"
+      />
+      {/* Them — outline only, dashed. Present but not there. */}
+      <circle
+        cx="19.5" cy="12" r="2.8"
+        stroke={color} strokeWidth="1.65" fill="none"
+        strokeDasharray="2.2 2.2" strokeLinecap="round"
+        opacity="0.6"
+      />
+    </svg>
+  );
+}
+
+/* ── Action buttons ────────────────────────────────────────────────── */
+function Btn({ label, primary }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <button
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        all: 'unset', display: 'inline-flex', alignItems: 'center', gap: 6,
+        height: 33, padding: '0 14px',
+        fontFamily: sans, fontSize: 12.5, fontWeight: 600,
+        borderRadius: 999, cursor: 'pointer', userSelect: 'none',
+        background: primary
+          ? (hov ? T.terracottaHover : T.terracotta)
+          : (hov ? T.surfaceRaised : T.surface),
+        color: primary ? T.bg : (hov ? T.inkMid : T.ink),
+        boxShadow: '0 1px 2px rgba(42,31,27,0.06), 0 2px 6px rgba(42,31,27,0.07)',
+        transition: `background 160ms ${ease}`,
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function NoteIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+    </svg>
+  );
+}
+
+function BriefIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/>
+      <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+      <polyline points="10 9 9 9 8 9"/>
+    </svg>
+  );
+}
+
+function SendIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="22" y1="2" x2="11" y2="13"/>
+      <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+    </svg>
+  );
+}
+
+/* ── State 1: Regular drift card ───────────────────────────────────── */
+function DriftCard() {
+  const [hov, setHov] = useState(false);
+  return (
+    <div
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        borderRadius: 14, overflow: 'hidden',
+        background: T.bg,
+        display: 'flex',
+        boxShadow: hov
+          ? '0 2px 6px rgba(42,31,27,0.08), 0 12px 32px rgba(42,31,27,0.11)'
+          : '0 1px 3px rgba(42,31,27,0.05), 0 4px 14px rgba(42,31,27,0.08)',
+        transition: `box-shadow 200ms ${ease}`,
+        cursor: 'default',
+      }}
+    >
+      {/* Left panel */}
+      <div style={{
+        width: 108, flexShrink: 0,
+        background: T.terracottaFaint,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        transition: `background 300ms ${ease}`,
+      }}>
+        <Avatar name="Priya Raman" size={56} tint={T.terracotta} />
+      </div>
+
+      {/* Right content */}
+      <div style={{ flex: 1, padding: '20px 22px 22px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        {/* Reason line */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 5,
+          fontFamily: sans, fontSize: 11, fontWeight: 700,
+          color: T.terracotta, letterSpacing: '0.01em', marginBottom: 6,
+        }}>
+          <ClockIcon size={12} color={T.terracotta} />
+          3 weeks since you last spoke
+        </div>
+
+        {/* Name */}
+        <div style={{
+          fontFamily: serif, fontSize: 20, fontWeight: 600,
+          color: T.ink, letterSpacing: '-0.01em', marginBottom: 7, lineHeight: 1.15,
+        }}>
+          Priya Raman
+        </div>
+
+        {/* Context */}
+        <div style={{
+          fontFamily: sans, fontSize: 13, color: T.inkMid,
+          lineHeight: 1.65, textWrap: 'pretty', marginBottom: 18,
+          maxWidth: 360,
+        }}>
+          You were close during Edinburgh. She's in Lisbon now — a quick message would land well.
+        </div>
+
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Btn label="Revisit" primary />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── State 2: Dead thread card ─────────────────────────────────────── */
+function DeadThreadCard() {
+  const [hov, setHov] = useState(false);
+  return (
+    <div
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        borderRadius: 14, overflow: 'hidden',
+        background: T.bg,
+        display: 'flex',
+        /* Imperceptibly more shadow — more physical weight */
+        boxShadow: hov
+          ? '0 2px 8px rgba(42,31,27,0.10), 0 14px 36px rgba(42,31,27,0.14)'
+          : '0 1px 3px rgba(42,31,27,0.06), 0 5px 18px rgba(42,31,27,0.10)',
+        transition: `box-shadow 200ms ${ease}`,
+        cursor: 'default',
+      }}
+    >
+      {/* Left panel — heavier paper, more amber-dust than peach */}
+      <div style={{
+        width: 108, flexShrink: 0,
+        background: DT.panelBg,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        {/* Avatar with a gentle ring — she's present but the connection is open */}
+        <Avatar
+          name="Priya Raman"
+          size={56}
+          tint={T.rose}
+          ring={DT.accentFaint}
+        />
+      </div>
+
+      {/* Right content */}
+      <div style={{ flex: 1, padding: '20px 22px 22px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        {/* Reason line — muted, human, not terracotta-urgent */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          fontFamily: sans, fontSize: 11, fontWeight: 600,
+          color: DT.accentColor, letterSpacing: '0.005em', marginBottom: 6,
+        }}>
+          <DroppedThreadIcon size={14} color={DT.accentColor} />
+          You reached back out to Priya. The thread went quiet after.
+        </div>
+
+        {/* Name */}
+        <div style={{
+          fontFamily: serif, fontSize: 20, fontWeight: 600,
+          color: T.ink, letterSpacing: '-0.01em', marginBottom: 7, lineHeight: 1.15,
+        }}>
+          Priya Raman
+        </div>
+
+        {/* Context — warmer, more narrative, human observation */}
+        <div style={{
+          fontFamily: sans, fontSize: 13, color: T.inkMid,
+          lineHeight: 1.7, textWrap: 'pretty', marginBottom: 18,
+          maxWidth: 360,
+        }}>
+          You sent a message in April. She may have missed it — or the moment passed. Worth trying again.
+        </div>
+
+        {/* Actions — same structure, slightly different primary */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Btn label="Reach back out" primary />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── List rows (below hero, for context) ───────────────────────────── */
+function MindRow({ name, reason }) {
+  const [hov, setHov] = useState(false);
+  const initials = name.trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  return (
+    <div
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 11,
+        padding: '8px 10px', borderRadius: 8,
+        background: hov ? T.surface : 'transparent',
+        transition: `background 160ms ${ease}`,
+        cursor: 'default',
+      }}
+    >
+      <div style={{
+        width: 28, height: 28, borderRadius: 999, flexShrink: 0,
+        background: T.rose, color: T.bg,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontFamily: sans, fontWeight: 600, fontSize: 10,
+      }}>{initials}</div>
+      <div>
+        <div style={{ fontFamily: sans, fontSize: 13, fontWeight: 500, color: T.ink }}>{name}</div>
+        <div style={{ fontFamily: sans, fontSize: 11, color: T.inkMuted, marginTop: 1 }}>{reason}</div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Garden section shell ──────────────────────────────────────────── */
+function GardenSection({ label, tag, tagColor, children }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      {/* Section eyebrow */}
+      <div style={{
+        fontFamily: sans, fontSize: 10, fontWeight: 600,
+        letterSpacing: '.13em', textTransform: 'uppercase',
+        color: T.inkMuted, marginBottom: 11,
+      }}>On your mind</div>
+
+      {/* Hero card */}
+      {children}
+
+      {/* List rows — context below the fold */}
+      <div style={{ marginTop: 8 }}>
+        <MindRow name="Marcus Bell" reason="Six weeks · London Years" />
+        <div style={{ height: 1, background: T.lineLight, margin: '0 10px' }} />
+        <MindRow name="Jo Okafor" reason="Three months · Camden flat" />
+      </div>
+
+      {/* State label */}
+      <div style={{
+        marginTop: 20,
+        display: 'flex', alignItems: 'center', gap: 10,
+      }}>
+        <div style={{
+          width: 7, height: 7, borderRadius: 999,
+          background: tagColor, flexShrink: 0,
+        }} />
+        <div style={{
+          fontFamily: sans, fontSize: 11, color: 'rgba(255,255,255,0.32)',
+          letterSpacing: '.04em',
+        }}>{tag}</div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Mac window chrome ─────────────────────────────────────────────── */
+function MacWindow({ children, width }) {
+  return (
+    <div style={{
+      width, borderRadius: 13, overflow: 'hidden',
+      boxShadow: '0 8px 24px rgba(0,0,0,0.32), 0 40px 80px rgba(0,0,0,0.40)',
+      display: 'flex', flexDirection: 'column',
+      background: T.bg,
+    }}>
+      {/* Title bar */}
+      <div style={{
+        height: 42, flexShrink: 0,
+        background: T.surface,
+        borderBottom: `1px solid ${T.lineLight}`,
+        display: 'flex', alignItems: 'center',
+        padding: '0 14px', gap: 12,
+        userSelect: 'none',
+      }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {['#E0685B', '#E8B14C', '#7CB45C'].map((c, i) => (
+            <span key={i} style={{ width: 11, height: 11, borderRadius: 999, background: c, display: 'block' }} />
+          ))}
+        </div>
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 7 }}>
+          <LoopMark size={13} />
+          <span style={{ fontFamily: serif, fontSize: 13.5, fontWeight: 600, color: T.ink, letterSpacing: '-0.005em' }}>Loop</span>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        {/* Sidebar strip */}
+        <div style={{
+          width: 50, flexShrink: 0,
+          background: T.surface,
+          borderRight: `1px solid ${T.lineLight}`,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', padding: '12px 0', gap: 6,
+        }}>
+          <LoopMark size={16} />
+          <div style={{ marginTop: 8 }}>
+            {[
+              'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10',
+              'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z',
+            ].map((d, i) => (
+              <div key={i} style={{
+                width: 34, height: 30, borderRadius: 7, display: 'flex',
+                alignItems: 'center', justifyContent: 'center', marginBottom: 2,
+                background: i === 0 ? T.bg : 'transparent',
+                color: i === 0 ? T.terracotta : T.inkMuted,
+              }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d={d} />
+                </svg>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Main */}
+        <div style={{ flex: 1, padding: '28px 32px 32px', overflowY: 'auto' }}>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Annotation callout ────────────────────────────────────────────── */
+function Callout({ items }) {
+  return (
+    <div style={{
+      marginTop: 28,
+      display: 'flex', flexDirection: 'column', gap: 8,
+    }}>
+      {items.map((item, i) => (
+        <div key={i} style={{
+          display: 'flex', alignItems: 'flex-start', gap: 10,
+        }}>
+          <div style={{
+            width: 18, height: 18, borderRadius: 999, flexShrink: 0,
+            background: 'rgba(255,255,255,0.07)',
+            border: '1px solid rgba(255,255,255,0.10)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontFamily: sans, fontSize: 9.5, fontWeight: 700,
+            color: 'rgba(255,255,255,0.35)', marginTop: 1,
+          }}>{i + 1}</div>
+          <div style={{
+            fontFamily: sans, fontSize: 11.5,
+            color: 'rgba(255,255,255,0.30)',
+            lineHeight: 1.6, textWrap: 'pretty',
+          }}>{item}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Divider with label ─────────────────────────────────────────────── */
+function VS() {
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'flex-start',
+      paddingTop: 52, gap: 10, flexShrink: 0,
+    }}>
+      <div style={{ width: 1, height: 40, background: 'rgba(255,255,255,0.07)' }} />
+      <div style={{
+        fontFamily: sans, fontSize: 9, fontWeight: 700,
+        letterSpacing: '.12em', textTransform: 'uppercase',
+        color: 'rgba(255,255,255,0.18)',
+      }}>vs</div>
+      <div style={{ width: 1, height: 40, background: 'rgba(255,255,255,0.07)' }} />
+    </div>
+  );
+}
+
+/* ── Root ──────────────────────────────────────────────────────────── */
+function App() {
+  const CARD_W = 420;
+
+  return (
+    <div style={{
+      width: '100%', minHeight: '100vh',
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      padding: '48px 32px 56px',
+      gap: 0,
+    }}>
+      {/* Header */}
+      <div style={{ marginBottom: 36, textAlign: 'center' }}>
+        <div style={{
+          fontFamily: sans, fontSize: 10, fontWeight: 700,
+          letterSpacing: '.14em', textTransform: 'uppercase',
+          color: 'rgba(255,255,255,0.22)', marginBottom: 10,
+        }}>MAV-62 · Loop — Garden</div>
+        <div style={{
+          fontFamily: '"Lora", Georgia, serif', fontStyle: 'italic',
+          fontSize: 22, fontWeight: 500,
+          color: 'rgba(255,255,255,0.55)', letterSpacing: '-.01em',
+        }}>On Your Mind — hero card states</div>
+      </div>
+
+      {/* Two-up comparison */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20 }}>
+
+        {/* State 1: Regular drift */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: CARD_W }}>
+          <div style={{
+            fontFamily: sans, fontSize: 10, fontWeight: 700,
+            letterSpacing: '.14em', textTransform: 'uppercase',
+            color: 'rgba(255,255,255,0.25)', marginBottom: 14,
+          }}>State 1 — Regular drift</div>
+          <MacWindow width={CARD_W}>
+            <GardenSection tag="Clock icon · terracotta · informational" tagColor={T.terracotta}>
+              <DriftCard />
+            </GardenSection>
+          </MacWindow>
+          <Callout items={[
+            'Terracotta accent and clock icon — familiar, transactional. "This is a prompt."',
+            'Panel background is terracotta-faint — light, peach-warm. Low weight.',
+            '"Revisit" — warm re-entry, not data access. Turns a page, not opens a file.',
+          ]} />
+        </div>
+
+        <VS />
+
+        {/* State 2: Dead thread */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: CARD_W }}>
+          <div style={{
+            fontFamily: sans, fontSize: 10, fontWeight: 700,
+            letterSpacing: '.14em', textTransform: 'uppercase',
+            color: 'rgba(255,255,255,0.25)', marginBottom: 14,
+          }}>State 2 — Dead thread</div>
+          <MacWindow width={CARD_W}>
+            <GardenSection tag="Dropped-thread icon · rose-muted · human observation" tagColor={DT.accentColor}>
+              <DeadThreadCard />
+            </GardenSection>
+          </MacWindow>
+          <Callout items={[
+            'Muted rose-terracotta accent and custom icon: you (solid) → arc → them (dashed circle). Wistful, not alarming.',
+            'Panel background shifts to amber-dust (#E9D6C0) — heavier paper, same warmth. Reads as weighted at a glance.',
+            'Avatar ring in faint amber — she\'s still present, the connection is just open.',
+            'Reason line is a sentence, not a stat. Loop noticed something; it\'s not alerting to a failure.',
+          ]} />
+        </div>
+      </div>
+
+      {/* Icon detail */}
+      <div style={{
+        marginTop: 52, padding: '24px 32px', borderRadius: 12,
+        background: 'rgba(255,255,255,0.04)',
+        border: '1px solid rgba(255,255,255,0.07)',
+        display: 'flex', alignItems: 'center', gap: 32,
+      }}>
+        <div style={{
+          fontFamily: sans, fontSize: 10, fontWeight: 700,
+          letterSpacing: '.12em', textTransform: 'uppercase',
+          color: 'rgba(255,255,255,0.22)', flexShrink: 0,
+        }}>Icon detail</div>
+
+        <div style={{ display: 'flex', gap: 40 }}>
+          {/* State 1 icon */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 48, height: 48, borderRadius: 12,
+              background: T.terracottaFaint,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <ClockIcon size={22} color={T.terracotta} />
+            </div>
+            <div style={{ fontFamily: sans, fontSize: 10.5, color: 'rgba(255,255,255,0.28)', textAlign: 'center', lineHeight: 1.5 }}>
+              Clock<br />
+              <span style={{ color: 'rgba(255,255,255,0.15)' }}>Time elapsed</span>
+            </div>
+          </div>
+
+          {/* State 2 icon */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 48, height: 48, borderRadius: 12,
+              background: DT.panelBg,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <DroppedThreadIcon size={24} color={DT.accentColor} />
+            </div>
+            <div style={{ fontFamily: sans, fontSize: 10.5, color: 'rgba(255,255,255,0.28)', textAlign: 'center', lineHeight: 1.5 }}>
+              Dropped thread<br />
+              <span style={{ color: 'rgba(255,255,255,0.15)' }}>Sent · no return</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Icon anatomy */}
+        <div style={{
+          padding: '14px 18px', borderRadius: 8,
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px solid rgba(255,255,255,0.06)',
+          display: 'flex', flexDirection: 'column', gap: 6,
+        }}>
+          {[
+            ['●', 'You — solid, present'],
+            ['⌢', 'The message you sent'],
+            ['◌', 'Them — present but silent'],
+          ].map(([glyph, label]) => (
+            <div key={glyph} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontFamily: 'monospace', fontSize: 12, color: DT.accentColor, width: 14, textAlign: 'center' }}>{glyph}</span>
+              <span style={{ fontFamily: sans, fontSize: 10.5, color: 'rgba(255,255,255,0.25)' }}>{label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

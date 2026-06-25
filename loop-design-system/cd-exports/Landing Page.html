@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loop. The quiet wonder of: what are they up to now?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400;1,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:              #F9F5EE;
+  --surface:         #EFE6D6;
+  --surface-raised:  #E8DBCA;
+  --ink:             #2A1F1B;
+  --ink-mid:         #6B5447;
+  --ink-muted:       #A38F85;
+  --terracotta:      #B8624A;
+  --terracotta-hover:#A6543E;
+  --terracotta-faint:#F5EAD8;
+  --rose:            #C49A8A;
+  --rose-faint:      #F7EDE8;
+  --sage:            #6A9470;
+  --sage-faint:      #EAF2EB;
+  --line:            #DDD0C0;
+  --line-light:      #EDE3D5;
+  --serif: "Lora", Georgia, serif;
+  --sans:  "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --shadow-md: 0 1px 2px rgba(42,31,27,.05), 0 4px 12px rgba(42,31,27,.07);
+  --shadow-lg: 0 2px 4px rgba(42,31,27,.06), 0 12px 28px rgba(42,31,27,.10);
+  --shadow-xl: 0 8px 16px rgba(42,31,27,.08), 0 28px 60px rgba(42,31,27,.16);
+  --shadow-inset: inset 0 1px 2px rgba(42,31,27,.08);
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --r-sm: 8px; --r-md: 12px; --r-lg: 18px; --r-full: 999px;
+}
+
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Nav */
+.nav {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(249,245,238,0.92);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--line-light);
+}
+.nav-inner {
+  max-width: 1080px; margin: 0 auto; padding: 0 44px;
+  height: 68px; display: flex; align-items: center; justify-content: space-between;
+}
+.nav-logo { display: flex; align-items: center; gap: 11px; text-decoration: none; }
+.nav-wordmark {
+  font-family: var(--serif); font-size: 26px; font-weight: 600;
+  color: var(--terracotta); letter-spacing: -0.01em;
+}
+.btn-ghost {
+  font-family: var(--sans); font-size: 14px; font-weight: 500;
+  color: var(--ink); background: transparent;
+  border: 1.5px solid var(--ink-muted); border-radius: var(--r-full);
+  padding: 9px 22px; cursor: pointer; text-decoration: none;
+  transition: border-color 200ms var(--ease), color 200ms var(--ease);
+}
+.btn-ghost:hover { border-color: var(--terracotta); color: var(--terracotta); }
+.btn-primary {
+  font-family: var(--sans); font-size: 15px; font-weight: 600;
+  color: var(--bg); background: var(--terracotta);
+  border: none; border-radius: var(--r-full);
+  padding: 14px 30px; cursor: pointer; text-decoration: none;
+  transition: background 200ms var(--ease);
+  white-space: nowrap;
+}
+.btn-primary:hover { background: var(--terracotta-hover); }
+
+/* Hero */
+.hero {
+  max-width: 1080px; margin: 0 auto;
+  padding: 100px 44px 72px;
+  display: flex; align-items: center; gap: 80px;
+}
+.hero-text { flex: 1; }
+.eyebrow {
+  font-family: var(--sans); font-size: 11px; letter-spacing: .13em;
+  text-transform: uppercase; color: var(--ink); font-weight: 600;
+  margin-bottom: 26px;
+}
+.hero h1 {
+  font-family: var(--serif); font-size: 40px; font-weight: 600;
+  color: var(--ink); letter-spacing: -.02em; line-height: 1.3;
+  margin-bottom: 22px; white-space: nowrap;
+}
+.hero-sub {
+  font-family: var(--sans); font-size: 18px; color: var(--ink-mid);
+  line-height: 1.65; max-width: 480px; margin-bottom: 44px;
+  text-wrap: pretty;
+}
+.ctas { display: flex; align-items: center; gap: 14px; }
+.hero-polaroid {
+  flex: none; width: 230px;
+  background: #fff;
+  padding: 11px 11px 38px;
+  box-shadow: 0 8px 24px rgba(42,31,27,.20), 0 2px 6px rgba(42,31,27,.10);
+  transform: rotate(3deg);
+}
+.hero-polaroid img {
+  display: block; width: 100%; height: 200px; object-fit: cover;
+  filter: sepia(30%) saturate(70%) brightness(1.04) contrast(0.93);
+}
+
+/* Mac window shell */
+.mac-win {
+  background: var(--bg);
+  border-radius: 14px;
+  box-shadow: var(--shadow-xl), 0 0 0 1px rgba(42,31,27,.06);
+  overflow: hidden;
+}
+.mac-bar {
+  height: 46px; background: var(--surface);
+  border-bottom: 1px solid var(--line-light);
+  display: flex; align-items: center; padding: 0 16px; gap: 14px; flex: none;
+}
+.dots { display: flex; gap: 7px; flex: none; }
+.dot { width: 12px; height: 12px; border-radius: 50%; display: block; }
+.bar-brand { display: flex; align-items: center; gap: 8px; margin-left: 6px; }
+.bar-wordmark { font-family: var(--serif); font-size: 16px; font-weight: 600; color: var(--ink); }
+.bar-search {
+  flex: 1; max-width: 310px; margin: 0 auto;
+  background: var(--bg); border-radius: var(--r-full);
+  box-shadow: var(--shadow-inset); height: 28px;
+  display: flex; align-items: center; padding: 0 11px; gap: 6px;
+}
+.bar-search span { font-family: var(--sans); font-size: 12px; color: var(--ink-muted); }
+.bar-av {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--terracotta-faint); color: var(--terracotta);
+  font-family: var(--sans); font-size: 10px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; margin-left: auto;
+}
+
+/* Hero app mockup */
+.home-mock { max-width: 720px; margin: 0 auto; }
+.home-body { padding: 30px 38px 34px; }
+.home-greeting {
+  font-family: var(--serif); font-size: 28px; font-weight: 600;
+  color: var(--ink); letter-spacing: -.015em; margin-bottom: 3px;
+}
+.home-sub { font-family: var(--sans); font-size: 13px; color: var(--ink-mid); margin-bottom: 22px; }
+.sect-eyebrow {
+  font-family: var(--sans); font-size: 10px; letter-spacing: .11em;
+  text-transform: uppercase; color: var(--ink-muted); font-weight: 600; margin-bottom: 12px;
+}
+.mind-hero {
+  background: var(--bg); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-md); display: flex; overflow: hidden;
+}
+.mh-av-col {
+  width: 120px; flex: none;
+  background: var(--terracotta-faint);
+  display: flex; align-items: center; justify-content: center;
+}
+.mh-av {
+  width: 68px; height: 68px; border-radius: 50%;
+  background: var(--terracotta); color: var(--bg);
+  font-family: var(--sans); font-size: 20px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 0 3px rgba(184,98,74,.28);
+}
+.mh-body { flex: 1; padding: 20px 22px; }
+.mh-reason {
+  display: flex; align-items: center; gap: 7px;
+  color: var(--terracotta); font-family: var(--sans);
+  font-size: 12px; font-weight: 700; letter-spacing: .01em;
+  margin-bottom: 5px;
+}
+.mh-name {
+  font-family: var(--serif); font-size: 22px; font-weight: 600;
+  color: var(--ink); letter-spacing: -.01em; margin-bottom: 7px;
+}
+.mh-brief {
+  font-family: var(--sans); font-size: 13px; color: var(--ink-mid);
+  line-height: 1.6; max-width: 440px; margin-bottom: 16px; text-wrap: pretty;
+}
+.mh-btns { display: flex; gap: 9px; }
+.mh-btn-p {
+  background: var(--terracotta); color: var(--bg);
+  font-family: var(--sans); font-size: 12px; font-weight: 600;
+  border: none; border-radius: var(--r-full); padding: 7px 16px; cursor: default;
+}
+.mh-btn-s {
+  background: var(--surface); color: var(--ink-mid);
+  font-family: var(--sans); font-size: 12px; font-weight: 500;
+  border: none; border-radius: var(--r-full); padding: 7px 16px; cursor: default;
+}
+
+
+/* Chapters + problem merged section */
+.chapters-problem { background: var(--surface); padding: 96px 0 80px; }
+.chapters-header {
+  max-width: 1080px; margin: 0 auto; padding: 0 44px;
+  margin-bottom: 36px;
+}
+.chapters-row {
+  max-width: 1080px; margin: 0 auto; padding: 0 44px;
+  display: flex; align-items: flex-start; gap: 80px;
+}
+.chapters-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.chapters-headline {
+  font-family: var(--serif); font-size: 36px; font-weight: 600;
+  color: var(--ink); letter-spacing: -.025em; line-height: 1.15;
+  white-space: nowrap; margin-bottom: 18px;
+}
+.chapters-sub {
+  font-family: var(--sans); font-size: 15px; color: var(--ink-mid);
+  line-height: 2.1; text-wrap: nowrap;
+}
+.chapters-eyebrow {
+  font-family: var(--sans); font-size: 12px; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--terracotta); font-weight: 600;
+  margin-bottom: 28px; padding-top: 14px;
+  border-top: 1.5px solid var(--terracotta); width: fit-content;
+}
+.chapters-sentences {
+  display: flex; flex-direction: column;
+  justify-content: flex-start; gap: 22px; padding-top: 2px;
+}
+.chapters-sentences p {
+  font-family: var(--sans); font-size: 15px; color: var(--ink-mid);
+  line-height: 1.7;
+}
+.chapters-photos {
+  flex: none; width: 440px;
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+}
+.strip-photo { border-radius: var(--r-md); overflow: hidden; box-shadow: var(--shadow-md); }
+.strip-photo img {
+  display: block; width: 100%; height: 130px; object-fit: cover;
+  filter: sepia(20%) saturate(80%) brightness(1.02);
+  transition: filter 400ms var(--ease);
+}
+.strip-photo:hover img { filter: sepia(0%) saturate(100%) brightness(1.04); }
+.strip-photo { background: var(--surface-raised); }
+.strip-caption {
+  padding: 8px 12px 10px;
+  background: var(--surface-raised);
+  font-family: var(--serif); font-style: italic; font-size: 12px; color: var(--ink-mid);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.problem-inner {
+  max-width: 1080px; margin: 0 auto; padding: 64px 44px 0;
+  display: grid; grid-template-columns: repeat(3,1fr); gap: 60px;
+}
+.problem-col h3 {
+  font-family: var(--serif); font-size: 26px; font-style: italic; font-weight: 600;
+  color: var(--ink); margin-bottom: 14px; line-height: 1.25;
+}
+.problem-col p { font-family: var(--sans); font-size: 15px; color: var(--ink-mid); line-height: 1.7; text-wrap: pretty; }
+
+/* Solution mockup */
+.solution-mock { background: var(--bg); padding: 0 44px 80px; }
+.solution-mock-inner { max-width: 860px; margin: 0 auto; }
+.solution-label {
+  font-family: var(--sans); font-size: 12px; letter-spacing: .14em;
+  text-transform: uppercase; font-weight: 600; color: var(--terracotta);
+  text-align: center; display: block;
+  border-top: 1.5px solid var(--terracotta);
+  width: fit-content; margin: 48px auto 32px;
+  padding-top: 14px;
+}
+
+/* How it works */
+.how { max-width: 1080px; margin: 0 auto; padding: 80px 44px 96px; }
+.how-label {
+  font-family: var(--sans); font-size: 12px; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--terracotta); font-weight: 600;
+  text-align: center; margin-bottom: 60px;
+  padding-top: 14px; border-top: 1.5px solid var(--terracotta);
+  width: fit-content; margin-left: auto; margin-right: auto;
+}
+.how-steps { display: grid; grid-template-columns: repeat(3,1fr); gap: 48px; }
+.step-photo {
+  width: 100%; height: 148px; border-radius: var(--r-md); overflow: hidden;
+  margin-bottom: 20px; box-shadow: var(--shadow-md);
+}
+.step-photo img {
+  width: 100%; height: 100%; object-fit: cover;
+  filter: sepia(16%) saturate(82%) brightness(1.03);
+}
+.step-num {
+  font-family: var(--serif); font-size: 44px; font-weight: 600;
+  color: var(--terracotta); opacity: .4; line-height: 1; letter-spacing: -.03em;
+  margin-bottom: 12px;
+}
+.how-step h3 {
+  font-family: var(--serif); font-size: 20px; font-weight: 600;
+  color: var(--ink); margin-bottom: 10px; line-height: 1.3;
+}
+.how-step p { font-family: var(--sans); font-size: 14.5px; color: var(--ink-mid); line-height: 1.7; text-wrap: pretty; }
+
+/* Brief section */
+.brief-section { background: var(--surface); padding: 96px 44px; }
+.brief-inner {
+  max-width: 1080px; margin: 0 auto;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 72px; align-items: center;
+}
+.brief-copy .sect-eyebrow { margin-bottom: 18px; }
+.brief-headline {
+  font-family: var(--serif); font-size: 30px; font-style: italic; font-weight: 600;
+  color: var(--ink); line-height: 1.25; margin-bottom: 20px;
+}
+.brief-body {
+  font-family: var(--sans); font-size: 16px; color: var(--ink-mid); line-height: 1.75; text-wrap: pretty;
+}
+
+/* Person screen mockup */
+.person-body { padding: 26px 32px 30px; }
+.person-back {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--sans); font-size: 12px; color: var(--ink-mid); margin-bottom: 18px;
+}
+.p-head { display: flex; align-items: flex-start; gap: 18px; margin-bottom: 22px; }
+.p-av {
+  width: 68px; height: 68px; border-radius: 50%; flex: none;
+  background: var(--rose-faint); color: var(--rose);
+  font-family: var(--sans); font-size: 20px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 0 3px rgba(196,154,138,.25);
+}
+.p-name {
+  font-family: var(--serif); font-size: 22px; font-weight: 600;
+  color: var(--ink); letter-spacing: -.01em; margin-bottom: 8px;
+}
+.p-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--sans); font-size: 11.5px; font-weight: 700;
+  color: var(--terracotta); background: var(--terracotta-faint);
+  padding: 4px 11px; border-radius: var(--r-full); margin-bottom: 9px;
+}
+.p-tags { display: flex; gap: 7px; flex-wrap: wrap; }
+.p-tag {
+  font-family: var(--sans); font-size: 11.5px; color: var(--ink-mid);
+  background: var(--bg); padding: 4px 11px; border-radius: var(--r-full);
+}
+.p-tag.sage { color: var(--sage); background: var(--sage-faint); }
+.tl-head {
+  font-family: var(--sans); font-size: 10px; letter-spacing: .11em;
+  text-transform: uppercase; color: var(--ink-muted); font-weight: 600; margin-bottom: 14px;
+}
+.tl-row { display: flex; gap: 12px; padding-bottom: 16px; }
+.tl-row:last-child { padding-bottom: 0; }
+.tl-spine { display: flex; flex-direction: column; align-items: center; flex: none; width: 11px; }
+.tl-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--rose); flex: none; margin-top: 3px; }
+.tl-dot.m { background: var(--terracotta); }
+.tl-line { width: 2px; flex: 1; background: var(--line-light); margin-top: 3px; }
+.tl-date {
+  font-family: var(--sans); font-size: 10px; font-weight: 600;
+  letter-spacing: .05em; text-transform: uppercase; color: var(--ink-muted); margin-bottom: 2px;
+}
+.tl-text { font-family: var(--sans); font-size: 12.5px; color: var(--ink-mid); line-height: 1.55; }
+.tl-text.italic { font-family: var(--serif); font-style: italic; font-size: 12.5px; }
+
+/* Privacy */
+.privacy { background: var(--sage-faint); padding: 88px 44px; text-align: center; }
+.privacy-inner { max-width: 580px; margin: 0 auto; }
+.privacy h2 {
+  font-family: var(--serif); font-size: 30px; font-weight: 600;
+  color: var(--ink); letter-spacing: -.015em; margin-bottom: 28px; line-height: 1.3;
+}
+.privacy ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.privacy li { font-family: var(--sans); font-size: 15.5px; color: var(--ink-mid); line-height: 1.6; }
+
+/* Waitlist */
+.waitlist { background: var(--surface); padding: 96px 44px; text-align: center; }
+.waitlist-inner { max-width: 520px; margin: 0 auto; }
+.waitlist h2 {
+  font-family: var(--serif); font-size: 36px; font-weight: 600;
+  color: var(--ink); letter-spacing: -.02em; line-height: 1.2; margin-bottom: 14px;
+}
+.waitlist p {
+  font-family: var(--sans); font-size: 16px; color: var(--ink-mid);
+  line-height: 1.65; margin-bottom: 36px; text-wrap: pretty;
+}
+.waitlist-form { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.waitlist-input {
+  font-family: var(--sans); font-size: 15px; color: var(--ink);
+  background: var(--bg); border: 1.5px solid var(--line);
+  border-radius: var(--r-full); padding: 13px 22px;
+  outline: none; width: 280px;
+  transition: border-color 200ms var(--ease);
+}
+.waitlist-input::placeholder { color: var(--ink-muted); }
+.waitlist-input:focus { border-color: var(--terracotta); }
+.waitlist-note {
+  font-family: var(--sans); font-size: 12px; color: var(--ink-muted);
+  margin-top: 14px;
+}
+
+/* Footer */
+.footer { padding: 36px 44px; border-top: 1px solid var(--line-light); }
+.footer-inner {
+  max-width: 1080px; margin: 0 auto;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.footer-left { font-family: var(--sans); font-size: 13px; color: var(--ink-muted); }
+.footer-right a {
+  font-family: var(--sans); font-size: 13px; color: var(--ink-muted);
+  text-decoration: none; transition: color 200ms var(--ease);
+}
+.footer-right a:hover { color: var(--terracotta); }
+
+/* ── Mobile ────────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Nav */
+  .nav-inner { padding: 0 20px; height: 60px; }
+  .btn-ghost { padding: 7px 14px; font-size: 13px; }
+
+  /* Hero */
+  .hero {
+    flex-direction: column-reverse; gap: 36px;
+    padding: 48px 20px 40px;
+    align-items: flex-start;
+  }
+  .hero h1 {
+    font-size: 26px; line-height: 1.35;
+    white-space: normal;
+    margin-bottom: 16px;
+  }
+  .hero-sub { font-size: 16px; margin-bottom: 28px; max-width: 100%; }
+  .hero-polaroid { width: 160px; align-self: center; }
+
+  /* Chapters + problem */
+  .chapters-problem { padding: 60px 0 48px; }
+  .chapters-header { padding: 0 20px; margin-bottom: 20px; }
+  .chapters-row { flex-direction: column; gap: 36px; padding: 0 20px; }
+  .chapters-headline { white-space: normal; }
+  .chapters-photos { width: 100%; grid-template-columns: repeat(2, 1fr); }
+  .chapters-headline { font-size: 28px; }
+  .chapters-sentences { gap: 12px; }
+  .chapters-sentences p { font-size: 15px; line-height: 1.7; }
+  .problem-inner {
+    grid-template-columns: 1fr; gap: 32px;
+    padding: 36px 20px 0;
+  }
+  .problem-col h3 { font-size: 22px; }
+
+  /* Solution */
+  .solution-mock { padding: 0 20px 52px; }
+  .solution-label { padding: 36px 0 20px; font-size: 16px; }
+  .mac-bar { gap: 8px; }
+  .bar-search { max-width: 160px; }
+
+  /* How it works */
+  .how { padding: 52px 20px 64px; }
+  .how-label { margin-bottom: 40px; }
+  .how-steps { grid-template-columns: 1fr; gap: 40px; }
+
+  /* Brief section */
+  .brief-section { padding: 60px 20px; }
+  .brief-inner {
+    grid-template-columns: 1fr; gap: 40px;
+  }
+  .brief-inner > figure { order: 2; }
+  .brief-inner > .brief-copy { order: 1; }
+  .brief-headline { font-size: 24px; }
+  .brief-body { font-size: 15px; }
+
+  /* Privacy */
+  .privacy { padding: 60px 20px; }
+  .privacy h2 { font-size: 24px; }
+
+  /* Waitlist */
+  .waitlist { padding: 64px 20px; }
+  .waitlist h2 { font-size: 26px; }
+  .waitlist p { font-size: 15px; margin-bottom: 28px; }
+  .waitlist-form { flex-direction: column; align-items: stretch; gap: 12px; }
+  .waitlist-input { width: 100%; }
+  .waitlist .btn-primary { width: 100%; text-align: center; padding: 14px 20px; }
+
+  /* Footer */
+  .footer { padding: 24px 20px; }
+  .footer-inner { flex-direction: column; gap: 6px; text-align: center; }
+}
+
+@media (max-width: 480px) {
+  .hero h1 { font-size: 22px; }
+  .chapters-headline { font-size: 24px; }
+  .hero-polaroid { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- 1. NAV -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="#" class="nav-logo">
+      <svg width="38" height="38" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M67 40 C 92 40, 96 74, 72 82 C 48 90, 30 74, 33 54 C 36 36, 58 28, 74 36 C 92 45, 92 78, 66 84 C 44 89, 26 76, 26 76" stroke="#B8624A" stroke-width="9" stroke-linecap="round" fill="none"/>
+      </svg>
+      <span class="nav-wordmark">Loop</span>
+    </a>
+    <a href="#waitlist" class="btn-primary">Join the waitlist</a>
+  </div>
+</nav>
+
+
+<!-- 2. HERO -->
+<section class="hero">
+  <div class="hero-text">
+    <div class="eyebrow">PRIVATE BETA · MAC ONLY</div>
+    <h1>An old photo.<br>A name you haven't thought about in a year.<br>The quiet wonder: what are they up to now?</h1>
+    <p class="hero-sub">Loop maps the people from every chapter of your life and keeps you close to them, without the mental load of remembering to reach out.</p>
+    <div class="ctas">
+      <a href="#waitlist" class="btn-primary">Join the waitlist</a>
+    </div>
+  </div>
+  <div class="hero-polaroid">
+    <img src="https://images.unsplash.com/photo-1753351055246-a7efae066eef?w=500&q=80" alt="" />
+  </div>
+</section>
+
+
+<!-- 3. CHAPTERS + PROBLEM (merged) -->
+<section class="chapters-problem">
+  <div class="chapters-header">
+    <div class="chapters-eyebrow">Why it matters</div>
+  </div>
+  <div class="chapters-row">
+    <div class="chapters-text">
+      <h2 class="chapters-headline">Life happens in chapters.</h2>
+      <div class="chapters-sentences">
+        <p>The workshop you nearly didn't sign up for. Three of the people in that room are still in your life.</p>
+        <p>The Tuesday class you kept showing up to, week after week, for two full years. Not because of the class.</p>
+        <p>The ones who could take the worst kind of week and make it disappear entirely, in an hour.</p>
+        <p>The pitch, the Sunday game. The excuse to show up that no one ever needed to make.</p>
+      </div>
+    </div>
+    <div class="chapters-photos">
+      <div class="strip-photo">
+        <img src="https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=440&q=80" alt="" />
+        <div class="strip-caption">The room that became a community</div>
+      </div>
+      <div class="strip-photo">
+        <img src="https://images.unsplash.com/photo-1599447421416-3414500d18a5?w=440&q=80" alt="" />
+        <div class="strip-caption">Every Tuesday, without fail</div>
+      </div>
+      <div class="strip-photo">
+        <img src="https://plus.unsplash.com/premium_photo-1670884522707-3913188d6bc1?w=440&q=80" alt="" />
+        <div class="strip-caption">The laugh that meant home</div>
+      </div>
+      <div class="strip-photo">
+        <img src="https://images.unsplash.com/photo-1560272564-c83b66b1ad12?w=440&q=80" alt="" />
+        <div class="strip-caption">The pitch, every Sunday.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="problem-inner">
+    <div class="problem-col">
+      <h3>You move cities.</h3>
+      <p>New chapter, new neighbourhood. The people from before are still the same people. Just a longer journey away now.</p>
+    </div>
+    <div class="problem-col">
+      <h3>You mean to message.</h3>
+      <p>You think of that old friend on their birthday. You see something that would make someone laugh. The intention is real. The day moves on anyway.</p>
+    </div>
+    <div class="problem-col">
+      <h3>Months pass.</h3>
+      <p>Not because you stopped caring. Because no one ever built something that made reaching out feel as easy as it should be.</p>
+    </div>
+  </div>
+</section>
+
+
+<!-- 4. APP MOCKUP (solution to the problem above) -->
+<section class="solution-mock">
+  <div class="solution-mock-inner">
+    <div class="chapters-eyebrow" style="margin-bottom: 36px;">This is what Loop looks like</div>
+    <div class="mac-win">
+      <div class="mac-bar">
+        <div class="dots">
+          <span class="dot" style="background:#E0685B;"></span>
+          <span class="dot" style="background:#E8B14C;"></span>
+          <span class="dot" style="background:#7CB45C;"></span>
+        </div>
+        <div class="bar-brand">
+          <svg width="16" height="16" viewBox="0 0 120 120" fill="none" aria-hidden="true">
+            <path d="M67 40 C 92 40, 96 74, 72 82 C 48 90, 30 74, 33 54 C 36 36, 58 28, 74 36 C 92 45, 92 78, 66 84 C 44 89, 26 76, 26 76" stroke="#B8624A" stroke-width="10" stroke-linecap="round" fill="none"/>
+          </svg>
+          <span class="bar-wordmark">Loop</span>
+        </div>
+        <div class="bar-search">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#A38F85" stroke-width="2.5" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <span>Search everyone...</span>
+        </div>
+        <div class="bar-av">AM</div>
+      </div>
+      <div class="home-body">
+        <div class="home-greeting">Good morning, you</div>
+        <div class="home-sub">Eight people across three chapters. One has a date worth remembering.</div>
+        <div class="sect-eyebrow">On your mind</div>
+        <div class="mind-hero">
+          <div class="mh-av-col"><div class="mh-av">PR</div></div>
+          <div class="mh-body">
+            <div class="mh-reason">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M20 12V22H4V12"/><path d="M22 7H2v5h20V7z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+              Birthday in 4 days
+            </div>
+            <div class="mh-name">Priya Raman</div>
+            <div class="mh-brief">Six years since the university flat in Bengaluru. She moved to Toronto last spring. A message on her birthday would mean everything.</div>
+            <div class="mh-btns">
+              <button class="mh-btn-p">Open brief</button>
+              <button class="mh-btn-s">Add a note</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- 5. HOW IT WORKS -->
+<section>
+  <div class="how">
+    <div class="how-label">How it works</div>
+    <div class="how-steps">
+      <div class="how-step">
+        <div class="step-photo">
+          <img src="https://images.unsplash.com/photo-1758874383881-cd90c326058e?w=440&q=80" alt="" />
+        </div>
+        <div class="step-num">1</div>
+        <h3>Connect WhatsApp once</h3>
+        <p>Loop connects to WhatsApp the same way WhatsApp Web does. Locally, on your Mac. It maps your closest relationships without uploading anything, anywhere.</p>
+      </div>
+      <div class="how-step">
+        <div class="step-photo">
+          <img src="https://plus.unsplash.com/premium_photo-1671580681474-e3d7e1d5d702?w=440&q=80" alt="" />
+        </div>
+        <div class="step-num">2</div>
+        <h3>Loop finds your people</h3>
+        <p>Groups your contacts by the chapter of life you shared: the university years, the old city, the first job. Knows who you haven't spoken to in a while, and why it might matter.</p>
+      </div>
+      <div class="how-step">
+        <div class="step-photo">
+          <img src="https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=440&q=80" alt="" />
+        </div>
+        <div class="step-num">3</div>
+        <h3>You know who to reach out to</h3>
+        <p>One person a day. A reason. A brief with the last thing you talked about. One tap to open WhatsApp knowing exactly what to say.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- 6. THE BRIEF MOMENT -->
+<section class="brief-section">
+  <div class="brief-inner">
+    <figure>
+      <div class="mac-win">
+        <div class="mac-bar">
+          <div class="dots">
+            <span class="dot" style="background:#E0685B;"></span>
+            <span class="dot" style="background:#E8B14C;"></span>
+            <span class="dot" style="background:#7CB45C;"></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;margin-left:10px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A38F85" stroke-width="2.2" aria-hidden="true"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            <span style="font-family:var(--sans);font-size:12px;color:var(--ink-mid);font-weight:500;">Priya Raman</span>
+          </div>
+        </div>
+        <div class="person-body">
+          <div class="p-head">
+            <div class="p-av">PR</div>
+            <div>
+              <div class="p-name">Priya Raman</div>
+              <div class="p-pill">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M20 12V22H4V12"/><path d="M22 7H2v5h20V7z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+                Birthday in 6 days
+              </div>
+              <div class="p-tags">
+                <span class="p-tag">Edinburgh Masters</span>
+                <span class="p-tag sage">Still close</span>
+              </div>
+            </div>
+          </div>
+          <div class="tl-head">Your story together</div>
+          <div class="tl-row">
+            <div class="tl-spine"><span class="tl-dot"></span><span class="tl-line"></span></div>
+            <div>
+              <div class="tl-date">April 2026</div>
+              <div class="tl-text">Long phone call about moving back to Edinburgh. She sounded happy.</div>
+            </div>
+          </div>
+          <div class="tl-row">
+            <div class="tl-spine"><span class="tl-dot"></span><span class="tl-line"></span></div>
+            <div>
+              <div class="tl-date">Dec 2025</div>
+              <div class="tl-text">Caught up over coffee when she was down in London for the week.</div>
+            </div>
+          </div>
+          <div class="tl-row">
+            <div class="tl-spine"><span class="tl-dot m"></span></div>
+            <div>
+              <div class="tl-date">Sep 2019</div>
+              <div class="tl-text italic">Met during the masters. The room down the hall.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </figure>
+    <div class="brief-copy">
+      <div class="chapters-eyebrow">The brief</div>
+      <div class="brief-headline">Not a reminder.<br>A memory.</div>
+      <p class="brief-body">When it's time to reach out, Loop shows you the last thing you talked about, the birthday coming up, the shared chapter. You open WhatsApp knowing what to say.</p>
+    </div>
+  </div>
+</section>
+
+
+<!-- 7. PRIVACY -->
+<section class="privacy">
+  <div class="privacy-inner">
+    <h2>Your conversations stay on your Mac.</h2>
+    <ul>
+      <li>No cloud. Your WhatsApp history never leaves your laptop.</li>
+      <li>No relay server. Loop talks to WhatsApp Web directly, locally.</li>
+      <li>No Meta dependency. It reads data you already have.</li>
+    </ul>
+  </div>
+</section>
+
+
+<!-- 8. WAITLIST -->
+<section class="waitlist" id="waitlist">
+  <div class="waitlist-inner">
+    <h2>Be the first to try Loop.</h2>
+    <p>Private beta, Mac only. Leave your name and we'll reach out directly.</p>
+    <form class="waitlist-form" id="waitlist-form">
+      <input class="waitlist-input" id="waitlist-name" type="text" placeholder="Your name" required />
+      <button type="submit" class="btn-primary" id="waitlist-btn">Request access</button>
+    </form>
+    <p class="waitlist-note" id="waitlist-note">No emails. We'll find you.</p>
+  </div>
+</section>
+
+<script>
+(function () {
+  var form = document.getElementById('waitlist-form');
+  var nameInput = document.getElementById('waitlist-name');
+  var btn = document.getElementById('waitlist-btn');
+  var note = document.getElementById('waitlist-note');
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var name = nameInput.value.trim();
+    if (!name) return;
+
+    btn.disabled = true;
+    btn.textContent = 'Done…';
+
+    fetch('https://srpsubir.app.n8n.cloud/webhook/waitlist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name, source: 'landing-page' })
+    })
+      .then(function (res) {
+        if (res.ok) {
+          form.innerHTML = '<p style="font-family:var(--serif);font-size:1.1rem;color:var(--terracotta);font-style:italic;">You\'re on the list.</p>';
+          note.textContent = "We'll be in touch.";
+        } else {
+          throw new Error('non-2xx');
+        }
+      })
+      .catch(function () {
+        btn.disabled = false;
+        btn.textContent = 'Request access';
+        note.textContent = 'Something went wrong. Try again.';
+        note.style.color = 'var(--terracotta)';
+      });
+  });
+})();
+</script>
+
+
+<!-- 9. FOOTER -->
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-left">Loop · Made for Mac · Free beta</div>
+    <div class="footer-right"><a href="https://github.com/srpsubir/Loop-V2">GitHub</a></div>
+  </div>
+</footer>
+
+<!-- Tweaks -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<div id="tweaks-root"></div>
+<script type="text/babel">
+const { useTweaks, TweaksPanel, TweakSection, TweakSlider, TweakRadio } = window;
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "sentenceGap": 16,
+  "photoStyle": "warm",
+  "sectionBg": "surface"
+}/*EDITMODE-END*/;
+
+function LoopTweaks() {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  React.useEffect(() => {
+    const el = document.querySelector('.chapters-sentences');
+    if (el) el.style.gap = t.sentenceGap + 'px';
+  }, [t.sentenceGap]);
+
+  React.useEffect(() => {
+    const imgs = document.querySelectorAll('.strip-photo img');
+    const filter = t.photoStyle === 'warm'
+      ? 'sepia(20%) saturate(80%) brightness(1.02)'
+      : 'sepia(0%) saturate(105%) brightness(1.0)';
+    imgs.forEach(img => img.style.filter = filter);
+  }, [t.photoStyle]);
+
+  React.useEffect(() => {
+    const sec = document.querySelector('.chapters-problem');
+    if (sec) sec.style.background = t.sectionBg === 'surface'
+      ? 'var(--surface)' : 'var(--bg)';
+  }, [t.sectionBg]);
+
+  return (
+    <TweaksPanel>
+      <TweakSection label="Why it matters" />
+      <TweakSlider label="Sentence spacing" value={t.sentenceGap} min={10} max={32} unit="px"
+                   onChange={v => setTweak('sentenceGap', v)} />
+      <TweakRadio label="Photo style" value={t.photoStyle}
+                  options={['warm', 'natural']}
+                  onChange={v => setTweak('photoStyle', v)} />
+      <TweakSection label="Section" />
+      <TweakRadio label="Background" value={t.sectionBg}
+                  options={['surface', 'cream']}
+                  onChange={v => setTweak('sectionBg', v)} />
+    </TweaksPanel>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('tweaks-root')).render(<LoopTweaks />);
+</script>
+</body>
+</html>

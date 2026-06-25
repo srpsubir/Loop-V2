@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loop — On Your Mind: Drift (MAV-62a)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #19120D; }
+  body { display: flex; align-items: center; justify-content: center;
+    font-family: "Inter", -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+  #root { width: 100%; height: 100vh; display: flex; align-items: center; justify-content: center; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState } = React;
+
+const T = {
+  bg:             '#F9F5EE',
+  surface:        '#EFE6D6',
+  surfaceRaised:  '#E8DBCA',
+  ink:            '#2A1F1B',
+  inkMid:         '#6B5447',
+  inkMuted:       '#A38F85',
+  terracotta:     '#B8624A',
+  terracottaHover:'#A6543E',
+  terracottaFaint:'#F5EAD8',
+  rose:           '#C49A8A',
+  line:           '#DDD0C0',
+  lineLight:      '#EDE3D5',
+};
+
+const serif = '"Lora", Georgia, serif';
+const sans  = '"Inter", -apple-system, sans-serif';
+const ease  = 'cubic-bezier(0.22, 0.61, 0.36, 1)';
+
+function LoopMark({ size = 16, color = T.terracotta }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 120 120" fill="none">
+      <path d="M67 40 C 92 40, 96 74, 72 82 C 48 90, 30 74, 33 54 C 36 36, 58 28, 74 36 C 92 45, 92 78, 66 84 C 44 89, 26 76, 26 76"
+        stroke={color} strokeWidth="10" strokeLinecap="round" fill="none"/>
+    </svg>
+  );
+}
+
+function Avatar({ name, size = 52, tint }) {
+  const initials = name.trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const palette = [T.rose, '#D4856E', '#6A9470', T.rose, T.terracotta];
+  let h = 0; for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: 999, flexShrink: 0,
+      background: tint || palette[h % palette.length], color: T.bg,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontFamily: sans, fontWeight: 600, fontSize: Math.round(size * 0.36),
+      userSelect: 'none',
+      boxShadow: '0 2px 8px rgba(42,31,27,0.12)',
+    }}>{initials}</div>
+  );
+}
+
+function ClockIcon({ size = 12, color }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <polyline points="12 6 12 12 16 14"/>
+    </svg>
+  );
+}
+
+function Btn({ label, primary }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <button
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        all: 'unset', display: 'inline-flex', alignItems: 'center',
+        height: 33, padding: '0 16px',
+        fontFamily: sans, fontSize: 12.5, fontWeight: 600,
+        borderRadius: 999, cursor: 'pointer', userSelect: 'none',
+        background: primary ? (hov ? T.terracottaHover : T.terracotta) : (hov ? T.surfaceRaised : T.surface),
+        color: primary ? T.bg : T.ink,
+        boxShadow: '0 1px 2px rgba(42,31,27,0.06), 0 2px 6px rgba(42,31,27,0.07)',
+        transition: `background 160ms ${ease}`,
+      }}
+    >{label}</button>
+  );
+}
+
+function MindRow({ name, reason }) {
+  const [hov, setHov] = useState(false);
+  const initials = name.trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  return (
+    <div
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 11,
+        padding: '8px 10px', borderRadius: 8,
+        background: hov ? T.surface : 'transparent',
+        transition: `background 160ms ${ease}`, cursor: 'default',
+      }}
+    >
+      <div style={{
+        width: 28, height: 28, borderRadius: 999, flexShrink: 0,
+        background: T.rose, color: T.bg,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontFamily: sans, fontWeight: 600, fontSize: 10,
+      }}>{initials}</div>
+      <div>
+        <div style={{ fontFamily: sans, fontSize: 13, fontWeight: 500, color: T.ink }}>{name}</div>
+        <div style={{ fontFamily: sans, fontSize: 11, color: T.inkMuted, marginTop: 1 }}>{reason}</div>
+      </div>
+    </div>
+  );
+}
+
+function HeroCard() {
+  const [hov, setHov] = useState(false);
+  return (
+    <div
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        borderRadius: 14, overflow: 'hidden', background: T.bg,
+        display: 'flex',
+        boxShadow: hov
+          ? '0 2px 6px rgba(42,31,27,0.08), 0 12px 32px rgba(42,31,27,0.11)'
+          : '0 1px 3px rgba(42,31,27,0.05), 0 4px 14px rgba(42,31,27,0.08)',
+        transition: `box-shadow 200ms ${ease}`,
+      }}
+    >
+      <div style={{
+        width: 108, flexShrink: 0, background: T.terracottaFaint,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <Avatar name="Priya Raman" size={56} tint={T.terracotta} />
+      </div>
+      <div style={{ flex: 1, padding: '20px 22px 22px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 5,
+          fontFamily: sans, fontSize: 11, fontWeight: 700,
+          color: T.terracotta, letterSpacing: '0.01em', marginBottom: 6,
+        }}>
+          <ClockIcon size={12} color={T.terracotta} />
+          3 weeks since you last spoke
+        </div>
+        <div style={{
+          fontFamily: serif, fontSize: 20, fontWeight: 600,
+          color: T.ink, letterSpacing: '-0.01em', marginBottom: 7, lineHeight: 1.15,
+        }}>Priya Raman</div>
+        <div style={{
+          fontFamily: sans, fontSize: 13, color: T.inkMid,
+          lineHeight: 1.65, textWrap: 'pretty', marginBottom: 18, maxWidth: 360,
+        }}>
+          You were close during Edinburgh. She's in Lisbon now — a quick message would land well.
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Btn label="Revisit" primary />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GardenScreen() {
+  return (
+    <div style={{ flex: 1, padding: '28px 32px 32px', overflowY: 'auto' }}>
+      <div style={{
+        fontFamily: serif, fontSize: 22, fontWeight: 600,
+        color: T.ink, letterSpacing: '-0.015em', lineHeight: 1.2, marginBottom: 4,
+      }}>Good morning, Amir.</div>
+      <div style={{ fontFamily: sans, fontSize: 13, color: T.inkMid, marginBottom: 28 }}>
+        One thread worth following.
+      </div>
+
+      <div style={{
+        fontFamily: sans, fontSize: 10, fontWeight: 600, letterSpacing: '.13em',
+        textTransform: 'uppercase', color: T.inkMuted, marginBottom: 11,
+      }}>On your mind</div>
+
+      <HeroCard />
+
+      <div style={{ marginTop: 8 }}>
+        <MindRow name="Marcus Bell" reason="Six weeks · London Years" />
+        <div style={{ height: 1, background: T.lineLight, margin: '0 10px' }} />
+        <MindRow name="Jo Okafor" reason="Three months · Camden flat" />
+      </div>
+    </div>
+  );
+}
+
+function Sidebar() {
+  const navPaths = [
+    'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10',
+    'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z',
+  ];
+  return (
+    <div style={{
+      width: 50, flexShrink: 0, background: T.surface,
+      borderRight: `1px solid ${T.lineLight}`,
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      padding: '12px 0', gap: 4,
+    }}>
+      <LoopMark size={16} />
+      <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {navPaths.map((d, i) => (
+          <div key={i} style={{
+            width: 34, height: 30, borderRadius: 7,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: i === 0 ? T.bg : 'transparent',
+            color: i === 0 ? T.terracotta : T.inkMuted,
+          }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d={d} />
+            </svg>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MacWindow({ children }) {
+  return (
+    <div style={{
+      width: 680, borderRadius: 13, overflow: 'hidden',
+      boxShadow: '0 8px 24px rgba(0,0,0,0.32), 0 40px 80px rgba(0,0,0,0.40)',
+      display: 'flex', flexDirection: 'column', background: T.bg,
+    }}>
+      <div style={{
+        height: 42, flexShrink: 0, background: T.surface,
+        borderBottom: `1px solid ${T.lineLight}`,
+        display: 'flex', alignItems: 'center', padding: '0 14px', gap: 12,
+        userSelect: 'none',
+      }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {['#E0685B','#E8B14C','#7CB45C'].map((c, i) => (
+            <span key={i} style={{ width: 11, height: 11, borderRadius: 999, background: c, display: 'block' }} />
+          ))}
+        </div>
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 7 }}>
+          <LoopMark size={13} />
+          <span style={{ fontFamily: serif, fontSize: 13.5, fontWeight: 600, color: T.ink, letterSpacing: '-0.005em' }}>Loop</span>
+        </div>
+      </div>
+      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        <Sidebar />
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <div style={{
+      width: '100%', height: '100vh',
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      padding: '32px 24px',
+    }}>
+      <div style={{
+        fontFamily: sans, fontSize: 9.5, fontWeight: 700,
+        letterSpacing: '.14em', textTransform: 'uppercase',
+        color: 'rgba(255,255,255,0.18)', marginBottom: 16,
+      }}>MAV-62a · State 1 — Regular drift</div>
+      <MacWindow>
+        <GardenScreen />
+      </MacWindow>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

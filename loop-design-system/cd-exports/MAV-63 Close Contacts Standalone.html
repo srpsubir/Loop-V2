@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Loop — Close Contacts (MAV-63)</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  html, body { margin: 0; height: 100%; background: var(--bg); }
+  #root { height: 100vh; overflow-y: auto; }
+  *::-webkit-scrollbar { width: 11px; }
+  *::-webkit-scrollbar-thumb { background: var(--surface-raised); border-radius: 999px; border: 3px solid var(--bg); }
+  *::-webkit-scrollbar-track { background: transparent; }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="_ds_bundle.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="env,react">
+// MAV-63 v2 — CloseContactsScreen (inlined)
+
+(function () {
+  const { Button, Avatar, ProgressDots } = window.LoopDesignSystem_96f8bb;
+
+  const PEOPLE = [
+    { id: "jo",      first: "Jo",      full: "Jo Okafor" },
+    { id: "marcus",  first: "Marcus",  full: "Marcus Bell" },
+    { id: "danny",   first: "Danny",   full: "Danny Mensah" },
+    { id: "sam",     first: "Sam",     full: "Sam Whitfield" },
+    { id: "elena",   first: "Elena",   full: "Elena Costa" },
+    { id: "priya",   first: "Priya",   full: "Priya Raman" },
+    { id: "nadia",   first: "Nadia",   full: "Nadia Haddad" },
+    { id: "tom",     first: "Tom",     full: "Tom Reid" },
+    { id: "reza",    first: "Reza",    full: "Reza Tehrani" },
+    { id: "camille", first: "Camille", full: "Camille Dubois" },
+    { id: "yemi",    first: "Yemi",    full: "Yemi Adebayo" },
+    { id: "lucia",   first: "Lucia",   full: "Lucia Ferrara" },
+  ];
+
+  function AvatarTile({ person, selected, onToggle }) {
+    const [pressed, setPressed] = React.useState(false);
+
+    return (
+      <button
+        type="button"
+        onClick={onToggle}
+        onMouseDown={() => setPressed(true)}
+        onMouseUp={() => setPressed(false)}
+        onMouseLeave={() => setPressed(false)}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 10,
+          padding: "14px 6px 13px",
+          background: selected ? "rgba(184,98,74,0.11)" : "transparent",
+          border: "none",
+          borderRadius: 16,
+          cursor: "pointer",
+          transform: pressed ? "scale(0.93)" : "scale(1)",
+          transition: "transform 100ms var(--ease-out), background 180ms var(--ease-out)",
+          WebkitTapHighlightColor: "transparent",
+          outline: "none",
+        }}
+      >
+        <div style={{ position: "relative", flex: "none" }}>
+          <div style={{
+            opacity: selected ? 1 : 0.36,
+            transition: "opacity 180ms var(--ease-out)",
+          }}>
+            <Avatar
+              name={person.full}
+              size={68}
+              ring={selected ? "terracotta" : "none"}
+            />
+          </div>
+
+          {selected && (
+            <div
+              key={person.id + "-badge"}
+              style={{
+                position: "absolute",
+                bottom: 1,
+                right: 1,
+                width: 22,
+                height: 22,
+                borderRadius: "var(--radius-full)",
+                background: "var(--accent)",
+                border: "2.5px solid var(--bg)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 1px 4px rgba(184,98,74,0.38)",
+                animation: "mav63-badge-pop 220ms var(--ease-out) both",
+              }}
+            >
+              <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                <path d="M1 3.8L3.5 6.5L9 1" stroke="#F9F5EE"
+                  strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+          )}
+        </div>
+
+        <span style={{
+          fontFamily: "var(--font-sans)",
+          fontSize: 12.5,
+          fontWeight: selected ? 600 : 400,
+          color: selected ? "var(--accent)" : "var(--text-muted)",
+          lineHeight: 1,
+          letterSpacing: selected ? "-0.01em" : 0,
+          transition: "color 180ms var(--ease-out)",
+          userSelect: "none",
+          whiteSpace: "nowrap",
+        }}>
+          {person.first}
+        </span>
+      </button>
+    );
+  }
+
+  function CloseContactsScreen({ onDone }) {
+    const [selected, setSelected] = React.useState({});
+
+    const toggle = (id) =>
+      setSelected((prev) => ({ ...prev, [id]: !prev[id] }));
+
+    const closeCount = Object.values(selected).filter(Boolean).length;
+    const ctaLabel = closeCount > 0
+      ? `Done · ${closeCount} Close  →`
+      : "Done  →";
+
+    return (
+      <div
+        data-screen-label="CloseContacts"
+        style={{
+          minHeight: "100%",
+          background: "var(--bg)",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <style dangerouslySetInnerHTML={{ __html: `
+          @keyframes mav63-badge-pop {
+            0%   { transform: scale(0.3); opacity: 0; }
+            65%  { transform: scale(1.2); }
+            100% { transform: scale(1); opacity: 1; }
+          }
+          button:focus-visible {
+            outline: 3px solid rgba(184,98,74,0.32);
+            outline-offset: 2px;
+          }
+        ` }}></style>
+
+        <div style={{
+          maxWidth: 580,
+          width: "100%",
+          margin: "0 auto",
+          padding: "44px 24px 128px",
+        }}>
+
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 52,
+          }}>
+            <ProgressDots count={2} active={1} />
+            <span style={{
+              fontFamily: "var(--font-sans)",
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: "var(--eyebrow-tracking)",
+              textTransform: "uppercase",
+              color: "var(--text-muted)",
+              whiteSpace: "nowrap",
+              flex: "none",
+            }}>Step 2 of 2</span>
+          </div>
+
+          <header style={{ marginBottom: 32 }}>
+            <h1 style={{
+              fontFamily: "var(--font-serif)",
+              fontSize: 34,
+              fontWeight: 600,
+              color: "var(--text-primary)",
+              letterSpacing: "var(--tracking-tight)",
+              lineHeight: "var(--leading-tight)",
+              margin: "0 0 12px",
+            }}>
+              Who do you want to stay close to?
+            </h1>
+            <p style={{
+              fontFamily: "var(--font-sans)",
+              fontSize: 14.5,
+              lineHeight: 1.65,
+              color: "var(--text-muted)",
+              margin: 0,
+              maxWidth: 380,
+              textWrap: "pretty",
+            }}>
+              Loop will nudge you if you start to drift.
+              Everyone else stays in your loops, just quietly.
+            </p>
+          </header>
+
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 6,
+            minHeight: 26,
+          }}>
+            <span style={{
+              fontFamily: "var(--font-sans)",
+              fontSize: 12.5,
+              fontWeight: 500,
+              color: closeCount > 0 ? "var(--accent)" : "var(--text-muted)",
+              transition: "color 200ms var(--ease-out)",
+              letterSpacing: 0,
+            }}>
+              {closeCount > 0
+                ? `${closeCount} ${closeCount === 1 ? "person" : "people"} Close`
+                : "Everyone starts Warm"}
+            </span>
+            {closeCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setSelected({})}
+                style={{
+                  fontFamily: "var(--font-sans)",
+                  fontSize: 12.5,
+                  fontWeight: 500,
+                  color: "var(--text-muted)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: 0,
+                  letterSpacing: 0,
+                  whiteSpace: "nowrap",
+                  flex: "none",
+                }}
+              >
+                Clear all
+              </button>
+            )}
+          </div>
+
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, 1fr)",
+            gap: 2,
+          }}>
+            {PEOPLE.map((person) => (
+              <AvatarTile
+                key={person.id}
+                person={person}
+                selected={!!selected[person.id]}
+                onToggle={() => toggle(person.id)}
+              />
+            ))}
+          </div>
+
+        </div>
+
+        <div style={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 10,
+          padding: "20px 24px 32px",
+          background: "linear-gradient(to top, var(--bg) 65%, transparent)",
+        }}>
+          <div style={{ maxWidth: 580, margin: "0 auto" }}>
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={() => onDone?.(selected)}
+              style={{ width: "100%" }}
+            >
+              {ctaLabel}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById("root")).render(
+    React.createElement(CloseContactsScreen, { onDone: () => {} })
+  );
+})();
+</script>
+</body>
+</html>

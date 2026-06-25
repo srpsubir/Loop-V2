@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loop — Quiet Day / Scrapbook Moment (MAV-60)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #1C1510; }
+  body { display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-family: "Inter", -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+  #root { width: 100%; height: 100vh; display: flex; align-items: center; justify-content: center; }
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(42,31,27,0.18); border-radius: 99px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+/* ── Design tokens ─────────────────────────────────────────────────────── */
+const T = {
+  bg:              '#F9F5EE',
+  surface:         '#EFE6D6',
+  surfaceRaised:   '#E8DBCA',
+  ink:             '#2A1F1B',
+  inkMid:          '#6B5447',
+  inkMuted:        '#A38F85',
+  terracotta:      '#B8624A',
+  terracottaHover: '#A6543E',
+  terracottaFaint: '#F5EAD8',
+  rose:            '#C49A8A',
+  roseFaint:       '#F7EDE8',
+  sage:            '#6A9470',
+  sageFaint:       '#EAF2EB',
+  line:            '#DDD0C0',
+  lineLight:       '#EDE3D5',
+  /* OTD card — noticeably heavier paper */
+  otdPaper:        '#DFC9A8',
+  otdPaperDeep:    '#D4BC95',
+};
+const serif = '"Lora", Georgia, serif';
+const sans  = '"Inter", -apple-system, sans-serif';
+const ease  = 'cubic-bezier(0.22, 0.61, 0.36, 1)';
+
+/* ── Moment data ───────────────────────────────────────────────────────── */
+const MOMENT = {
+  person:  'Taha',
+  chapter: 'Berlin chapter',
+  timeAgo: '3 years ago this week',
+  messages: [
+    { self: false, text: 'Are you actually going to come to this?' },
+    { self: true,  text: 'Only if you promise it won\'t be terrible.' },
+    { self: false, text: 'It was definitely terrible.' },
+    { self: true,  text: 'Worth it though.' },
+  ],
+};
+
+const HERO_PERSON = {
+  name:    'Riya Sharma',
+  reason:  'Birthday tomorrow',
+  chapter: 'Edinburgh Masters',
+  context: 'Seven years since the Marchmont flat. She mentioned she\'d be back in London this month.',
+};
+
+const LIST_PEOPLE = [
+  { name: 'Marcus Bell', reason: 'Six weeks',     chapter: 'London Years'  },
+  { name: 'Jo Okafor',   reason: 'Three months',  chapter: 'Camden flat'   },
+];
+
+const CHAPTERS = [
+  { title: 'Berlin Years',      years: '2020 – 2023', count: 6, active: true  },
+  { title: 'Edinburgh Masters', years: '2019 – 2020', count: 4, active: false },
+  { title: 'The Camden Flat',   years: '2016 – 2019', count: 5, active: false },
+];
+
+/* ── Shared atoms ──────────────────────────────────────────────────────── */
+function LoopMark({ size = 20, color = T.terracotta }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 120 120" fill="none" aria-hidden="true">
+      <path d="M67 40 C 92 40, 96 74, 72 82 C 48 90, 30 74, 33 54 C 36 36, 58 28, 74 36 C 92 45, 92 78, 66 84 C 44 89, 26 76, 26 76"
+        stroke={color} strokeWidth="10" strokeLinecap="round" fill="none"/>
+    </svg>
+  );
+}
+
+function Avatar({ name, size = 32, tint }) {
+  const initial = name.trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const palette = [T.rose, '#D4856E', T.sage, T.rose, T.terracotta];
+  let h = 0; for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: 999, flexShrink: 0,
+      background: tint || palette[h % palette.length],
+      color: T.bg, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontFamily: sans, fontWeight: 600, fontSize: Math.round(size * 0.36),
+      userSelect: 'none',
+    }}>{initial}</div>
+  );
+}
+
+/* ── OTD compact — active day ─────────────────────────────────────────── */
+function OTDCompact({ onClick }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        all: 'unset', display: 'flex', alignItems: 'center', gap: 18,
+        background: '#F3EAD8',
+        border: 'none',
+        borderRadius: 8,
+        padding: '16px 20px',
+        maxWidth: 440,
+        cursor: 'pointer',
+        boxShadow: hov
+          ? '0 3px 7px rgba(42,31,27,0.12), 0 12px 28px rgba(42,31,27,0.13)'
+          : '0 2px 5px rgba(42,31,27,0.07), 0 7px 18px rgba(42,31,27,0.09)',
+        transform: hov ? 'translateY(-1px)' : 'none',
+        transition: `transform 200ms ${ease}, box-shadow 200ms ${ease}`,
+      }}
+    >
+      {/* Left — a faint rule standing in for the card's materiality */}
+      <div style={{
+        width: 3, alignSelf: 'stretch', borderRadius: 2,
+        background: `linear-gradient(180deg, ${T.terracotta} 0%, rgba(184,98,74,0.2) 100%)`,
+        flexShrink: 0,
+      }}/>
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontFamily: sans, fontSize: 9, fontWeight: 700, letterSpacing: '.14em',
+          textTransform: 'uppercase', color: T.terracotta, marginBottom: 6,
+        }}>On This Day</div>
+        <div style={{
+          fontFamily: serif, fontSize: 18, fontWeight: 600,
+          color: T.ink, lineHeight: 1.2, letterSpacing: '-.01em',
+        }}>{MOMENT.person}</div>
+        <div style={{
+          fontFamily: sans, fontSize: 12, color: T.inkMid,
+          marginTop: 4, letterSpacing: '.005em',
+        }}>{MOMENT.chapter} · {MOMENT.timeAgo}</div>
+      </div>
+
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+        stroke={T.inkMuted} strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}>
+        <polyline points="9 18 15 12 9 6"/>
+      </svg>
+    </button>
+  );
+}
+
+/* ── OTD expanded — quiet day ─────────────────────────────────────────── */
+function OTDExpanded({ onClick }) {
+  const [hov, setHov] = useState(false);
+  return (
+    /* Outer wrapper: parchment bg with breathing room around the card */
+    <div style={{
+      background: T.bg,
+      padding: '32px 0 8px',
+      display: 'flex',
+      justifyContent: 'center',
+    }}>
+      <button
+        onClick={onClick}
+        onMouseEnter={() => setHov(true)}
+        onMouseLeave={() => setHov(false)}
+        style={{
+          all: 'unset',
+          display: 'block',
+          width: 'min(100%, 380px)',
+          background: T.otdPaper,
+          borderRadius: 10,
+          padding: '36px 40px 40px',
+          cursor: 'pointer',
+          /* Deliberately heavier shadow than chapter cards — more physical presence */
+          boxShadow: hov
+            ? '0 6px 16px rgba(42,31,27,0.16), 0 36px 80px rgba(42,31,27,0.28)'
+            : '0 4px 10px rgba(42,31,27,0.12), 0 24px 56px rgba(42,31,27,0.24)',
+          transform: hov ? 'translateY(-3px)' : 'none',
+          transition: `transform 220ms ${ease}, box-shadow 220ms ${ease}`,
+          position: 'relative',
+          textAlign: 'left',
+        }}
+      >
+        {/* Eyebrow — italic, like a handwritten label */}
+        <div style={{
+          fontFamily: serif, fontStyle: 'italic', fontSize: 12,
+          color: T.terracotta, marginBottom: 26, letterSpacing: '.005em',
+        }}>On This Day</div>
+
+        {/* Name — commanding */}
+        <div style={{
+          fontFamily: serif, fontSize: 40, fontWeight: 600,
+          color: T.ink, lineHeight: 1.0, letterSpacing: '-.03em',
+          marginBottom: 16,
+        }}>{MOMENT.person}</div>
+
+        {/* Chapter + time */}
+        <div style={{
+          fontFamily: sans, fontSize: 13, color: T.inkMid,
+          letterSpacing: '.01em',
+        }}>{MOMENT.chapter} · {MOMENT.timeAgo}</div>
+
+        {/* Tap hint fades in on hover */}
+        <div style={{
+          position: 'absolute', bottom: 18, right: 22,
+          fontFamily: sans, fontSize: 10, color: T.inkMuted,
+          opacity: hov ? 1 : 0,
+          transition: `opacity 180ms ${ease}`,
+          letterSpacing: '.04em', textTransform: 'uppercase',
+        }}>tap to read</div>
+      </button>
+    </div>
+  );
+}
+
+/* ── On Your Mind — hero + list (active day) ──────────────────────────── */
+function OnYourMind() {
+  const [hovHero, setHovHero] = useState(false);
+  return (
+    <div>
+      <div style={{
+        fontFamily: sans, fontSize: 10, fontWeight: 600, letterSpacing: '.13em',
+        textTransform: 'uppercase', color: T.inkMuted, marginBottom: 12,
+      }}>On your mind</div>
+
+      {/* Hero card */}
+      <div
+        onMouseEnter={() => setHovHero(true)}
+        onMouseLeave={() => setHovHero(false)}
+        style={{
+          background: T.bg, borderRadius: 14, overflow: 'hidden',
+          display: 'flex', marginBottom: 8,
+          boxShadow: hovHero
+            ? '0 2px 6px rgba(42,31,27,0.08), 0 10px 28px rgba(42,31,27,0.11)'
+            : '0 1px 2px rgba(42,31,27,0.05), 0 4px 12px rgba(42,31,27,0.07)',
+          transition: `box-shadow 200ms ${ease}`,
+        }}
+      >
+        <div style={{
+          width: 108, flexShrink: 0, background: T.terracottaFaint,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <Avatar name={HERO_PERSON.name} size={56} tint={T.terracotta}/>
+        </div>
+        <div style={{ flex: 1, padding: '18px 20px 18px' }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            fontFamily: sans, fontSize: 11, fontWeight: 700,
+            color: T.terracotta, letterSpacing: '.01em', marginBottom: 5,
+          }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            {HERO_PERSON.reason}
+          </div>
+          <div style={{
+            fontFamily: serif, fontSize: 19, fontWeight: 600,
+            color: T.ink, letterSpacing: '-.01em', marginBottom: 6,
+          }}>{HERO_PERSON.name}</div>
+          <div style={{
+            fontFamily: sans, fontSize: 12.5, color: T.inkMid,
+            lineHeight: 1.65, textWrap: 'pretty',
+          }}>{HERO_PERSON.context}</div>
+        </div>
+      </div>
+
+      {/* List */}
+      {LIST_PEOPLE.map((p, i) => <MindRow key={i} person={p}/>)}
+    </div>
+  );
+}
+
+function MindRow({ person }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <div
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 12,
+        padding: '9px 10px', borderRadius: 9,
+        background: hov ? T.surface : 'transparent',
+        transition: `background 180ms ${ease}`,
+        cursor: 'default',
+      }}
+    >
+      <Avatar name={person.name} size={30}/>
+      <div>
+        <div style={{ fontFamily: sans, fontSize: 13.5, fontWeight: 500, color: T.ink }}>{person.name}</div>
+        <div style={{ fontFamily: sans, fontSize: 11.5, color: T.inkMuted, marginTop: 1 }}>
+          {person.reason} · {person.chapter}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Chapters grid (quiet day) ────────────────────────────────────────── */
+function ChaptersGrid() {
+  return (
+    <div>
+      <div style={{
+        fontFamily: sans, fontSize: 10, fontWeight: 600, letterSpacing: '.13em',
+        textTransform: 'uppercase', color: T.inkMuted, marginBottom: 12,
+      }}>Your chapters</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+        {CHAPTERS.map((ch, i) => <ChapterCard key={i} chapter={ch}/>)}
+      </div>
+    </div>
+  );
+}
+
+function ChapterCard({ chapter }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <div
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        background: T.bg, borderRadius: 12, padding: '18px 18px 20px',
+        /* Deliberately lighter shadow than the OTD card above */
+        boxShadow: hov
+          ? '0 2px 4px rgba(42,31,27,0.06), 0 8px 20px rgba(42,31,27,0.10)'
+          : '0 1px 2px rgba(42,31,27,0.04), 0 3px 8px rgba(42,31,27,0.06)',
+        transform: hov ? 'translateY(-1px)' : 'none',
+        opacity: chapter.active ? 1 : 0.82,
+        transition: `box-shadow 200ms ${ease}, transform 200ms ${ease}, opacity 200ms ${ease}`,
+        cursor: 'default',
+      }}
+    >
+      <div style={{
+        fontFamily: serif, fontSize: 15, fontWeight: 600,
+        color: T.ink, marginBottom: 5, lineHeight: 1.2,
+      }}>{chapter.title}</div>
+      <div style={{ fontFamily: sans, fontSize: 11.5, color: T.inkMuted, marginBottom: 12 }}>
+        {chapter.years}
+      </div>
+      <div style={{
+        fontFamily: sans, fontSize: 11.5, color: T.inkMid,
+        display: 'flex', alignItems: 'center', gap: 5,
+      }}>
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        {chapter.count} people
+      </div>
+    </div>
+  );
+}
+
+/* ── Moment overlay — full-screen takeover ────────────────────────────── */
+function MomentOverlay({ onClose }) {
+  useEffect(() => {
+    const fn = e => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', fn);
+    return () => document.removeEventListener('keydown', fn);
+  }, [onClose]);
+
+  return (
+    <div
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 200,
+        background: 'rgba(28, 20, 15, 0.97)',
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        justifyContent: 'flex-start', overflowY: 'auto',
+        paddingTop: 56, paddingBottom: 56,
+        animation: 'overlayIn 280ms cubic-bezier(0.22,0.61,0.36,1) both',
+      }}
+    >
+      <style>{`
+        @keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes contentIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+      `}</style>
+
+      {/* Close */}
+      <OverlayClose onClick={onClose}/>
+
+      {/* Content */}
+      <div style={{
+        maxWidth: 460, width: '100%', padding: '0 40px',
+        animation: 'contentIn 340ms 60ms cubic-bezier(0.22,0.61,0.36,1) both',
+      }}>
+        {/* Single photo — withheld until overlay, warm-toned */}
+        <div style={{ marginBottom: 44 }}>
+          <img
+            src="uploads/photo3.jpg"
+            alt=""
+            style={{
+              display: 'block', width: '100%', height: 210,
+              objectFit: 'cover', borderRadius: 4,
+              filter: 'sepia(.38) saturate(0.9) brightness(0.92) contrast(0.96)',
+            }}
+          />
+        </div>
+
+        {/* Messages — text as primary material */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 32, marginBottom: 60 }}>
+          {MOMENT.messages.map((msg, i) => (
+            <div key={i} style={{
+              textAlign: msg.self ? 'right' : 'left',
+              paddingLeft: msg.self ? 64 : 0,
+              paddingRight: msg.self ? 0 : 64,
+            }}>
+              <span style={{
+                fontFamily: msg.self ? sans : serif,
+                fontStyle: msg.self ? 'normal' : 'italic',
+                fontSize: msg.self ? 16 : 20,
+                color: msg.self
+                  ? 'rgba(238,224,204,0.52)'
+                  : 'rgba(238,224,204,0.92)',
+                lineHeight: 1.5,
+                letterSpacing: msg.self ? 0 : '-.01em',
+              }}>
+                "{msg.text}"
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Context rule — pill chips like Moonlitt */}
+        <div style={{
+          borderTop: '1px solid rgba(238,224,204,0.08)',
+          paddingTop: 20,
+          display: 'flex', flexDirection: 'column', gap: 12,
+        }}>
+          <div style={{
+            fontFamily: serif, fontSize: 13, fontWeight: 500,
+            color: 'rgba(238,224,204,0.38)',
+            letterSpacing: '.005em',
+          }}>{MOMENT.person}</div>
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+            {[MOMENT.chapter, MOMENT.timeAgo].map((label, i) => (
+              <div key={i} style={{
+                fontFamily: sans, fontSize: 11,
+                color: 'rgba(238,224,204,0.32)',
+                background: 'rgba(238,224,204,0.07)',
+                border: '1px solid rgba(238,224,204,0.10)',
+                borderRadius: 999,
+                padding: '4px 10px',
+                letterSpacing: '.02em',
+              }}>{label}</div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OverlayClose({ onClick }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        position: 'absolute', top: 22, right: 26,
+        background: 'none', border: 'none', cursor: 'pointer',
+        padding: 8, borderRadius: 6,
+        color: hov ? 'rgba(238,224,204,0.55)' : 'rgba(238,224,204,0.22)',
+        transition: `color 140ms ${ease}`,
+        display: 'flex',
+      }}
+      aria-label="Close"
+    >
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+  );
+}
+
+/* ── Sidebar ──────────────────────────────────────────────────────────── */
+const NAV = [
+  { label: 'Garden', path: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10' },
+  { label: 'Chapters', path: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z' },
+  { label: 'Settings', path: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z' },
+];
+
+function Sidebar({ navActive }) {
+  return (
+    <div style={{
+      width: 58, flexShrink: 0,
+      background: T.surface,
+      borderRight: `1px solid ${T.lineLight}`,
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', padding: '16px 0',
+      gap: 2,
+    }}>
+      <div style={{ marginBottom: 18 }}><LoopMark size={20}/></div>
+      {NAV.map((item, i) => (
+        <SidebarBtn key={item.label} item={item} active={i === navActive}/>
+      ))}
+      <div style={{ marginTop: 'auto' }}>
+        <Avatar name="Amir Siddiqui" size={28}/>
+      </div>
+    </div>
+  );
+}
+
+function SidebarBtn({ item, active }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <div
+      title={item.label}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        width: 38, height: 34, borderRadius: 8, cursor: 'default',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: active ? T.bg : hov ? T.surfaceRaised : 'transparent',
+        color: active ? T.terracotta : hov ? T.inkMid : T.inkMuted,
+        transition: `background 180ms ${ease}, color 180ms ${ease}`,
+      }}
+    >
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d={item.path}/>
+      </svg>
+    </div>
+  );
+}
+
+/* ── Garden screen ────────────────────────────────────────────────────── */
+function GardenScreen({ dayState, onOpenMoment }) {
+  const quiet = dayState === 'quiet';
+  return (
+    <div style={{
+      flex: 1, overflowY: 'auto',
+      padding: '36px 40px 44px',
+      display: 'flex', flexDirection: 'column', gap: 28,
+    }}>
+      {/* Greeting */}
+      <div>
+        <div style={{
+          fontFamily: serif, fontSize: 24, fontWeight: 600,
+          color: T.ink, letterSpacing: '-.015em', lineHeight: 1.2,
+          marginBottom: 5,
+        }}>Good morning, Amir.</div>
+        <div style={{ fontFamily: sans, fontSize: 13, color: T.inkMid }}>
+          {quiet ? 'A quiet one today.' : 'One thread worth following.'}
+        </div>
+      </div>
+
+      {/* On This Day */}
+      {quiet
+        ? <OTDExpanded onClick={onOpenMoment}/>
+        : <OTDCompact  onClick={onOpenMoment}/>
+      }
+
+      {/* Below the fold */}
+      {quiet ? <ChaptersGrid/> : <OnYourMind/>}
+    </div>
+  );
+}
+
+/* ── Mac window chrome ────────────────────────────────────────────────── */
+function MacWindow({ children }) {
+  return (
+    <div style={{
+      width: '100%', height: '100%',
+      borderRadius: 14,
+      overflow: 'hidden',
+      boxShadow: '0 8px 24px rgba(0,0,0,0.28), 0 48px 96px rgba(0,0,0,0.42)',
+      display: 'flex', flexDirection: 'column',
+      background: T.bg,
+    }}>
+      {/* Title bar */}
+      <div style={{
+        height: 44, flexShrink: 0,
+        background: T.surface,
+        borderBottom: `1px solid ${T.lineLight}`,
+        display: 'flex', alignItems: 'center',
+        padding: '0 14px', gap: 12,
+        userSelect: 'none',
+      }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {['#E0685B','#E8B14C','#7CB45C'].map((c,i) => (
+            <span key={i} style={{ width: 11, height: 11, borderRadius: 999, background: c, display: 'block' }}/>
+          ))}
+        </div>
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 7 }}>
+          <LoopMark size={14}/>
+          <span style={{ fontFamily: serif, fontSize: 14, fontWeight: 600, color: T.ink, letterSpacing: '-.005em' }}>Loop</span>
+        </div>
+      </div>
+      {/* App body */}
+      <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/* ── Prototype toggle ─────────────────────────────────────────────────── */
+function StateToggle({ value, onChange }) {
+  const opts = [
+    { v: 'active', label: 'Active day' },
+    { v: 'quiet',  label: 'Quiet day'  },
+  ];
+  return (
+    <div style={{
+      display: 'flex', gap: 2, alignItems: 'center',
+      background: 'rgba(255,255,255,0.06)',
+      border: '1px solid rgba(255,255,255,0.08)',
+      borderRadius: 999, padding: 3,
+      marginBottom: 12,
+      userSelect: 'none',
+    }}>
+      {opts.map(opt => (
+        <button
+          key={opt.v}
+          onClick={() => onChange(opt.v)}
+          style={{
+            fontFamily: sans, fontSize: 11.5, cursor: 'pointer',
+            fontWeight: opt.v === value ? 600 : 400,
+            color: opt.v === value ? T.ink : 'rgba(255,255,255,0.38)',
+            background: opt.v === value ? '#EEE5D4' : 'transparent',
+            border: 'none', borderRadius: 999,
+            padding: '5px 16px',
+            transition: `all 160ms ${ease}`,
+          }}
+        >{opt.label}</button>
+      ))}
+    </div>
+  );
+}
+
+/* ── Root ─────────────────────────────────────────────────────────────── */
+function App() {
+  const [dayState, setDayState]     = useState('active');
+  const [overlayOpen, setOverlay]   = useState(false);
+
+  const handleStateChange = v => { setDayState(v); setOverlay(false); };
+
+  return (
+    <div style={{
+      width: '100%', height: '100vh',
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      padding: '20px 20px 14px',
+    }}>
+      <StateToggle value={dayState} onChange={handleStateChange}/>
+
+      <div style={{
+        width: '100%',
+        maxWidth: 1000,
+        height: 'min(calc(100vh - 80px), 700px)',
+        flexShrink: 0,
+      }}>
+        <MacWindow>
+          <Sidebar navActive={0}/>
+          <GardenScreen dayState={dayState} onOpenMoment={() => setOverlay(true)}/>
+        </MacWindow>
+      </div>
+
+      {overlayOpen && <MomentOverlay onClose={() => setOverlay(false)}/>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

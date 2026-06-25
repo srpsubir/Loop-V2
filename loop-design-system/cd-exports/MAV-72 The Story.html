@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loop — The Story (MAV-72)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="_ds_bundle.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: #19120D;
+    font-family: "Inter", -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  #root {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px 64px;
+    overflow-x: auto;
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" src="mav-72/the-story-preview.jsx"></script>
+<script type="text/babel" data-presets="env,react">
+const { useState } = React;
+
+const T = {
+  bg:            '#F9F5EE',
+  surface:       '#EFE6D6',
+  surfaceRaised: '#E8DBCA',
+  ink:           '#2A1F1B',
+  inkMid:        '#6B5447',
+  inkMuted:      '#A38F85',
+  terracotta:    '#B8624A',
+  lineLight:     '#EDE3D5',
+};
+
+const serif = '"Lora", Georgia, serif';
+const sans  = '"Inter", -apple-system, sans-serif';
+
+/* ── Loop wordmark ──────────────────────────────────────────────────────── */
+function LoopMark({ size = 16, color = T.terracotta }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 120 120" fill="none" aria-hidden="true">
+      <path
+        d="M67 40 C 92 40, 96 74, 72 82 C 48 90, 30 74, 33 54 C 36 36, 58 28, 74 36 C 92 45, 92 78, 66 84 C 44 89, 26 76, 26 76"
+        stroke={color} strokeWidth="10" strokeLinecap="round" fill="none"
+      />
+    </svg>
+  );
+}
+
+/* ── Mac window chrome ──────────────────────────────────────────────────── */
+function MacWindow({ children, width = 480, height = 740 }) {
+  return (
+    <div style={{
+      width,
+      height,
+      borderRadius: 13,
+      overflow: 'hidden',
+      boxShadow: '0 8px 28px rgba(0,0,0,0.36), 0 40px 80px rgba(0,0,0,0.42)',
+      display: 'flex',
+      flexDirection: 'column',
+      background: T.bg,
+    }}>
+      {/* title bar */}
+      <div style={{
+        height: 42,
+        flexShrink: 0,
+        background: T.surface,
+        borderBottom: `1px solid ${T.lineLight}`,
+        display: 'flex',
+        alignItems: 'center',
+        padding: '0 14px',
+        userSelect: 'none',
+      }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {['#E0685B','#E8B14C','#7CB45C'].map((c, i) => (
+            <span key={i} style={{
+              width: 11, height: 11, borderRadius: 999,
+              background: c, display: 'block',
+            }} />
+          ))}
+        </div>
+        <div style={{
+          flex: 1,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: 6,
+        }}>
+          <LoopMark size={13} />
+          <span style={{
+            fontFamily: serif,
+            fontSize: 13,
+            fontWeight: 600,
+            color: T.ink,
+            letterSpacing: '-0.005em',
+          }}>Loop</span>
+        </div>
+        {/* right spacer = traffic lights width */}
+        <div style={{ width: 11 * 3 + 6 * 2 }} />
+      </div>
+
+      {/* body: sidebar + content */}
+      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        {/* sidebar strip */}
+        <div style={{
+          width: 50,
+          flexShrink: 0,
+          background: T.surface,
+          borderRight: `1px solid ${T.lineLight}`,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          padding: '14px 0 12px',
+          gap: 4,
+        }}>
+          <LoopMark size={15} />
+          <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {[
+              { d: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10', active: false },
+              { d: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z', active: true },
+            ].map(({ d, active }, i) => (
+              <div key={i} style={{
+                width: 34, height: 30,
+                borderRadius: 7,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: active ? T.bg : 'transparent',
+                color: active ? T.terracotta : T.inkMuted,
+              }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2"
+                  strokeLinecap="round" strokeLinejoin="round">
+                  <path d={d} />
+                </svg>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* main content area */}
+        <div style={{ flex: 1, minWidth: 0, height: '100%', overflow: 'hidden' }}>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── annotation callout ─────────────────────────────────────────────────── */
+function Callout({ items }) {
+  return (
+    <div style={{
+      marginTop: 24,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 7,
+    }}>
+      {items.map((item, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 9 }}>
+          <div style={{
+            width: 16, height: 16, borderRadius: 999, flexShrink: 0,
+            border: '1px solid rgba(255,255,255,0.10)',
+            background: 'rgba(255,255,255,0.05)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontFamily: sans, fontSize: 9, fontWeight: 700,
+            color: 'rgba(255,255,255,0.32)',
+            marginTop: 1,
+          }}>{i + 1}</div>
+          <div style={{
+            fontFamily: sans,
+            fontSize: 11,
+            color: 'rgba(255,255,255,0.28)',
+            lineHeight: 1.6,
+            textWrap: 'pretty',
+          }}>{item}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── VS divider ─────────────────────────────────────────────────────────── */
+function VS() {
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'flex-start',
+      paddingTop: 56,
+      gap: 10,
+      flexShrink: 0,
+    }}>
+      <div style={{ width: 1, height: 40, background: 'rgba(255,255,255,0.07)' }} />
+      <div style={{
+        fontFamily: sans, fontSize: 9, fontWeight: 700,
+        letterSpacing: '.12em', textTransform: 'uppercase',
+        color: 'rgba(255,255,255,0.18)',
+      }}>vs</div>
+      <div style={{ width: 1, height: 40, background: 'rgba(255,255,255,0.07)' }} />
+    </div>
+  );
+}
+
+/* ── root ───────────────────────────────────────────────────────────────── */
+function App() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
+
+      {/* header */}
+      <div style={{ marginBottom: 32, textAlign: 'center' }}>
+        <div style={{
+          fontFamily: sans, fontSize: 10, fontWeight: 700,
+          letterSpacing: '.14em', textTransform: 'uppercase',
+          color: 'rgba(255,255,255,0.20)', marginBottom: 10,
+        }}>MAV-72 · Loop</div>
+        <div style={{
+          fontFamily: serif, fontStyle: 'italic',
+          fontSize: 22, fontWeight: 500,
+          color: 'rgba(255,255,255,0.52)',
+          letterSpacing: '-0.01em',
+        }}>The Story</div>
+      </div>
+
+      {/* two-up windows */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20 }}>
+
+        {/* ── State 1: loaded ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: 420 }}>
+          <div style={{
+            fontFamily: sans, fontSize: 10, fontWeight: 700,
+            letterSpacing: '.13em', textTransform: 'uppercase',
+            color: 'rgba(255,255,255,0.22)', marginBottom: 14,
+          }}>State 1 — Story loaded</div>
+
+          <MacWindow width={420} height={748}>
+            <window.MAV72TheStory empty={false} />
+          </MacWindow>
+
+          <Callout items={[
+            "Ghost CTA top-right — recedes visually. You read before you act; it's findable when you're ready.",
+            "Name at 38px Lora, weight 600 — the person, not the relationship status. No badge, no tier marker.",
+            "Chapter tags sit below the name as quiet context — uppercase, muted, never classification.",
+            "Reason block in terracotta-faint — a warm observation in serif italic. Human tone, no numbers, no 'X days ago'.",
+            "Timeline: most recent first, terracotta dot. Last entry (the beginning) in Lora italic, ink-muted — fading at the edges like a memory.",
+          ]} />
+        </div>
+
+        <VS />
+
+        {/* ── State 2: empty / anticipation ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: 420 }}>
+          <div style={{
+            fontFamily: sans, fontSize: 10, fontWeight: 700,
+            letterSpacing: '.13em', textTransform: 'uppercase',
+            color: 'rgba(255,255,255,0.22)', marginBottom: 14,
+          }}>State 2 — Anticipation (no story yet)</div>
+
+          <MacWindow width={420} height={748}>
+            <window.MAV72TheStory empty={true} />
+          </MacWindow>
+
+          <Callout items={[
+            "Hero block stays intact — avatar, name, chapter tags. The person is present even if the story isn't.",
+            "Envelope icon in terracotta-faint — something being written, not a broken connection.",
+            "'Still coming together' — serif italic, anticipation not error. No skeleton loader, no spinner, no apology.",
+            "Ghost CTA still shown if WhatsApp exists — available the moment the user decides to act, story or not.",
+          ]} />
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+function mount() {
+  if (!window.MAV72TheStory) return setTimeout(mount, 30);
+  ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+}
+mount();
+</script>
+</body>
+</html>

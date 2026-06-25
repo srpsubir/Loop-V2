@@ -1,64 +1,72 @@
 # Loop — Session Context
 
-_Last updated: 2026-06-24_
+_Last updated: 2026-06-25_
 
-## Active Linear tickets
+## Last commit + remote
+`522fe67` — Prep signing + notarization config. Remote up to date.
 
-| Ticket | Title | Status |
-|--------|-------|--------|
-| MAV-47 | Apple Developer ID + notarization | In Progress — blocked on $99 Apple enrolment |
-| MAV-103 | Remove Claude API (no WA content off device) | **Done this session** |
-| MAV-75 | Baileys resilience + connector architecture | Backlog — updated with full connector plan |
-| MAV-150 | Positioning — loneliness/life transitions | Backlog — created this session |
-| MAV-151 | Stay Close — onboarding selection + nudge | Backlog — created this session. MP signed off. |
-| MAV-78 | On-device story inference (Ollama/SLM) | Backlog — blocked by MAV-103 (now done) |
-| MAV-98 | Echoes card | Waiting for dev implementation |
-| MAV-91 | Referral mechanic | Waiting for dev implementation |
+## What shipped this session (all committed + pushed)
+- **MAV-104**: chapters.ts scoring formula (emoji/year-only = 0, keyword = 15, real words = 10)
+- **NudgeCard**: component + wired into YourLoopsScreen (isNudgeEligible, 7-day dismiss, nudgeDismissedAt)
+- **DeadThreadCard**: component (Try again / Let it rest)
+- **QuietDayCard**: component (chapter anniversary or "A quiet day." fallback)
+- **ContactTierIndicator**: component (close 56px + terracotta dot, warm 48px, fading 0.55)
+- **Wiring**: DeadThreadCard + QuietDayCard in YourLoopsScreen, ContactTierIndicator in ChapterDetailScreen
+- **Distribution config**: electron-builder.yml (hardenedRuntime, notarize), entitlements.mac.plist
 
-## Completed this session
+## Architecture decisions (settled)
+- **isMemberFading**: pure relationship health, drives orbit + opacity. No nudge suppression.
+- **isNudgeEligible**: close tier + whatsappId + fading + !suppressNudge + 7-day dismiss cooldown
+- **nudgeDismissedAt**: ISO timestamp on ContactState. Re-surfaces nudge after 7 days (not intervalDays).
+- **NudgeCard naming**: final. "On your mind" is gone everywhere.
+- **Fading orbit**: chapter-level (all members fading = orbit slows). Individual fading = opacity 0.55 in ChapterDetailScreen.
+- **QuietDayCard**: chapter-specific (echoAnniversary) when available, generic fallback. No CTA.
+- **DeadThreadCard**: "Let it rest" sets suppressNudge permanently.
 
-- **MAV-103 shipped**: `generateBrief` → `generateStory` (template-based, fully local). `claude.ts` deleted. No message content leaves the device.
-- **Full Brief → Story rename**: `types.ts` (`Brief` → `Story`, `brief` → `story`, `briefOpenedAt` → `storyOpenedAt`), `scanner.ts`, `ipc.ts`, `preload/index.ts`, `env.d.ts`, `StoryScreen.tsx`, `GardenScreen.tsx`, `ChapterScreen.tsx`, `ChapterDetailScreen.tsx`, test files. `BriefScreen.tsx` deleted.
-- **MAV-105** marked Done in Linear.
-- **MAV-74** (Gmail) + **MAV-76** (Telegram) cancelled — rationale written into descriptions.
-- **MAV-150/151** created in Linear.
-- **Workflow update**: CD removed (too expensive). New flow: Mobbin (via MCP) → Magic Patterns (MP has Mobbin integration, include queries in prompt) → sign-off → Claude Code.
-- **MP workflow**: `get_editor_id_from_url` → `get_design_status` → `read_artifact_files`. Always need URL first.
-- **Stay Close selection flow**: MP design at magicpatterns.com/c/5z5xspe9dykdnikmekypwu — signed off.
-- **Nudge screen**: "Stay Close - Direction A" in cd-exports — signed off.
+## JTBD (settled — do not reopen)
+Two jobs. Not one. Not three.
+1. **Acquisition**: Chapter is scattering. Lock in who matters before everyone goes quiet.
+2. **Retention**: Keep the habit alive after they join. Frictionless reach-out.
+Nostalgia/chapter layer is a product feature (activates 12+ months in), not a JTBD.
 
-## Uncommitted local changes (need commit)
+## Monetisation + distribution (settled)
+- **Payments**: Lemon Squeezy (merchant of record, built-in license key system, handles global tax)
+- **License key**: issued on purchase → entered in app → validated against Lemon Squeezy API on launch → unlocks paid tier. Portable across Macs (activation limit configurable).
+- **No server infrastructure needed**: one API ping to Lemon Squeezy on launch. Everything else local.
+- **MailerLite**: for pre-launch waitlist nurture only (landing page interest capture). Not part of in-app flow.
+- **In-app email capture**: first name + email at onboarding → feeds user identity only.
 
-All MAV-103 + rename changes are LOCAL, not committed. Key changed files:
-- `src/main/scanner.ts` — generateStory (template), no Claude
-- `src/main/ipc.ts` — story:open handler, no claude:ask
-- `src/main/store.ts` — saveContact() auto-sets intervalDays:30 for Close tier (from earlier session, still uncommitted)
-- `src/preload/index.ts` — story bridge
-- `src/renderer/src/env.d.ts` — Story type, story bridge
-- `src/renderer/src/screens/StoryScreen.tsx` — story field references
-- `src/renderer/src/screens/GardenScreen.tsx` — onOpenStory, story field
-- `src/renderer/src/screens/ChapterScreen.tsx` — onOpenStory
-- `src/renderer/src/screens/ChapterDetailScreen.tsx` — story field
-- `src/shared/types.ts` — Story interface, story field, storyOpenedAt
-- `src/test/WhatsAppConnect.test.tsx` — story mock
-- `src/test/electron/wdio/ui-navigation.test.ts` — storyOpenedAt
-- `src/main/claude.ts` — DELETED
-- `src/renderer/src/screens/BriefScreen.tsx` — DELETED
+## Distribution flow (ready when Apple ID arrives)
+1. Install "Developer ID Application" cert into Keychain
+2. Generate app-specific password at appleid.apple.com
+3. `export APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID`
+4. `npm run dist` — builds, signs, notarizes, packages DMG (arm64 + x64)
+- Unsigned DMG built locally for testing (right-click → Open to bypass Gatekeeper)
 
-## Pending decisions
+## Tests
+- 152/154 passing. 2 failures = osascript E2E (need app running). All unit tests 100% green.
 
-1. **MAV-78 approach** — SLM 1.5B (Qwen2.5) recommended. One-time ~900MB download, on-device, CAN use message content (privacy safe). Templates are alpha-only stopgap.
-2. **Commit** — all MAV-103 + rename changes ready to commit, not done yet this session.
+## Linear backlog (Loop-relevant only)
+| ID | Priority | Title | Status |
+|---|---|---|---|
+| MAV-97 | Urgent | Freemium gate (2 free chapters + paywall + Lemon Squeezy license key) | Backlog |
+| MAV-75 | Urgent | Baileys/Meta ToS resilience | Backlog (monitor only pre-beta) |
+| MAV-100 | Urgent | MailerLite nurture sequence (landing page waitlist) | Backlog |
+| MAV-150 | High | Landing page narrative | Backlog (parked) |
+| MAV-73 | High | iMessage connector | Backlog (post-beta) |
+| MAV-76 | Medium | Telegram connector | Backlog (post-beta) |
+| MAV-153 | Medium | SLM chapter inference from WhatsApp groups | Backlog (V2/post-beta) |
+| MAV-79 | Low | iOS companion | Backlog (post-beta) |
+| MAV-47 | — | Apple Developer ID | In Progress (blocked — cert pending) |
+| MAV-74 | — | Gmail connector | CANCELLED |
+| MAV-77 | — | Apple Calendar connector | CANCELLED |
 
-## Parked
+## Pending (before beta can ship)
+1. MAV-47: Apple Developer ID cert (a few days) — then sign + notarize DMG
+2. MAV-97: Freemium gate + Lemon Squeezy integration — build once cert is in hand
 
-- MAV-97: Freemium gate
-- MAV-100: MailerLite — until beta
-- Navi tickets (MAV-111+) — separate product, ignore in Loop sessions
-
-## Open design topics (need MP sessions)
-
-1. Nostalgia/quiet-day register
-2. Warm/Close tier UX
-3. Dead thread/second loop
-4. "On your mind" CTA
+## SLM chapter inference (MAV-153)
+- Qwen2.5-1.5B already in DMG. Could interpret group names/content for chapter detection.
+- GIGO risk is real: thin group names, emoji-only, family/work misclassification, confident wrong answers.
+- Needs: prompt engineering, confidence threshold, synthetic eval set before shipping.
+- V2/post-beta. Do not touch until after beta validation.

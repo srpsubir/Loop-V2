@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loop — Crew Detection (MAV-87)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  :root {
+    --bg:             #F9F5EE;
+    --surface:        #EFE6D6;
+    --surface-raised: #E8DBCA;
+    --text-primary:   #2A1F1B;
+    --text-secondary: #6B5447;
+    --text-muted:     #A38F85;
+    --text-on-accent: #F9F5EE;
+    --accent:         #B8624A;
+    --accent-hover:   #A6543E;
+    --accent-light:   #D4856E;
+    --accent-faint:   #F5EAD8;
+    --border:         #DDD0C0;
+    --border-light:   #EDE3D5;
+    --rose:           #C49A8A;
+    --sage:           #6A9470;
+    --font-sans:      "Inter", -apple-system, sans-serif;
+    --font-serif:     "Lora", Georgia, serif;
+    --radius-full:    999px;
+    --shadow-sm:      0 1px 2px rgba(42,31,27,0.05), 0 1px 3px rgba(42,31,27,0.04);
+    --shadow-md:      0 1px 2px rgba(42,31,27,0.05), 0 4px 12px rgba(42,31,27,0.07);
+    --ease-out:       cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); -webkit-font-smoothing: antialiased; }
+  #root { min-height: 100vh; }
+  *::-webkit-scrollbar { width: 10px; }
+  *::-webkit-scrollbar-thumb { background: var(--surface-raised); border-radius: 999px; border: 3px solid var(--bg); }
+  *::-webkit-scrollbar-track { background: transparent; }
+  ::selection { background: rgba(184,98,74,0.18); color: var(--text-primary); }
+
+  /* ── scanning animations ── */
+  @keyframes mav87-pulse {
+    0%, 100% { opacity: 0.45; transform: scale(1); }
+    50%       { opacity: 0.80; transform: scale(1.04); }
+  }
+  @keyframes mav87-pop-in {
+    0%   { opacity: 0; transform: scale(0.62); }
+    55%  { transform: scale(1.08); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  @keyframes mav87-tile-in {
+    0%   { opacity: 0; transform: translateY(7px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes mav87-label-in {
+    0%   { opacity: 0; transform: translateY(4px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="env,react">
+// MAV-87 — Crew Detection (onboarding step 4 of 4)
+// Read-only reveal. No editing controls of any kind.
+// STATE 1 — Scanning: warm anticipation, avatars emerge from ghost circles
+// STATE 2 — Revealed: chapters + crew rows
+// VARIANT A — overlapping avatar stack | VARIANT B — individual tiles (default)
+
+(function () {
+  const { useState, useEffect, useRef } = React;
+
+  // ── Crew data ────────────────────────────────────────────────────────────
+  const CHAPTERS = [
+    {
+      id: 'boys',
+      label: 'The Boys',
+      crew: [
+        { id: 'jo',      first: 'Jo',      full: 'Jo Okafor' },
+        { id: 'marcus',  first: 'Marcus',  full: 'Marcus Bell' },
+        { id: 'danny',   first: 'Danny',   full: 'Danny Mensah' },
+        { id: 'sam',     first: 'Sam',     full: 'Sam Whitfield' },
+        { id: 'tom',     first: 'Tom',     full: 'Tom Reid' },
+      ],
+    },
+    {
+      id: 'edinburgh',
+      label: 'Edinburgh',
+      crew: [
+        { id: 'priya',   first: 'Priya',   full: 'Priya Raman' },
+        { id: 'nadia',   first: 'Nadia',   full: 'Nadia Haddad' },
+        { id: 'tom2',    first: 'Tom',     full: 'Tom Reid' },
+        { id: 'marcus2', first: 'Marcus',  full: 'Marcus Bell' },
+      ],
+    },
+    {
+      id: 'family',
+      label: 'Family',
+      crew: [
+        { id: 'nadia2',  first: 'Nadia',   full: 'Nadia Haddad' },
+        { id: 'tom3',    first: 'Tom',     full: 'Tom Reid' },
+        { id: 'danny2',  first: 'Danny',   full: 'Danny Mensah' },
+        { id: 'elena',   first: 'Elena',   full: 'Elena Costa' },
+        { id: 'priya2',  first: 'Priya',   full: 'Priya Raman' },
+      ],
+    },
+  ];
+
+  // ── Avatar ────────────────────────────────────────────────────────────────
+  function Avatar({ name = '', size = 44 }) {
+    const initials = name
+      .split(/\s+/).filter(Boolean)
+      .slice(0, 2).map(w => w[0]).join('').toUpperCase();
+    const tints = ['#C49A8A', '#D4856E', '#6A9470', '#B8624A', '#C49A8A'];
+    let h = 0;
+    for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+    return (
+      <div style={{
+        width: size, height: size,
+        borderRadius: '999px',
+        flexShrink: 0,
+        background: tints[h % tints.length],
+        color: '#F9F5EE',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontFamily: 'var(--font-sans)',
+        fontWeight: 600,
+        fontSize: Math.round(size * 0.37),
+        letterSpacing: '0.01em',
+        userSelect: 'none',
+      }}>
+        {initials}
+      </div>
+    );
+  }
+
+  // ── ProgressDots ──────────────────────────────────────────────────────────
+  function ProgressDots({ count = 3, active = 0 }) {
+    return (
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        {Array.from({ length: count }, (_, i) => (
+          <div key={i} style={{
+            width: i === active ? 22 : 6,
+            height: 6,
+            borderRadius: '999px',
+            background: i === active
+              ? 'var(--accent)'
+              : i < active ? 'var(--accent-light)' : 'var(--border-light)',
+            opacity: i < active ? 0.55 : 1,
+            transition: 'all 220ms var(--ease-out)',
+          }} />
+        ))}
+      </div>
+    );
+  }
+
+  // ── ScanningView ──────────────────────────────────────────────────────────
+  // Ghost circles pulse. Avatars pop in staggered — slow, unhurried.
+  function ScanningView() {
+    // global offset counter so stagger flows across all chapters
+    let globalIdx = 0;
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 36 }}>
+        {CHAPTERS.map((chapter, ci) => {
+          const chapterDelay = ci * 380;
+          return (
+            <div key={chapter.id}>
+              {/* chapter eyebrow */}
+              <div style={{
+                fontFamily: 'var(--font-serif)',
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: '0.10em',
+                textTransform: 'uppercase',
+                color: 'var(--text-muted)',
+                marginBottom: 14,
+                animation: 'mav87-label-in 500ms var(--ease-out) both',
+                animationDelay: chapterDelay + 'ms',
+              }}>
+                {chapter.label}
+              </div>
+
+              {/* avatar row */}
+              <div style={{ display: 'flex', gap: 14 }}>
+                {chapter.crew.map((person, pi) => {
+                  const avatarDelay = chapterDelay + 120 + pi * 200;
+                  globalIdx++;
+                  const pulseDelay = pi * 220;
+                  return (
+                    <div key={person.id} style={{ position: 'relative', width: 52, height: 52, flexShrink: 0 }}>
+                      {/* ghost circle — pulses until avatar arrives */}
+                      <div style={{
+                        position: 'absolute', inset: 0,
+                        borderRadius: '999px',
+                        background: 'var(--surface)',
+                        animation: 'mav87-pulse ' + (2.6 + (pi % 3) * 0.5) + 's ease-in-out infinite',
+                        animationDelay: pulseDelay + 'ms',
+                      }} />
+                      {/* avatar — pops in over the ghost */}
+                      <div style={{
+                        position: 'absolute', inset: 0,
+                        borderRadius: '999px',
+                        overflow: 'hidden',
+                        animation: 'mav87-pop-in 560ms cubic-bezier(0.22,1,0.36,1) both',
+                        animationDelay: avatarDelay + 'ms',
+                      }}>
+                        <Avatar name={person.full} size={52} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // ── RevealedView ──────────────────────────────────────────────────────────
+  function RevealedView({ variant }) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        {CHAPTERS.map((chapter, ci) => (
+          <div key={chapter.id}>
+            <div style={{ paddingBottom: 28 }}>
+              {/* chapter eyebrow — Lora serif, uppercase small */}
+              <div style={{
+                fontFamily: 'var(--font-serif)',
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: '0.10em',
+                textTransform: 'uppercase',
+                color: 'var(--text-muted)',
+                marginBottom: 10,
+              }}>
+                {chapter.label}
+              </div>
+              {/* hairline */}
+              <div style={{ height: 1, background: 'var(--border-light)', marginBottom: 18 }} />
+              {/* crew row */}
+              {variant === 'A'
+                ? <StackRow crew={chapter.crew} />
+                : <TileRow crew={chapter.crew} />
+              }
+            </div>
+            {/* faint chapter divider */}
+            {ci < CHAPTERS.length - 1 && (
+              <div style={{ height: 1, background: 'var(--border-light)', marginBottom: 28 }} />
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Variant A — overlapping stack, names listed as prose beside it
+  function StackRow({ crew }) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', paddingLeft: 2 }}>
+          {crew.map((person, i) => (
+            <div key={person.id} style={{
+              marginLeft: i === 0 ? 0 : -14,
+              zIndex: crew.length - i,
+              borderRadius: '999px',
+              boxShadow: '0 0 0 2.5px var(--bg)',
+              animation: 'mav87-tile-in 380ms var(--ease-out) both',
+              animationDelay: (i * 55) + 'ms',
+            }}>
+              <Avatar name={person.full} size={50} />
+            </div>
+          ))}
+        </div>
+        <span style={{
+          fontFamily: 'var(--font-sans)',
+          fontSize: 13.5,
+          fontWeight: 400,
+          color: 'var(--text-secondary)',
+          lineHeight: 1.55,
+          textWrap: 'pretty',
+        }}>
+          {crew.map(p => p.first).join(', ')}
+        </span>
+      </div>
+    );
+  }
+
+  // Variant B — individual avatar + first name tile (default, yearbook-page feel)
+  function TileRow({ crew }) {
+    return (
+      <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
+        {crew.map((person, i) => (
+          <div key={person.id} style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 8,
+            animation: 'mav87-tile-in 380ms var(--ease-out) both',
+            animationDelay: (i * 55) + 'ms',
+          }}>
+            <Avatar name={person.full} size={52} />
+            <span style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 12,
+              fontWeight: 500,
+              color: 'var(--text-muted)',
+              lineHeight: 1,
+              whiteSpace: 'nowrap',
+            }}>
+              {person.first}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // ── Demo pill toggle ──────────────────────────────────────────────────────
+  function PillToggle({ options, value, onChange }) {
+    return (
+      <div style={{
+        display: 'flex', gap: 2, padding: 4,
+        background: 'var(--surface)',
+        borderRadius: '999px',
+        boxShadow: 'var(--shadow-sm)',
+      }}>
+        {options.map(([val, label]) => (
+          <button
+            key={val}
+            onClick={() => onChange(val)}
+            style={{
+              padding: '5px 14px',
+              borderRadius: '999px',
+              border: 'none',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 11.5,
+              fontWeight: 600,
+              letterSpacing: '0.01em',
+              cursor: 'pointer',
+              background: value === val ? 'var(--bg)' : 'transparent',
+              color: value === val ? 'var(--text-primary)' : 'var(--text-muted)',
+              boxShadow: value === val ? '0 1px 3px rgba(42,31,27,0.10)' : 'none',
+              transition: 'all 150ms var(--ease-out)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  // ── Screen ────────────────────────────────────────────────────────────────
+  function CrewDetectionScreen() {
+    const [appState, setAppState] = useState('scanning');
+    const [variant,  setVariant]  = useState('B');
+    const scanKey = useRef(0); // bumped each time we re-enter scanning to re-run animations
+
+    const handleStateChange = (s) => {
+      if (s === 'scanning') scanKey.current++;
+      setAppState(s);
+    };
+
+    return (
+      <div data-screen-label="CrewDetection" style={{
+        minHeight: '100%',
+        background: 'var(--bg)',
+        display: 'flex',
+        flexDirection: 'column',
+      }}>
+
+        {/* ── demo controls ── */}
+        <div style={{
+          position: 'fixed',
+          top: 16,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 200,
+          display: 'flex',
+          gap: 8,
+          alignItems: 'center',
+        }}>
+          <PillToggle
+            options={[['scanning', 'Scanning'], ['revealed', 'Revealed']]}
+            value={appState}
+            onChange={handleStateChange}
+          />
+          {appState === 'revealed' && (
+            <PillToggle
+              options={[['A', 'Stack'], ['B', 'Tiles']]}
+              value={variant}
+              onChange={setVariant}
+            />
+          )}
+        </div>
+
+        {/* ── scrollable content ── */}
+        <div style={{
+          flex: 1,
+          maxWidth: 600,
+          width: '100%',
+          margin: '0 auto',
+          padding: '76px 32px 140px',
+        }}>
+
+          {/* progress row */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 40,
+          }}>
+            <ProgressDots count={3} active={2} />
+            <span style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 12,
+              fontWeight: 600,
+              color: 'var(--text-muted)',
+              letterSpacing: '0.01em',
+            }}>
+              Step 3 of 3
+            </span>
+          </div>
+
+          {/* heading block */}
+          <header style={{ marginBottom: 36 }}>
+            <h1 style={{
+              fontFamily: 'var(--font-serif)',
+              fontSize: 34,
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              letterSpacing: '-0.02em',
+              lineHeight: 1.15,
+              margin: '0 0 10px',
+            }}>
+              {appState === 'scanning'
+                ? 'Finding your people.'
+                : 'Here\u2019s who Loop found.'}
+            </h1>
+            <p style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 15,
+              lineHeight: 1.65,
+              color: 'var(--text-secondary)',
+              margin: 0,
+              maxWidth: 400,
+              textWrap: 'pretty',
+            }}>
+              {appState === 'scanning'
+                ? 'Loop is mapping who was in each chapter.'
+                : 'You can adjust your crews anytime once you\u2019re in.'}
+            </p>
+          </header>
+
+          {/* state content — key on appState + scanKey so scanning re-mounts animations */}
+          {appState === 'scanning'
+            ? <ScanningView key={'scan-' + scanKey.current} />
+            : <RevealedView key={'revealed-' + variant} variant={variant} />
+          }
+
+        </div>
+
+        {/* ── sticky CTA ── */}
+        <div style={{
+          position: 'fixed',
+          bottom: 0, left: 0, right: 0,
+          zIndex: 10,
+          padding: '20px 32px 32px',
+          background: 'linear-gradient(to top, var(--bg) 65%, transparent)',
+          pointerEvents: 'none',
+        }}>
+          <div style={{ maxWidth: 600, margin: '0 auto', pointerEvents: 'auto' }}>
+            <button
+              style={{
+                width: '100%',
+                height: 52,
+                borderRadius: '999px',
+                border: 'none',
+                background: 'var(--accent)',
+                color: 'var(--text-on-accent)',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 15,
+                fontWeight: 600,
+                cursor: 'pointer',
+                letterSpacing: '-0.01em',
+                boxShadow: 'var(--shadow-md)',
+                transition: 'background 120ms var(--ease-out), transform 120ms var(--ease-out)',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent-hover)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'var(--accent)'; e.currentTarget.style.transform = 'none'; }}
+              onMouseDown={e => { e.currentTarget.style.transform = 'scale(0.985)'; }}
+              onMouseUp={e => { e.currentTarget.style.transform = 'none'; }}
+            >
+              These are my people &#x2192;
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(
+    React.createElement(CrewDetectionScreen)
+  );
+})();
+</script>
+</body>
+</html>

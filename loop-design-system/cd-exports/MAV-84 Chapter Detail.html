@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loop — Chapter Detail (MAV-84)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  :root {
+    --bg:             #F9F5EE;
+    --surface:        #EFE6D6;
+    --surface-raised: #E8DBCA;
+    --text-primary:   #2A1F1B;
+    --text-secondary: #6B5447;
+    --text-muted:     #A38F85;
+    --text-on-accent: #F9F5EE;
+    --accent:         #B8624A;
+    --accent-light:   #D4856E;
+    --accent-faint:   #F5EAD8;
+    --border:         #DDD0C0;
+    --font-sans:      "Inter", -apple-system, sans-serif;
+    --font-serif:     "Lora", Georgia, serif;
+    --radius-sm:      8px;
+    --radius-md:      12px;
+    --radius-lg:      18px;
+    --radius-full:    999px;
+    --shadow-sm:      0 1px 2px rgba(42,31,27,0.05), 0 1px 3px rgba(42,31,27,0.04);
+    --ease-out:       cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); -webkit-font-smoothing: antialiased; }
+  #root { min-height: 100vh; }
+  .ns::-webkit-scrollbar { display: none; }
+  .ns { -ms-overflow-style: none; scrollbar-width: none; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="env,react">
+(function () {
+  const { useState, useRef } = React;
+
+  // ── data ─────────────────────────────────────────────────────────────────
+  const CHAPTER = {
+    name: 'The Boys',
+    // Warm deep gradient stands in for a group photo at golden hour
+    coverBg: 'linear-gradient(175deg,#6B8090 0%,#7A5040 30%,#3D2415 65%,#1A0C06 100%)',
+  };
+
+  const CREW = [
+    { id: 'sam',    name: 'Sam W',    drifted: false },
+    { id: 'marcus', name: 'Marcus B', drifted: false },
+    { id: 'danny',  name: 'Danny M',  drifted: false },
+    { id: 'jo',     name: 'Jo O',     drifted: true  },
+    { id: 'tom',    name: 'Tom R',    drifted: false },
+    { id: 'elena',  name: 'Elena C',  drifted: true  },
+    { id: 'priya',  name: 'Priya R',  drifted: true  },
+    { id: 'nadia',  name: 'Nadia H',  drifted: false },
+  ];
+
+  // Warm CSS gradients stand in for real media — replace with actual assets before handoff
+  const MOMENTS_INIT = [
+    { id: 1, type: 'image', bg: 'linear-gradient(160deg,#8C7A6B 0%,#5C3D28 45%,#2E1A0E 100%)', hero: true  },
+    { id: 2, type: 'image', bg: 'linear-gradient(180deg,#7C9FAE 0%,#B08060 55%,#3D2415 100%)', hero: false },
+    { id: 3, type: 'audio', duration: '0:43' },
+    { id: 4, type: 'image', bg: 'linear-gradient(150deg,#C49A70 0%,#7A4E30 50%,#2A1810 100%)', hero: false },
+    { id: 5, type: 'image', bg: 'linear-gradient(170deg,#1C0F08 0%,#4A2C1A 40%,#8C6040 100%)', hero: false },
+  ];
+
+  // ── avatar ────────────────────────────────────────────────────────────────
+  const TINTS = ['#C49A8A','#D4856E','#6A9470','#B8624A','#8B9E7A','#7B8FA6','#C4956A','#9A7BC4'];
+  function Avatar({ name, size, grayscale }) {
+    const initials = name.split(/\s+/).slice(0,2).map(w => w[0]).join('').toUpperCase();
+    let h = 0;
+    for (const c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+    const bg = TINTS[h % TINTS.length];
+    return (
+      <div style={{
+        width: size, height: size, borderRadius: '50%',
+        background: bg, color: '#F9F5EE',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontFamily: 'var(--font-sans)', fontWeight: 700,
+        fontSize: Math.round(size * 0.36),
+        filter: grayscale ? 'grayscale(1) brightness(1.08)' : 'none',
+        transition: 'filter 240ms ease',
+        userSelect: 'none', flexShrink: 0,
+      }}>
+        {initials}
+      </div>
+    );
+  }
+
+  // ── waveform ──────────────────────────────────────────────────────────────
+  const BARS = [4,8,13,9,15,11,6,14,10,16,7,12,5,14,9,11,6,15,8,7,13,5,10,9];
+  function Waveform({ playing }) {
+    const w = 116, h = 26, bW = 2.5;
+    const gap = (w - BARS.length * bW) / (BARS.length - 1);
+    const prog = playing ? 0.42 : 0;
+    return (
+      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ display: 'block', flexShrink: 0 }}>
+        {BARS.map((b, i) => {
+          const bH = (b / 16) * h;
+          return (
+            <rect key={i}
+              x={i * (bW + gap)} y={(h - bH) / 2}
+              width={bW} height={bH} rx={1.5}
+              fill={(i / BARS.length) < prog
+                ? 'rgba(249,245,238,0.92)'
+                : 'rgba(249,245,238,0.32)'}
+            />
+          );
+        })}
+      </svg>
+    );
+  }
+
+  // ── remove overlay ────────────────────────────────────────────────────────
+  function RemoveOverlay({ onConfirm, onDismiss }) {
+    return (
+      <div
+        style={{
+          position: 'absolute', inset: 0,
+          background: 'rgba(20,10,6,0.68)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 10,
+        }}
+        onClick={onDismiss}
+      >
+        <button
+          onClick={(e) => { e.stopPropagation(); onConfirm(); }}
+          style={{
+            all: 'unset',
+            width: 44, height: 44, borderRadius: '50%',
+            background: 'rgba(249,245,238,0.12)',
+            border: '1.5px solid rgba(249,245,238,0.38)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer',
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M1.5 1.5L12.5 12.5M12.5 1.5L1.5 12.5"
+              stroke="#FEFCF8" strokeWidth="2" strokeLinecap="round"/>
+          </svg>
+        </button>
+      </div>
+    );
+  }
+
+  // ── moment tile ───────────────────────────────────────────────────────────
+  function MomentTile({ moment, onRemove }) {
+    const [showRemove, setShowRemove] = useState(false);
+    const [playing,    setPlaying]    = useState(false);
+    const timerRef = useRef(null);
+
+    const startPress = () => {
+      timerRef.current = setTimeout(() => setShowRemove(true), 600);
+    };
+    const cancelPress = () => {
+      if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+    };
+    const pressProps = {
+      onMouseDown:   startPress,
+      onMouseUp:     cancelPress,
+      onMouseLeave:  cancelPress,
+      onTouchStart:  (e) => { e.preventDefault(); startPress(); },
+      onTouchEnd:    cancelPress,
+      onTouchCancel: cancelPress,
+    };
+
+    if (moment.type === 'audio') {
+      return (
+        <div
+          {...pressProps}
+          style={{
+            position: 'relative', flexShrink: 0,
+            width: 214, height: 86,
+            borderRadius: 'var(--radius-md)',
+            background: 'linear-gradient(135deg, #3B2319 0%, #5A3426 100%)',
+            display: 'flex', alignItems: 'center', gap: 14, padding: '0 18px',
+            overflow: 'hidden', userSelect: 'none', alignSelf: 'center',
+          }}
+        >
+          <button
+            onClick={(e) => { e.stopPropagation(); setPlaying(p => !p); }}
+            style={{
+              all: 'unset', flexShrink: 0,
+              width: 38, height: 38, borderRadius: '50%',
+              background: playing ? 'rgba(249,245,238,0.2)' : 'rgba(249,245,238,0.1)',
+              border: '1.5px solid rgba(249,245,238,0.28)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', transition: 'background 120ms ease',
+            }}
+          >
+            {playing
+              ? <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <rect x="1.5" y="1.5" width="3.5" height="9" rx="1" fill="#FEFCF8"/>
+                  <rect x="7"   y="1.5" width="3.5" height="9" rx="1" fill="#FEFCF8"/>
+                </svg>
+              : <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path d="M2.5 1.5L10.5 6L2.5 10.5V1.5Z" fill="#FEFCF8"/>
+                </svg>
+            }
+          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <Waveform playing={playing} />
+            <span style={{
+              fontFamily: 'var(--font-sans)', fontSize: 10,
+              color: 'rgba(249,245,238,0.42)', letterSpacing: '0.02em',
+            }}>
+              {moment.duration}
+            </span>
+          </div>
+          {showRemove && <RemoveOverlay onConfirm={onRemove} onDismiss={() => setShowRemove(false)} />}
+        </div>
+      );
+    }
+
+    const tileW = moment.hero ? 258 : 158;
+    return (
+      <div
+        {...pressProps}
+        style={{
+          position: 'relative', flexShrink: 0,
+          width: tileW, height: 220,
+          borderRadius: 'var(--radius-md)',
+          overflow: 'hidden', userSelect: 'none',
+          background: moment.bg,
+        }}
+      >
+        {showRemove && <RemoveOverlay onConfirm={onRemove} onDismiss={() => setShowRemove(false)} />}
+      </div>
+    );
+  }
+
+  // ── film strip ────────────────────────────────────────────────────────────
+  function FilmStrip({ moments, onRemove }) {
+    if (!moments.length) return null;
+    return (
+      <section style={{ paddingBottom: 56 }}>
+        <div style={{
+          paddingLeft: 20, paddingBottom: 11,
+          fontFamily: 'var(--font-sans)', fontSize: 10, fontWeight: 700,
+          letterSpacing: '.10em', textTransform: 'uppercase',
+          color: 'var(--text-muted)', opacity: 0.5,
+        }}>
+          moments
+        </div>
+        <div
+          className="ns"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            overflowX: 'auto',
+            paddingLeft: 20, paddingRight: 32,
+            WebkitOverflowScrolling: 'touch',
+          }}
+        >
+          {moments.map(m => (
+            <MomentTile key={m.id} moment={m} onRemove={() => onRemove(m.id)} />
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  // ── crew row ──────────────────────────────────────────────────────────────
+  function CrewRow({ crew }) {
+    const [pressed, setPressed] = useState(null);
+    return (
+      <div
+        className="ns"
+        style={{
+          display: 'flex', alignItems: 'center',
+          overflowX: 'auto',
+          padding: '22px 20px 18px',
+          WebkitOverflowScrolling: 'touch',
+        }}
+      >
+        {crew.map((person, i) => (
+          <div
+            key={person.id}
+            onMouseDown={() => setPressed(person.id)}
+            onMouseUp={() => setPressed(null)}
+            onMouseLeave={() => setPressed(null)}
+            onTouchStart={(e) => { e.preventDefault(); setPressed(person.id); }}
+            onTouchEnd={() => setPressed(null)}
+            style={{
+              marginLeft: i === 0 ? 0 : -11,
+              zIndex: crew.length - i,
+              borderRadius: '50%',
+              boxShadow: '0 0 0 2.5px var(--bg)',
+              cursor: 'pointer',
+              transform: pressed === person.id ? 'scale(0.88) translateY(-3px)' : 'scale(1)',
+              transition: 'transform 120ms var(--ease-out)',
+              flexShrink: 0,
+            }}
+          >
+            <Avatar name={person.name} size={46} grayscale={person.drifted} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // ── cover ─────────────────────────────────────────────────────────────────
+  function Cover({ chapter }) {
+    return (
+      <div style={{ position: 'relative', width: '100%', height: 305, overflow: 'hidden', flexShrink: 0 }}>
+        <div style={{ width: '100%', height: '100%', background: chapter.coverBg }} />
+        {/* gradient scrim — only bottom third for Spotify-style legibility */}
+        <div style={{
+          position: 'absolute', bottom: 0, left: 0, right: 0, height: '58%',
+          background: 'linear-gradient(to top, rgba(12,6,3,0.78) 0%, rgba(12,6,3,0.0) 100%)',
+          pointerEvents: 'none',
+        }} />
+        {/* chapter name — bottom-left, Spotify convention */}
+        <div style={{
+          position: 'absolute', bottom: 22, left: 20,
+          fontFamily: 'var(--font-serif)',
+          fontSize: 42, fontWeight: 700,
+          color: '#FEFCF8',
+          letterSpacing: '-0.025em', lineHeight: 1.1,
+          textShadow: '0 2px 16px rgba(0,0,0,0.2)',
+          pointerEvents: 'none', userSelect: 'none',
+        }}>
+          {chapter.name}
+        </div>
+      </div>
+    );
+  }
+
+  // ── back button ───────────────────────────────────────────────────────────
+  function BackButton() {
+    const [hov, setHov] = useState(false);
+    return (
+      <button
+        onMouseEnter={() => setHov(true)}
+        onMouseLeave={() => setHov(false)}
+        style={{
+          position: 'fixed', top: 54, left: 18, zIndex: 200,
+          all: 'unset',
+          width: 36, height: 36, borderRadius: '50%',
+          background: hov ? 'rgba(12,6,3,0.52)' : 'rgba(12,6,3,0.38)',
+          backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer',
+          transition: 'background 120ms ease',
+        }}
+      >
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M11.5 14L6.5 9L11.5 4"
+            stroke="#FEFCF8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+    );
+  }
+
+  // ── root ──────────────────────────────────────────────────────────────────
+  function ChapterDetail() {
+    const [moments, setMoments] = useState(MOMENTS_INIT);
+    const removeMoment = id => setMoments(prev => prev.filter(m => m.id !== id));
+
+    return (
+      <div
+        data-screen-label="MAV-84 Chapter Detail"
+        style={{
+          minHeight: '100vh',
+          background: 'var(--bg)',
+          maxWidth: 430,
+          margin: '0 auto',
+        }}
+      >
+        <BackButton />
+        <Cover chapter={CHAPTER} />
+        <CrewRow crew={CREW} />
+        <FilmStrip moments={moments} onRemove={removeMoment} />
+      </div>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(
+    React.createElement(ChapterDetail)
+  );
+})();
+</script>
+</body>
+</html>
