@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { ArrowLeft, Camera } from 'lucide-react'
-import { Avatar, IconButton } from '../components'
+import { IconButton } from '../components'
+import { ContactTierIndicator } from '../components/ContactTierIndicator'
 import type { Chapter, Contact, AppState, ContactState } from '@shared/types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -54,35 +55,20 @@ function CrewMember({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: 8,
         cursor: 'pointer',
         padding: '12px 8px',
         borderRadius: 'var(--radius-md)',
         background: hov ? 'var(--surface)' : 'transparent',
         transition: 'background var(--duration-fast) var(--ease-out)',
         outline: 'none',
-        opacity: fading ? 0.55 : 1,
       }}
     >
-      <Avatar
+      <ContactTierIndicator
+        tier={contact.tier}
         name={contact.name}
+        fading={fading}
         src={heroSrc}
-        size={52}
-        ring={fading ? 'terracotta' : 'none'}
       />
-      <div style={{
-        fontFamily: 'var(--font-sans)',
-        fontSize: 12,
-        color: 'var(--text-secondary)',
-        textAlign: 'center',
-        lineHeight: 1.3,
-        maxWidth: 72,
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-      }}>
-        {contact.name.split(' ')[0]}
-      </div>
     </div>
   )
 }

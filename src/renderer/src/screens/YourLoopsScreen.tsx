@@ -4,6 +4,8 @@ import { IconButton } from '../components'
 import { ModelUpgradeCard } from '../components/ModelUpgradeCard'
 import type { UpgradeStatus } from '../components/ModelUpgradeCard'
 import { NudgeCard } from '../components/NudgeCard'
+import { QuietDayCard } from '../components/QuietDayCard'
+import { DeadThreadCard } from '../components/DeadThreadCard'
 import type { AppState, Contact, ContactState, OnThisDayMemory, Chapter } from '@shared/types'
 import { toPng } from 'html-to-image'
 
@@ -409,6 +411,7 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings }: YourLoopsScre
   const [echoCardOpen, setEchoCardOpen] = useState(false)
   const [echoChapterId, setEchoChapterId] = useState<string | null>(null)
   const echoCardRef = useRef<HTMLDivElement>(null)
+  const [hiddenDeadThreadIds, setHiddenDeadThreadIds] = useState<Set<string>>(new Set())
 
   // ── Model upgrade card ──────────────────────────────────────────────────────
   const [upgradeStatus, setUpgradeStatus] = useState<UpgradeStatus | null>(null)
@@ -536,6 +539,49 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings }: YourLoopsScre
     }).catch(() => {})
   }, [nudgeContact, state])
 
+  // Dead thread card: first contact with a dead-thread occasion not yet hidden this session
+  const deadThreadContact = useMemo(() => {
+    if (!state) return null
+    return contacts.find((c) => {
+      const cs = state.contacts[c.id]
+      return cs?.nextOccasion?.type === 'dead-thread' && !hiddenDeadThreadIds.has(c.id)
+    }) ?? null
+  }, [contacts, state, hiddenDeadThreadIds])
+
+  const handleDeadThreadTryAgain = useCallback(async () => {
+    if (!deadThreadContact || !state) return
+    const cs = state.contacts[deadThreadContact.id]
+    if (cs) {
+      const newCount = (cs.reachOutCount ?? 0) + 1
+      await window.loop.state.patch({
+        contacts: {
+          ...state.contacts,
+          [deadThreadContact.id]: {
+            ...cs,
+            lastReachOutAt: new Date().toISOString(),
+            reachOutCount: newCount,
+            suppressNudge: newCount >= 2,
+          },
+        },
+      }).catch(() => {})
+    }
+    if (deadThreadContact.whatsappId) window.loop.shell.openWhatsApp(deadThreadContact.whatsappId).catch(() => {})
+  }, [deadThreadContact, state])
+
+  const handleDeadThreadLetItRest = useCallback(async () => {
+    if (!deadThreadContact || !state) return
+    const cs = state.contacts[deadThreadContact.id]
+    if (cs) {
+      await window.loop.state.patch({
+        contacts: {
+          ...state.contacts,
+          [deadThreadContact.id]: { ...cs, suppressNudge: true },
+        },
+      }).catch(() => {})
+    }
+    setHiddenDeadThreadIds((prev) => new Set([...prev, deadThreadContact.id]))
+  }, [deadThreadContact, state])
+
   // Opening moment: only when there are zero urgent signals
   const hasSignals = chapterAtoms.some(
     (a) => a.atomState === 'fading' || a.atomState === 'birthday-live' || a.atomState === 'dead-thread'
@@ -662,6 +708,29 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings }: YourLoopsScre
             nudgeText={`You've been quiet with ${nudgeContact.name.split(' ')[0]}. Worth a message.`}
             onMessage={handleNudgeMessage}
             onDismiss={handleNudgeDismiss}
+          />
+        </div>
+      )}
+
+      {/* Dead thread card — contact reached out to but got no reply */}
+      {deadThreadContact && (
+        <div style={{ padding: '16px 44px 0', flexShrink: 0 }}>
+          <DeadThreadCard
+            contactName={deadThreadContact.name}
+            contactInitials={deadThreadContact.name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
+            onTryAgain={handleDeadThreadTryAgain}
+            onLetItRest={handleDeadThreadLetItRest}
+          />
+        </div>
+      )}
+
+      {/* Quiet day card — ambient warmth when no actionable cards are showing */}
+      {!nudgeContact && !deadThreadContact && (
+        <div style={{ padding: '16px 44px 0', flexShrink: 0 }}>
+          <QuietDayCard
+            chapterName={echoChapter?.name}
+            yearsAgo={echoChapter?.echoAnniversary?.years}
+            onClick={echoChapter ? () => handleSeeEcho(echoChapter) : undefined}
           />
         </div>
       )}
