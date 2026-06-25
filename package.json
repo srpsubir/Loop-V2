@@ -1,6 +1,6 @@
 {
   "name": "loop",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "A personal relationship memory system — organised by the chapters of your life",
   "author": "Subir Paul",
   "main": "./out/main/index.js",
