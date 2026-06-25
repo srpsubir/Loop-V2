@@ -848,10 +848,10 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings }: YourLoopsScre
             gap: 8,
           }}>
             <div style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-              No chapters yet.
+              {state?.whatsappConnected ? 'Your chapters are on their way.' : 'No chapters yet.'}
             </div>
             <div style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)' }}>
-              Connect WhatsApp to discover your loops.
+              {state?.whatsappConnected ? 'Loop is reading your conversations.' : 'Connect WhatsApp to discover your loops.'}
             </div>
           </div>
         )}

@@ -444,7 +444,7 @@ export function SettingsScreen({ onBack, onConnect }: SettingsScreenProps) {
               </div>
             ))}
             {contacts.length === 0 && (
-              <div style={{ padding: '26px 14px', textAlign: 'center', fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--text-muted)' }}>
+              <div style={{ padding: '16px 14px', textAlign: 'center', fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--text-muted)' }}>
                 No one yet. Loop will suggest people as it reads.
               </div>
             )}
