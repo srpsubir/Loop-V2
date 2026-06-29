@@ -8,7 +8,7 @@ import Scanner, { registerScanHandlers } from './scanner'
 import { registerPhotosHandlers } from './photos'
 import { track } from './analytics'
 import { scoreGroups, clustersToCandidates } from './chapters'
-import { isModelReady, isDownloading, modelExists, downloadModel, initModel } from './inference'
+import { isModelReady, isDownloading, modelExists, initModel } from './inference'
 import type { AppState, Contact, Chapter, InviteCode, Story } from '../shared/types'
 
 export function registerAllHandlers(getWindow: () => BrowserWindow | null): void {
@@ -339,18 +339,4 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
     ready:  isModelReady(),
     downloading: isDownloading(),
   }))
-
-  ipcMain.handle('model:download', async (): Promise<void> => {
-    const win = getWindow()
-    await downloadModel((downloaded, total) => {
-      win?.webContents.send('model:download-progress', { downloaded, total })
-    })
-    // Auto-load after download
-    try {
-      await initModel()
-      win?.webContents.send('model:ready')
-    } catch (err) {
-      console.error('[IPC] model load after download failed:', err)
-    }
-  })
 }

@@ -66,9 +66,6 @@ interface LoopAPI {
   }
   model: {
     status: () => Promise<{ exists: boolean; ready: boolean; downloading: boolean }>
-    download: () => Promise<void>
-    onProgress: (cb: (downloaded: number, total: number) => void) => () => void
-    onReady: (cb: () => void) => () => void
   }
 }
 

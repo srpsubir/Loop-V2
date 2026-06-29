@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Settings, X } from 'lucide-react'
 import { IconButton } from '../components'
-import { ModelUpgradeCard } from '../components/ModelUpgradeCard'
-import type { UpgradeStatus } from '../components/ModelUpgradeCard'
 import { NudgeCard } from '../components/NudgeCard'
 import { QuietDayCard } from '../components/QuietDayCard'
 import { DeadThreadCard } from '../components/DeadThreadCard'
@@ -413,41 +411,6 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings }: YourLoopsScre
   const echoCardRef = useRef<HTMLDivElement>(null)
   const [hiddenDeadThreadIds, setHiddenDeadThreadIds] = useState<Set<string>>(new Set())
 
-  // ── Model upgrade card ──────────────────────────────────────────────────────
-  const [upgradeStatus, setUpgradeStatus] = useState<UpgradeStatus | null>(null)
-  const [upgradeProgress, setUpgradeProgress] = useState(0)
-
-  useEffect(() => {
-    window.loop.model.status().then(({ exists, ready }) => {
-      if (!exists && !ready) setUpgradeStatus('idle')
-    }).catch(() => {})
-  }, [])
-
-  const handleUpgrade = useCallback(async () => {
-    setUpgradeStatus('downloading')
-    setUpgradeProgress(0)
-    const unsubProgress = window.loop.model.onProgress((downloaded, total) => {
-      if (total > 0) setUpgradeProgress(Math.round((downloaded / total) * 100))
-    })
-    const unsubReady = window.loop.model.onReady(() => {
-      unsubProgress()
-      unsubReady()
-      setUpgradeStatus('complete')
-      setTimeout(() => setUpgradeStatus(null), 3000)
-    })
-    try {
-      await window.loop.model.download()
-    } catch {
-      unsubProgress()
-      unsubReady()
-      setUpgradeStatus('idle')
-    }
-  }, [])
-
-  const handleCancelUpgrade = useCallback(() => {
-    setUpgradeStatus('idle')
-  }, [])
-
   useEffect(() => {
     if (document.getElementById('yls-atom-styles')) return
     const s = document.createElement('style')
@@ -685,19 +648,6 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings }: YourLoopsScre
           onClick={onOpenSettings}
         />
       </div>
-
-      {/* Model upgrade card — shown once, dismissed on complete or X */}
-      {upgradeStatus !== null && (
-        <div style={{ padding: '16px 44px 0', flexShrink: 0 }}>
-          <ModelUpgradeCard
-            status={upgradeStatus}
-            progress={upgradeProgress}
-            onDismiss={() => setUpgradeStatus(null)}
-            onUpgrade={handleUpgrade}
-            onCancel={handleCancelUpgrade}
-          />
-        </div>
-      )}
 
       {/* Nudge card — most overdue close contact */}
       {nudgeContact && (
