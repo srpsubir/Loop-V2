@@ -3,10 +3,9 @@
 _Last updated: 2026-06-29_
 
 ## Last commit + remote
-`72d05ca` — Fix empty state copy + Settings People padding. Remote up to date.
-Code changes from this session are uncommitted (people-first chapter detection).
+`281454c` — People-first chapter detection: bipartite clustering + TF-IDF naming. Committed + ready to push.
 
-## What shipped this session (uncommitted — pending 1 HRC)
+## What shipped this session
 - **MAV-155**: Garbage filter in `listGroupsWithMeta()` + `scoreGroups()` — kills communities (`isCommunity`), newsletters, member ceiling 80→50, name regex (broadcast/announce/alumni/society/association/residents/colony etc.)
 - **MAV-156**: `buildTieStrengthMap()` now captures `displayName` from Baileys `sock.contacts`
 - **Phase 3**: `avgTieStrength` replaced with `highTieMemberCount`, `highTieMemberFraction`, `topTieMemberNames` — wired into `scoreGroups()` scoring (+15/+8/+12 pts rescue bonus)
@@ -78,18 +77,17 @@ Nostalgia/chapter layer is a product feature (activates 12+ months in), not a JT
 | MAV-159 | — | SLM chapter namer | ARCHIVED (replaced by TF-IDF MAV-160) |
 
 ## Pending (before beta can ship)
-1. **HRC**: Run `node scripts/test-clustering.mjs` after one clean WA connection → confirm top-5 chapter names make sense → commit
-2. **MAV-47**: Apple Developer ID cert (a few days) — then sign + notarize DMG
-3. **MAV-97**: Freemium gate + Lemon Squeezy integration — build once cert is in hand
+1. **MAV-47**: Apple Developer ID cert (a few days) — then sign + notarize DMG
+2. **MAV-97**: Freemium gate + Lemon Squeezy integration — build once cert is in hand
 
-## HRC checklist (pending)
+## HRC checklist (DONE ✓ 2026-06-29)
 ```
 node scripts/test-clustering.mjs
 ```
-- [ ] clusters.length >= 3 (else fallback fires — investigate why)
-- [ ] Top 5 chapter names recognisable (not generic/noise)
-- [ ] No broadcast/alumni/community groups in output
-- [ ] Commit + push
+- [x] clusters.length >= 3 — 24 clusters found
+- [x] Top 5 chapter names recognisable: "Kira Andrew · 2026–now", "Strength Training · 2025–now", "Grillboot · 2023–2025", "Aline Bday · 2022–2025", "Karting Zaragoza · 2018"
+- [x] No broadcast/alumni/community groups in output (garbage filter applied in script + in production)
+- [x] Committed `281454c`
 
 ## Bug fixed: chapter detection never re-ran after onboarding
 
