@@ -218,8 +218,6 @@ export function clustersToCandidates(
       active,
       inferredStartYear: eraStartYear,
       inferredEndYear: active ? undefined : eraEndYear,
-      clusterCohesion: cluster.cohesion,
-      topMemberNames: cluster.contacts.filter(c => c.displayName).slice(0, 3).map(c => c.displayName),
     }
   }).sort((a, b) => b.score - a.score)
 

@@ -1,5 +1,4 @@
 import { BrowserWindow, ipcMain, shell } from 'electron'
-import * as os from 'os'
 import * as path from 'path'
 import * as fs from 'fs'
 import { readState, patchState, listContacts, saveContact, deleteContact, LOOP_DIR, STATE_FILE, CONTACTS_DIR } from './store'
@@ -8,7 +7,6 @@ import Scanner, { registerScanHandlers } from './scanner'
 import { registerPhotosHandlers } from './photos'
 import { track } from './analytics'
 import { scoreGroups, clustersToCandidates } from './chapters'
-import { isModelReady, isDownloading, modelExists, initModel } from './inference'
 import type { AppState, Contact, Chapter, InviteCode, Story } from '../shared/types'
 
 export function registerAllHandlers(getWindow: () => BrowserWindow | null): void {
@@ -272,71 +270,4 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
 
   registerPhotosHandlers()
 
-  // ── Calendar ──────────────────────────────────────────────────────────────
-
-  ipcMain.handle('calendar:addEvent', async (_e, payload: {
-    contactName: string
-    occasionType?: string | null
-    occasionDate?: string | null
-    reasonToReachOut: string
-    contextLine?: string
-  }): Promise<void> => {
-    const { contactName, occasionType, occasionDate, reasonToReachOut, contextLine } = payload
-
-    // Birthday → use the occasion date at 9am; anything else → next weekday at 10am
-    let eventDate: Date
-    if (occasionType === 'birthday' && occasionDate) {
-      eventDate = new Date(occasionDate)
-      eventDate.setHours(9, 0, 0, 0)
-    } else {
-      eventDate = new Date()
-      eventDate.setDate(eventDate.getDate() + 1)
-      while (eventDate.getDay() === 0 || eventDate.getDay() === 6) {
-        eventDate.setDate(eventDate.getDate() + 1)
-      }
-      eventDate.setHours(10, 0, 0, 0)
-    }
-
-    const endDate = new Date(eventDate.getTime() + 15 * 60 * 1000)
-
-    const title = occasionType === 'birthday'
-      ? `${contactName}'s birthday — say something`
-      : `Reach out to ${contactName}`
-
-    const notes = [reasonToReachOut, contextLine].filter(Boolean).join('\n\n')
-
-    function formatIcsDate(d: Date): string {
-      return d.toISOString().replace(/[-:]/g, '').split('.')[0]
-    }
-
-    const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}@loop`
-    const ics = [
-      'BEGIN:VCALENDAR',
-      'VERSION:2.0',
-      'PRODID:-//Loop//Loop//EN',
-      'BEGIN:VEVENT',
-      `UID:${uid}`,
-      `DTSTART:${formatIcsDate(eventDate)}`,
-      `DTEND:${formatIcsDate(endDate)}`,
-      `SUMMARY:${title}`,
-      `DESCRIPTION:${notes.replace(/\n/g, '\\n')}`,
-      'END:VEVENT',
-      'END:VCALENDAR',
-    ].join('\r\n')
-
-    track('reminder_set', { occasion_type: occasionType ?? 'manual' })
-    const tmpPath = path.join(os.tmpdir(), `loop-${Date.now()}.ics`)
-    await fs.promises.writeFile(tmpPath, ics, 'utf8')
-    await shell.openPath(tmpPath)
-    // Calendar.app reads the file synchronously on open; clean up after a beat
-    setTimeout(() => fs.promises.unlink(tmpPath).catch(() => {}), 3000)
-  })
-
-  // ── On-device model (MAV-78) ──────────────────────────────────────────────
-
-  ipcMain.handle('model:status', () => ({
-    exists: modelExists(),
-    ready:  isModelReady(),
-    downloading: isDownloading(),
-  }))
 }

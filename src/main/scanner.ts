@@ -2,7 +2,6 @@ import { BrowserWindow, ipcMain } from 'electron'
 import { listContacts, readState, patchState } from './store'
 import WhatsAppManager from './whatsapp'
 import { track } from './analytics'
-import { isModelReady, generateStoryWithSLM } from './inference'
 import type { Contact, ContactState, Occasion, Story, Chapter, OnThisDayMemory } from '../shared/types'
 import type { WAMessage } from './whatsapp'
 
@@ -218,14 +217,6 @@ export async function resolveStory(
   needsRefresh: boolean
 ): Promise<Story> {
   if (!needsRefresh && existingStory) return existingStory
-
-  if (isModelReady()) {
-    try {
-      return await generateStoryWithSLM(contact, messages, chapters, nextOccasion)
-    } catch {
-      // SLM failed — fall through to template
-    }
-  }
 
   return generateStory(contact, messages, chapters, nextOccasion)
 }

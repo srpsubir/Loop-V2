@@ -243,16 +243,6 @@ class WhatsAppManager extends EventEmitter {
   }
 
   // B = (σ - μ) / (σ + μ): high = bursty spike-then-silence (events), low = regular cadence (rituals/chapters)
-  private computeBurstiness(timestamps: number[]): number {
-    if (timestamps.length < 2) return 0
-    const sorted = [...timestamps].sort((a, b) => a - b)
-    const intervals = sorted.slice(1).map((t, i) => t - sorted[i])
-    const mean = intervals.reduce((a, b) => a + b, 0) / intervals.length
-    const sigma = Math.sqrt(intervals.reduce((a, b) => a + (b - mean) ** 2, 0) / intervals.length)
-    if (mean + sigma < 1e-10) return 0
-    return (sigma - mean) / (sigma + mean)
-  }
-
   async buildTieStrengthMap(): Promise<Map<string, { strength: 'high' | 'medium' | 'low'; messageCount: number; displayName: string }>> {
     const map = new Map<string, { strength: 'high' | 'medium' | 'low'; messageCount: number; displayName: string }>()
     if (!this.socket) return map
@@ -297,15 +287,9 @@ class WhatsAppManager extends EventEmitter {
     lastMessageAt: number
     createdAt: number | null
     userIsCreator: boolean
-    myMessageCount: number
-    totalMessageCount: number
-    mySharePercent: number | null
     highTieMemberCount: number
     highTieMemberFraction: number
     topTieMemberNames: string[]
-    groupParticipationRatio: number | null
-    burstiness: number
-    lastMessagesSample: Array<{ text: string; fromMe: boolean }>
   }[]> {
     if (!this.socket) return []
     try {
@@ -358,16 +342,6 @@ class WhatsAppManager extends EventEmitter {
           chatEntry?.conversationTimestamp ?? chatEntry?.lastMessageTimestamp ?? createdAt ?? 0
         )
 
-        const messages = await this.getMessages(groupId, 200)
-        const myMessageCount = messages.filter(m => m.fromMe).length
-        const totalMessageCount = messages.length
-        const mySharePercent = totalMessageCount > 0 ? myMessageCount / totalMessageCount : null
-
-        const lastMessagesSample = messages
-          .slice(0, 10)
-          .filter(m => m.text && m.text.trim().length > 0)
-          .map(m => ({ text: m.text as string, fromMe: m.fromMe }))
-
         const memberTieData = members.map(jid => tieMap.get(jid) ?? { strength: 'low' as const, messageCount: 0, displayName: '' })
         const highTieMembers = memberTieData.filter(d => d.strength === 'high')
         const highTieMemberCount = highTieMembers.length
@@ -378,15 +352,6 @@ class WhatsAppManager extends EventEmitter {
           .slice(0, 3)
           .map(d => d.displayName)
 
-        // Fraction of communication between user and these members that happens in group vs 1:1 DMs.
-        const totalDmCount = memberTieData.reduce((sum, d) => sum + d.messageCount, 0)
-        const groupParticipationRatio = (totalMessageCount + totalDmCount) > 0
-          ? totalMessageCount / (totalMessageCount + totalDmCount)
-          : null
-
-        // Burstiness: spike-then-silence = event; steady cadence = ritual/chapter
-        const burstiness = this.computeBurstiness(messages.map(m => m.timestamp))
-
         results.push({
           id: groupId,
           name: resolvedName,
@@ -394,15 +359,9 @@ class WhatsAppManager extends EventEmitter {
           lastMessageAt,
           createdAt,
           userIsCreator,
-          myMessageCount,
-          totalMessageCount,
-          mySharePercent,
           highTieMemberCount,
           highTieMemberFraction,
           topTieMemberNames,
-          groupParticipationRatio,
-          burstiness,
-          lastMessagesSample,
         })
       }
 
