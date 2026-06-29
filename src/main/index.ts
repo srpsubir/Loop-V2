@@ -4,6 +4,8 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerAllHandlers } from './ipc'
 import Scanner from './scanner'
 import { initAnalytics, track, shutdownAnalytics } from './analytics'
+import WhatsAppManager from './whatsapp'
+import { readState } from './store'
 
 initAnalytics()
 
@@ -75,6 +77,14 @@ app.whenReady().then(async () => {
   registerAllHandlers(getWindow)
 
   await createWindow()
+
+  // Auto-reconnect WhatsApp for returning users — wa.start() is otherwise only
+  // called from the WhatsAppConnectScreen, so it never ran on re-launch.
+  readState().then((state) => {
+    if (state.whatsappConnected) {
+      WhatsAppManager.getInstance().start().catch(console.error)
+    }
+  }).catch(console.error)
 
   // Trigger launch scan if WhatsApp is connected and cooldown has elapsed
   Scanner.getInstance().maybeRunOnLaunch().catch(console.error)

@@ -7,7 +7,7 @@ import WhatsAppManager from './whatsapp'
 import Scanner, { registerScanHandlers } from './scanner'
 import { registerPhotosHandlers } from './photos'
 import { track } from './analytics'
-import { scoreGroups } from './chapters'
+import { scoreGroups, clustersToCandidates } from './chapters'
 import { isModelReady, isDownloading, modelExists, downloadModel, initModel } from './inference'
 import type { AppState, Contact, Chapter, InviteCode, Story } from '../shared/types'
 
@@ -141,10 +141,15 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
   // ── Chapter detection ─────────────────────────────────────────────────────
 
   ipcMain.handle('chapters:detect', async () => {
-    const groups = await wa.listGroupsWithMeta()
-    const { top, rest } = scoreGroups(groups)
+    const { clusters, groups } = await wa.buildContactClusters()
+    const { top, rest } = clustersToCandidates(clusters, groups)
     await patchState({ detectedChapters: top, pendingChapters: rest })
-    track('chapters_detected', { count_shown: top.length, count_total: top.length + rest.length })
+    track('chapters_detected', {
+      count_shown: top.length,
+      count_total: top.length + rest.length,
+      used_clusters: clusters.length >= 3,
+      cluster_count: clusters.length,
+    })
     getWindow()?.webContents.send('state:changed')
     return top
   })

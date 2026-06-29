@@ -434,6 +434,18 @@ export default function App() {
         try {
           const state = await window.loop.state.get()
           if (state.onboardingComplete) {
+            // Check actual socket status — Baileys may have already connected
+            // before React mounted (race in dev mode and prod), so we can't
+            // rely solely on the onConnected event listener below.
+            if (!state.chapterDetectionComplete && state.chapters.length === 0) {
+              try {
+                const { status } = await window.loop.whatsapp.status()
+                if (status === 'connected') {
+                  setNav({ screen: 'chapter-inference' })
+                  return
+                }
+              } catch { /* ignore */ }
+            }
             setNav({ screen: 'your-loops' })
           }
         } catch {
@@ -442,6 +454,22 @@ export default function App() {
       }
     }
     init()
+  }, [])
+
+  // For returning users: when WA reconnects on launch, auto-navigate to chapter detection
+  // if onboarding is complete but chapters have never been detected.
+  // ChapterInferenceScreen is the only place chapters:detect is called — it's never reached
+  // after onboarding unless we explicitly route there.
+  useEffect(() => {
+    const off = window.loop.whatsapp.onConnected(async () => {
+      try {
+        const state = await window.loop.state.get()
+        if (state.onboardingComplete && !state.chapterDetectionComplete && state.chapters.length === 0) {
+          setNav({ screen: 'chapter-inference' })
+        }
+      } catch { /* ignore — main process may not be ready */ }
+    })
+    return off
   }, [])
 
   const goYourLoops = useCallback(() => setNav({ screen: 'your-loops' }), [])
@@ -481,7 +509,13 @@ export default function App() {
             try {
               await window.loop.state.patch({ whatsappConnected: true })
               const state = await window.loop.state.get()
-              setNav({ screen: state.onboardingComplete ? 'your-loops' : 'chapter-inference' })
+              if (!state.onboardingComplete) {
+                setNav({ screen: 'chapter-inference' })
+              } else if (!state.chapterDetectionComplete && state.chapters.length === 0) {
+                setNav({ screen: 'chapter-inference' })
+              } else {
+                setNav({ screen: 'your-loops' })
+              }
             } catch {
               setNav({ screen: 'your-loops' })
             }

@@ -4,12 +4,18 @@ import { scoreGroups } from '../main/chapters'
 const now = Math.floor(Date.now() / 1000)
 const daysAgo = (d: number) => now - d * 86400
 
-function group(overrides: Partial<{ id: string; name: string; members: string[]; lastMessageAt: number }> = {}) {
+function group(overrides: Partial<{
+  id: string; name: string; members: string[]; lastMessageAt: number
+  highTieMemberCount: number; highTieMemberFraction: number; topTieMemberNames: string[]
+}> = {}) {
   return {
     id: 'g1@g.us',
     name: 'Test Group',
     members: ['a', 'b', 'c', 'd'],
     lastMessageAt: daysAgo(10),
+    highTieMemberCount: 0,
+    highTieMemberFraction: 0,
+    topTieMemberNames: [],
     ...overrides,
   }
 }
@@ -28,8 +34,8 @@ describe('scoreGroups', () => {
     expect(top.length + rest.length).toBe(0)
   })
 
-  it('filters mega-groups with more than 80 members', () => {
-    const { top, rest } = scoreGroups([group({ members: Array.from({ length: 81 }, (_, i) => `m${i}`) })])
+  it('filters groups with more than 50 members', () => {
+    const { top, rest } = scoreGroups([group({ members: Array.from({ length: 51 }, (_, i) => `m${i}`) })])
     expect(top.length + rest.length).toBe(0)
   })
 
@@ -93,8 +99,8 @@ describe('scoreGroups', () => {
     expect(top[0].waJid).toBe('g1@g.us')
   })
 
-  it('scores large groups (41-80 members) with size=4 (the uncovered branch)', () => {
-    const large = group({ members: Array.from({ length: 60 }, (_, i) => `m${i}`) })
+  it('scores groups with 21-50 members with size=12 (mid-range branch)', () => {
+    const large = group({ members: Array.from({ length: 30 }, (_, i) => `m${i}`) })
     const { top, rest } = scoreGroups([large])
     expect(top.length + rest.length).toBe(1)
     expect((top[0] ?? rest[0]).score).toBeGreaterThan(0)
@@ -180,5 +186,35 @@ describe('scoreGroups', () => {
     const perfect = group({ name: 'Edinburgh crew', lastMessageAt: daysAgo(5), members: ['a','b','c','d'] })
     const { top } = scoreGroups([perfect])
     expect(top[0].score).toBeLessThanOrEqual(100)
+  })
+
+  // ─── MAV-155: garbage filter ──────────────────────────────────────────────────
+
+  it('filters @newsletter groups', () => {
+    const { top, rest } = scoreGroups([group({ id: 'news@newsletter' })])
+    expect(top.length + rest.length).toBe(0)
+  })
+
+  it('filters broadcast/alumni/society by name', () => {
+    const broadcast = group({ id: 'g2@g.us', name: 'Society Announcements' })
+    const alumni = group({ id: 'g3@g.us', name: 'Class of 2008 Alumni' })
+    const { top, rest } = scoreGroups([broadcast, alumni])
+    expect(top.length + rest.length).toBe(0)
+  })
+
+  // ─── MAV-155/156: highTieMemberFraction scoring ───────────────────────────────
+
+  it('grants tie bonus when highTieMemberFraction >= 0.3', () => {
+    const withTies = group({ name: 'Trip Planning', highTieMemberFraction: 0.4, highTieMemberCount: 2 })
+    const withoutTies = group({ id: 'g2@g.us', name: 'Trip Planning' })
+    const { top } = scoreGroups([withTies, withoutTies])
+    expect(top[0].score).toBeGreaterThan(top[1]?.score ?? 0)
+  })
+
+  it('rescues dormant groups with highTieMemberFraction >= 0.25', () => {
+    const dormant = group({ name: 'Uni Flatmates', lastMessageAt: daysAgo(500), highTieMemberFraction: 0.3, highTieMemberCount: 1 })
+    const dormantNoTies = group({ id: 'g2@g.us', name: 'Uni Flatmates', lastMessageAt: daysAgo(500) })
+    const { top } = scoreGroups([dormant, dormantNoTies])
+    expect(top[0].waJid).toBe('g1@g.us')
   })
 })

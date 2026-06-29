@@ -7,6 +7,16 @@ const AUTH_DIR = join(homedir(), 'Documents', 'Loop', 'whatsapp-auth')
 
 export type WAConnectionStatus = 'disconnected' | 'connecting' | 'qr_pending' | 'connected'
 
+export interface ContactCluster {
+  contacts: Array<{ jid: string; displayName: string; tieStrength: 'high' | 'medium' | 'low' }>
+  sharedGroups: string[]
+  bestGroupJid: string
+  bestGroupName: string
+  eraStart: number        // unix seconds
+  eraEnd: number | null   // null = active
+  cohesion: number        // 0–1: fraction of contact pairs sharing 2+ groups
+}
+
 export interface WAMessage {
   id: string
   fromMe: boolean
@@ -21,6 +31,8 @@ class WhatsAppManager extends EventEmitter {
   private status: WAConnectionStatus = 'disconnected'
   private currentQR: string | null = null
   private saveCreds: (() => Promise<void>) | null = null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private chatStore = new Map<string, any>()
 
   static getInstance(): WhatsAppManager {
     if (!WhatsAppManager.instance) WhatsAppManager.instance = new WhatsAppManager()
@@ -76,6 +88,18 @@ class WhatsAppManager extends EventEmitter {
       this.socket = sock
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      sock.ev.on('chats.set', ({ chats }: { chats: any[] }) => {
+        this.chatStore.clear()
+        for (const c of chats) this.chatStore.set(c.id, c)
+        this.emit('store-ready')
+      })
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      sock.ev.on('chats.upsert', (chats: any[]) => {
+        for (const c of chats) this.chatStore.set(c.id, c)
+      })
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       sock.ev.on('connection.update', async (update: any) => {
         const { connection, lastDisconnect, qr } = update
 
@@ -95,6 +119,7 @@ class WhatsAppManager extends EventEmitter {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const statusCode = (lastDisconnect?.error as any)?.output?.statusCode
           const shouldReconnect = statusCode !== DisconnectReason.loggedOut
+          this.chatStore.clear()
           this.setStatus('disconnected')
           this.emit('disconnected', { statusCode, loggedOut: !shouldReconnect })
 
@@ -148,33 +173,320 @@ class WhatsAppManager extends EventEmitter {
     }
   }
 
-  async listGroupsWithMeta(): Promise<{ id: string; name: string; members: string[]; lastMessageAt: number }[]> {
-    if (!this.socket) return []
+  // B = (σ - μ) / (σ + μ): high = bursty spike-then-silence (events), low = regular cadence (rituals/chapters)
+  private computeBurstiness(timestamps: number[]): number {
+    if (timestamps.length < 2) return 0
+    const sorted = [...timestamps].sort((a, b) => a - b)
+    const intervals = sorted.slice(1).map((t, i) => t - sorted[i])
+    const mean = intervals.reduce((a, b) => a + b, 0) / intervals.length
+    const sigma = Math.sqrt(intervals.reduce((a, b) => a + (b - mean) ** 2, 0) / intervals.length)
+    if (mean + sigma < 1e-10) return 0
+    return (sigma - mean) / (sigma + mean)
+  }
+
+  async buildTieStrengthMap(): Promise<Map<string, { strength: 'high' | 'medium' | 'low'; messageCount: number; displayName: string }>> {
+    const map = new Map<string, { strength: 'high' | 'medium' | 'low'; messageCount: number; displayName: string }>()
+    if (!this.socket) return map
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const sock = this.socket as any
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const allChats: any[] = sock.chats?.all?.() ?? []
+      const allChats: any[] = Array.from(this.chatStore.values())
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const groups = allChats.filter((c: any) => c.id?.endsWith('@g.us'))
+      const dmChats = allChats.filter((c: any) => c.id?.endsWith('@s.whatsapp.net'))
+      for (const chat of dmChats) {
+        try {
+          const messages = await this.getMessages(chat.id, 500)
+          const activeDays = new Set(messages.map(m => new Date(m.timestamp * 1000).toDateString())).size
+          const strength: 'high' | 'medium' | 'low' =
+            messages.length > 100 || activeDays > 20 ? 'high' :
+            messages.length > 20  || activeDays > 5  ? 'medium' : 'low'
+          const contactMeta = sock.contacts?.[chat.id]
+          const displayName: string = contactMeta?.name ?? contactMeta?.notify ?? chat.name ?? ''
+          map.set(chat.id, { strength, messageCount: messages.length, displayName })
+        } catch { /* skip */ }
+      }
+    } catch { /* non-fatal */ }
+    return map
+  }
+
+  waitForStore(timeoutMs = 15000): Promise<void> {
+    if (this.chatStore.size > 0) return Promise.resolve()
+    return new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, timeoutMs)
+      this.once('store-ready', () => { clearTimeout(timer); resolve() })
+    })
+  }
+
+  // Patterns that indicate broadcast/admin/noise groups rather than real social chapters
+  private static readonly GARBAGE_NAME_RE = /\b(broadcast|announce|announcement|update|updates|news|newsletter|society|alumni|association|residents|colony|welfare|committee|notices?|info|helpdesk|support|class of|batch of|school of|investor meet|networking event)\b/i
+
+  async listGroupsWithMeta(): Promise<{
+    id: string
+    name: string
+    members: string[]
+    lastMessageAt: number
+    createdAt: number | null
+    userIsCreator: boolean
+    myMessageCount: number
+    totalMessageCount: number
+    mySharePercent: number | null
+    highTieMemberCount: number
+    highTieMemberFraction: number
+    topTieMemberNames: string[]
+    groupParticipationRatio: number | null
+    burstiness: number
+    lastMessagesSample: Array<{ text: string; fromMe: boolean }>
+  }[]> {
+    if (!this.socket) return []
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sock = this.socket as any
+      const myJid = (sock.user?.id ?? '').replace(/:\d+@/, '@')
+      const tieMap = await this.buildTieStrengthMap()
+
+      // groupFetchAllParticipating() fetches groups directly from WA servers —
+      // unlike chatStore which only populates on first QR scan with syncFullHistory:false.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let groupMap: Record<string, any> = {}
+      try {
+        console.log('[WA] fetching all participating groups...')
+        const timeout = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('groupFetchAllParticipating timeout')), 20000)
+        )
+        groupMap = await Promise.race([sock.groupFetchAllParticipating(), timeout])
+        console.log(`[WA] groupFetchAllParticipating returned ${Object.keys(groupMap).length} groups`)
+      } catch (err) {
+        console.error('[WA] groupFetchAllParticipating failed:', err)
+        return []
+      }
+
+      const groupEntries = Object.values(groupMap).slice(0, 200)
 
       const results = []
-      for (const group of groups.slice(0, 200)) {
-        let members: string[] = []
-        try {
-          const meta = await sock.groupMetadata(group.id)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          members = (meta?.participants ?? []).map((p: any) => p.id as string)
-        } catch { /* skip */ }
-        const lastMessageAt = Number(group.conversationTimestamp ?? group.lastMessageTimestamp ?? 0)
-        if (group.name && group.name !== group.id) {
-          results.push({ id: group.id, name: group.name, members, lastMessageAt })
-        }
+      for (const meta of groupEntries) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const m = meta as any
+        const groupId: string = m.id
+        const resolvedName: string = m.subject ?? ''
+        if (!resolvedName || resolvedName === groupId) continue
+
+        // Garbage filter: communities, large groups, broadcast/admin name patterns
+        if (m.isCommunity || m.isCommunityAnnounce) continue
+        if (groupId.endsWith('@newsletter')) continue
+        if (WhatsAppManager.GARBAGE_NAME_RE.test(resolvedName)) continue
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const members: string[] = (m.participants ?? []).map((p: any) => p.id as string)
+        if (members.length > 50) continue
+        const createdAt: number | null = m.creation ?? null
+        const ownerJid = (m.owner ?? '').replace(/:\d+@/, '@')
+        const userIsCreator = !!ownerJid && ownerJid === myJid
+
+        // lastMessageAt from chatStore if available, fallback to creation time
+        const chatEntry = this.chatStore.get(groupId)
+        const lastMessageAt = Number(
+          chatEntry?.conversationTimestamp ?? chatEntry?.lastMessageTimestamp ?? createdAt ?? 0
+        )
+
+        const messages = await this.getMessages(groupId, 200)
+        const myMessageCount = messages.filter(m => m.fromMe).length
+        const totalMessageCount = messages.length
+        const mySharePercent = totalMessageCount > 0 ? myMessageCount / totalMessageCount : null
+
+        const lastMessagesSample = messages
+          .slice(0, 10)
+          .filter(m => m.text && m.text.trim().length > 0)
+          .map(m => ({ text: m.text as string, fromMe: m.fromMe }))
+
+        const memberTieData = members.map(jid => tieMap.get(jid) ?? { strength: 'low' as const, messageCount: 0, displayName: '' })
+        const highTieMembers = memberTieData.filter(d => d.strength === 'high')
+        const highTieMemberCount = highTieMembers.length
+        const highTieMemberFraction = members.length > 0 ? highTieMemberCount / members.length : 0
+        const topTieMemberNames = memberTieData
+          .filter(d => d.displayName)
+          .sort((a, b) => b.messageCount - a.messageCount)
+          .slice(0, 3)
+          .map(d => d.displayName)
+
+        // Fraction of communication between user and these members that happens in group vs 1:1 DMs.
+        const totalDmCount = memberTieData.reduce((sum, d) => sum + d.messageCount, 0)
+        const groupParticipationRatio = (totalMessageCount + totalDmCount) > 0
+          ? totalMessageCount / (totalMessageCount + totalDmCount)
+          : null
+
+        // Burstiness: spike-then-silence = event; steady cadence = ritual/chapter
+        const burstiness = this.computeBurstiness(messages.map(m => m.timestamp))
+
+        results.push({
+          id: groupId,
+          name: resolvedName,
+          members,
+          lastMessageAt,
+          createdAt,
+          userIsCreator,
+          myMessageCount,
+          totalMessageCount,
+          mySharePercent,
+          highTieMemberCount,
+          highTieMemberFraction,
+          topTieMemberNames,
+          groupParticipationRatio,
+          burstiness,
+          lastMessagesSample,
+        })
       }
+
+      // Persist for eval pipeline — overwrite on each scan so it stays fresh
+      try {
+        const cachePath = join(homedir(), 'Documents', 'Loop', 'groups-discovered.json')
+        await fs.writeFile(cachePath, JSON.stringify(results, null, 2))
+      } catch { /* non-fatal */ }
+
       return results
     } catch {
       return []
     }
+  }
+
+  async buildContactClusters(): Promise<{ clusters: ContactCluster[]; groups: Awaited<ReturnType<WhatsAppManager['listGroupsWithMeta']>> }> {
+    const [tieMap, groups] = await Promise.all([
+      this.buildTieStrengthMap(),
+      this.listGroupsWithMeta(),
+    ])
+
+    if (groups.length === 0) return []
+
+    // Build contact → groups index (only contacts that appear in at least 1 group)
+    const contactGroups = new Map<string, string[]>()  // jid → [groupId, ...]
+    for (const g of groups) {
+      for (const jid of g.members) {
+        if (!contactGroups.has(jid)) contactGroups.set(jid, [])
+        contactGroups.get(jid)!.push(g.id)
+      }
+    }
+
+    // Bipartite projection: link contacts only if Jaccard similarity of their group sets >= 0.3
+    // Jaccard = |shared groups| / |union of groups|. Prevents giant-component collapse
+    // in dense social graphs where everyone shares 1-2 groups by coincidence.
+    const adjacency = new Map<string, Set<string>>()
+
+    for (const g of groups) {
+      const members = g.members
+      for (let i = 0; i < members.length; i++) {
+        for (let j = i + 1; j < members.length; j++) {
+          const a = members[i], b = members[j]
+          const ga = new Set(contactGroups.get(a) ?? [])
+          const gb = new Set(contactGroups.get(b) ?? [])
+          const intersection = [...ga].filter(gid => gb.has(gid)).length
+          const union = new Set([...ga, ...gb]).size
+          const jaccard = union > 0 ? intersection / union : 0
+          if (jaccard >= 0.3) {
+            if (!adjacency.has(a)) adjacency.set(a, new Set())
+            if (!adjacency.has(b)) adjacency.set(b, new Set())
+            adjacency.get(a)!.add(b)
+            adjacency.get(b)!.add(a)
+          }
+        }
+      }
+    }
+
+    // Greedy community detection: BFS flood-fill connected components
+    const visited = new Set<string>()
+    const rawClusters: string[][] = []
+    for (const node of adjacency.keys()) {
+      if (visited.has(node)) continue
+      const component: string[] = []
+      const queue = [node]
+      while (queue.length > 0) {
+        const curr = queue.shift()!
+        if (visited.has(curr)) continue
+        visited.add(curr)
+        component.push(curr)
+        for (const neighbor of adjacency.get(curr) ?? []) {
+          if (!visited.has(neighbor)) queue.push(neighbor)
+        }
+      }
+      if (component.length >= 2) rawClusters.push(component)
+    }
+
+    const groupById = new Map(groups.map(g => [g.id, g]))
+
+    const clusters: ContactCluster[] = []
+    for (const members of rawClusters) {
+      // Find all groups this cluster shares
+      const groupCounts = new Map<string, number>()
+      for (const jid of members) {
+        for (const gid of contactGroups.get(jid) ?? []) {
+          groupCounts.set(gid, (groupCounts.get(gid) ?? 0) + 1)
+        }
+      }
+      // Shared groups = groups where ≥2 cluster members appear
+      const sharedGroupIds = [...groupCounts.entries()]
+        .filter(([, count]) => count >= 2)
+        .map(([gid]) => gid)
+
+      // Require 2+ shared groups — single-group clusters are weak signal
+      if (sharedGroupIds.length < 2) continue
+
+      // Drop clusters that are too large — likely a community scene, not a personal chapter
+      if (members.length > 100) continue
+
+      // Drop clusters whose shared groups are all large (>40 members) — broadcast/event noise
+      const allLarge = sharedGroupIds.every(gid => (groupById.get(gid)?.members.length ?? 0) > 40)
+      if (allLarge) continue
+
+      // Best representative group: highest overlap fraction with this cluster
+      const memberSet = new Set(members)
+      let bestGroupJid = sharedGroupIds[0]
+      let bestOverlap = 0
+      for (const gid of sharedGroupIds) {
+        const g = groupById.get(gid)
+        if (!g) continue
+        const overlap = g.members.filter(m => memberSet.has(m)).length / g.members.length
+        if (overlap > bestOverlap) { bestOverlap = overlap; bestGroupJid = gid }
+      }
+
+      // Era detection: K-means-like median split on createdAt timestamps
+      const timestamps = sharedGroupIds
+        .map(gid => groupById.get(gid)?.createdAt ?? groupById.get(gid)?.lastMessageAt ?? 0)
+        .filter(t => t > 0)
+        .sort((a, b) => a - b)
+
+      const eraStart = timestamps.length > 0 ? timestamps[0] : 0
+      const lastActivity = Math.max(...sharedGroupIds.map(gid => groupById.get(gid)?.lastMessageAt ?? 0))
+      const nowSec = Math.floor(Date.now() / 1000)
+      const eraEnd = (nowSec - lastActivity) > 90 * 86400 ? lastActivity : null
+
+      // Cohesion: fraction of contact pairs that share 2+ groups
+      let linkedPairs = 0, totalPairs = 0
+      for (let i = 0; i < members.length; i++) {
+        for (let j = i + 1; j < members.length; j++) {
+          totalPairs++
+          if (adjacency.get(members[i])?.has(members[j])) linkedPairs++
+        }
+      }
+      const cohesion = totalPairs > 0 ? linkedPairs / totalPairs : 0
+
+      const contactDetails = members.map(jid => {
+        const tie = tieMap.get(jid)
+        return { jid, displayName: tie?.displayName ?? '', tieStrength: tie?.strength ?? 'low' as const }
+      })
+
+      clusters.push({
+        contacts: contactDetails,
+        sharedGroups: sharedGroupIds,
+        bestGroupJid,
+        bestGroupName: groupById.get(bestGroupJid)?.name ?? '',
+        eraStart,
+        eraEnd,
+        cohesion,
+      })
+    }
+
+    // Sort by cohesion × size descending
+    clusters.sort((a, b) => (b.cohesion * b.contacts.length) - (a.cohesion * a.contacts.length))
+    return { clusters, groups }
   }
 
   async listGroups(): Promise<{ id: string; name: string; members: string[] }[]> {
@@ -183,7 +495,7 @@ class WhatsAppManager extends EventEmitter {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const sock = this.socket as any
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const allChats: any[] = sock.chats?.all?.() ?? []
+      const allChats: any[] = Array.from(this.chatStore.values())
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const groups = allChats.filter((c: any) => c.id?.endsWith('@g.us'))
 
