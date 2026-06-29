@@ -49,11 +49,59 @@ for (const g of groups) {
   }
 }
 
-// Bipartite projection
-const adjacency = new Map()
+// Louvain modularity optimisation (mirrors whatsapp.ts)
+function louvain(graph) {
+  const nodes = [...graph.keys()]
+  if (nodes.length === 0) return new Map()
+  const community = new Map(nodes.map(n => [n, n]))
+  let m = 0
+  for (const neighbors of graph.values()) for (const w of neighbors.values()) m += w
+  m /= 2
+  if (m === 0) return community
+  const ki = new Map()
+  for (const [node, neighbors] of graph) {
+    let s = 0; for (const w of neighbors.values()) s += w
+    ki.set(node, s)
+  }
+  const sigTot = new Map()
+  for (const [node, comm] of community)
+    sigTot.set(comm, (sigTot.get(comm) ?? 0) + (ki.get(node) ?? 0))
+  let improved = true
+  while (improved) {
+    improved = false
+    for (const node of nodes) {
+      const currComm = community.get(node)
+      const ki_node = ki.get(node) ?? 0
+      let ki_in_curr = 0
+      for (const [nb, w] of graph.get(node) ?? [])
+        if (community.get(nb) === currComm) ki_in_curr += w
+      sigTot.set(currComm, (sigTot.get(currComm) ?? 0) - ki_node)
+      community.set(node, '\x00')
+      const candIn = new Map()
+      for (const [nb, w] of graph.get(node) ?? []) {
+        const nc = community.get(nb)
+        if (nc !== '\x00') candIn.set(nc, (candIn.get(nc) ?? 0) + w)
+      }
+      candIn.set(currComm, ki_in_curr)
+      let bestComm = currComm
+      let bestScore = ki_in_curr / m - (sigTot.get(currComm) ?? 0) * ki_node / (2 * m * m)
+      for (const [comm, ki_in] of candIn) {
+        if (comm === currComm) continue
+        const score = ki_in / m - (sigTot.get(comm) ?? 0) * ki_node / (2 * m * m)
+        if (score > bestScore) { bestScore = score; bestComm = comm }
+      }
+      community.set(node, bestComm)
+      sigTot.set(bestComm, (sigTot.get(bestComm) ?? 0) + ki_node)
+      if (bestComm !== currComm) improved = true
+    }
+  }
+  return community
+}
+
+// Bipartite projection → weighted graph (Jaccard ≥ 0.2), then Louvain
+const weightedGraph = new Map()
 for (const g of groups) {
   const members = g.members
-  if (members.length > 100) continue
   for (let i = 0; i < members.length; i++) {
     for (let j = i + 1; j < members.length; j++) {
       const a = members[i], b = members[j]
@@ -62,33 +110,31 @@ for (const g of groups) {
       const intersection = [...ga].filter(gid => gb.has(gid)).length
       const union = new Set([...ga, ...gb]).size
       const jaccard = union > 0 ? intersection / union : 0
-      if (jaccard >= 0.3) {
-        if (!adjacency.has(a)) adjacency.set(a, new Set())
-        if (!adjacency.has(b)) adjacency.set(b, new Set())
-        adjacency.get(a).add(b)
-        adjacency.get(b).add(a)
+      if (jaccard < 0.2) continue
+      if (!weightedGraph.has(a)) weightedGraph.set(a, new Map())
+      if (!weightedGraph.has(b)) weightedGraph.set(b, new Map())
+      const prev = weightedGraph.get(a).get(b) ?? 0
+      if (jaccard > prev) {
+        weightedGraph.get(a).set(b, jaccard)
+        weightedGraph.get(b).set(a, jaccard)
       }
     }
   }
 }
 
-// BFS community detection
-const visited = new Set()
-const clusters = []
-for (const node of adjacency.keys()) {
-  if (visited.has(node)) continue
-  const component = []
-  const queue = [node]
-  while (queue.length > 0) {
-    const curr = queue.shift()
-    if (visited.has(curr)) continue
-    visited.add(curr)
-    component.push(curr)
-    for (const n of adjacency.get(curr) ?? []) {
-      if (!visited.has(n)) queue.push(n)
-    }
-  }
-  if (component.length >= 2) clusters.push(component)
+const communityOf = louvain(weightedGraph)
+const byComm = new Map()
+for (const [node, comm] of communityOf) {
+  if (!byComm.has(comm)) byComm.set(comm, [])
+  byComm.get(comm).push(node)
+}
+const clusters = [...byComm.values()].filter(c => c.length >= 2)
+
+// Binary adjacency view for cohesion computation
+const adjacency = new Map()
+for (const [a, neighbors] of weightedGraph) {
+  if (!adjacency.has(a)) adjacency.set(a, new Set())
+  for (const [b] of neighbors) adjacency.get(a).add(b)
 }
 
 console.log(`Clusters found: ${clusters.length}`)

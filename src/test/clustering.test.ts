@@ -49,7 +49,55 @@ const MOCK_GROUPS = [
   g('g15@g.us', 'Athens Weekend Crew',          ['c29@s.net','c30@s.net','c31@s.net'], daysAgo(400), yearsAgo(2)),
 ]
 
-// Minimal stub of buildContactClusters logic for unit testing
+// Louvain stub matching the production algorithm in whatsapp.ts
+function louvain(graph: Map<string, Map<string, number>>): Map<string, string> {
+  const nodes = [...graph.keys()]
+  if (nodes.length === 0) return new Map()
+  const community = new Map<string, string>(nodes.map(n => [n, n]))
+  let m = 0
+  for (const neighbors of graph.values()) for (const w of neighbors.values()) m += w
+  m /= 2
+  if (m === 0) return community
+  const ki = new Map<string, number>()
+  for (const [node, neighbors] of graph) {
+    let s = 0; for (const w of neighbors.values()) s += w
+    ki.set(node, s)
+  }
+  const sigTot = new Map<string, number>()
+  for (const [node, comm] of community)
+    sigTot.set(comm, (sigTot.get(comm) ?? 0) + (ki.get(node) ?? 0))
+  let improved = true
+  while (improved) {
+    improved = false
+    for (const node of nodes) {
+      const currComm = community.get(node)!
+      const ki_node = ki.get(node) ?? 0
+      let ki_in_curr = 0
+      for (const [nb, w] of graph.get(node) ?? [])
+        if (community.get(nb) === currComm) ki_in_curr += w
+      sigTot.set(currComm, (sigTot.get(currComm) ?? 0) - ki_node)
+      community.set(node, '\x00')
+      const candIn = new Map<string, number>()
+      for (const [nb, w] of graph.get(node) ?? []) {
+        const nc = community.get(nb)!
+        if (nc !== '\x00') candIn.set(nc, (candIn.get(nc) ?? 0) + w)
+      }
+      candIn.set(currComm, ki_in_curr)
+      let bestComm = currComm
+      let bestScore = ki_in_curr / m - (sigTot.get(currComm) ?? 0) * ki_node / (2 * m * m)
+      for (const [comm, ki_in] of candIn) {
+        if (comm === currComm) continue
+        const score = ki_in / m - (sigTot.get(comm) ?? 0) * ki_node / (2 * m * m)
+        if (score > bestScore) { bestScore = score; bestComm = comm }
+      }
+      community.set(node, bestComm)
+      sigTot.set(bestComm, (sigTot.get(bestComm) ?? 0) + ki_node)
+      if (bestComm !== currComm) improved = true
+    }
+  }
+  return community
+}
+
 function buildClusters(groups: typeof MOCK_GROUPS) {
   const contactGroups = new Map<string, string[]>()
   for (const g of groups) {
@@ -59,43 +107,46 @@ function buildClusters(groups: typeof MOCK_GROUPS) {
     }
   }
 
-  const adjacency = new Map<string, Set<string>>()
+  const weightedGraph = new Map<string, Map<string, number>>()
   for (const g of groups) {
     const members = g.members
     for (let i = 0; i < members.length; i++) {
       for (let j = i + 1; j < members.length; j++) {
         const a = members[i], b = members[j]
-        const sharedCount = (contactGroups.get(a) ?? []).filter(gid =>
-          (contactGroups.get(b) ?? []).includes(gid)
-        ).length
-        if (sharedCount >= 2) {
-          if (!adjacency.has(a)) adjacency.set(a, new Set())
-          if (!adjacency.has(b)) adjacency.set(b, new Set())
-          adjacency.get(a)!.add(b)
-          adjacency.get(b)!.add(a)
+        const ga = new Set(contactGroups.get(a) ?? [])
+        const gb = new Set(contactGroups.get(b) ?? [])
+        const intersection = [...ga].filter(gid => gb.has(gid)).length
+        const union = new Set([...ga, ...gb]).size
+        const jaccard = union > 0 ? intersection / union : 0
+        if (jaccard < 0.2) continue
+        if (!weightedGraph.has(a)) weightedGraph.set(a, new Map())
+        if (!weightedGraph.has(b)) weightedGraph.set(b, new Map())
+        const prev = weightedGraph.get(a)!.get(b) ?? 0
+        if (jaccard > prev) {
+          weightedGraph.get(a)!.set(b, jaccard)
+          weightedGraph.get(b)!.set(a, jaccard)
         }
       }
     }
   }
 
-  const visited = new Set<string>()
-  const components: string[][] = []
-  for (const node of adjacency.keys()) {
-    if (visited.has(node)) continue
-    const component: string[] = []
-    const queue = [node]
-    while (queue.length > 0) {
-      const curr = queue.shift()!
-      if (visited.has(curr)) continue
-      visited.add(curr)
-      component.push(curr)
-      for (const n of adjacency.get(curr) ?? []) {
-        if (!visited.has(n)) queue.push(n)
-      }
-    }
-    if (component.length >= 2) components.push(component)
+  const communityOf = louvain(weightedGraph)
+  const byComm = new Map<string, string[]>()
+  for (const [node, comm] of communityOf) {
+    if (!byComm.has(comm)) byComm.set(comm, [])
+    byComm.get(comm)!.push(node)
   }
-  return components
+
+  // Mirror production post-filter: drop clusters with <2 shared groups
+  return [...byComm.values()].filter(members => {
+    if (members.length < 2) return false
+    const groupCounts = new Map<string, number>()
+    for (const jid of members)
+      for (const gid of contactGroups.get(jid) ?? [])
+        groupCounts.set(gid, (groupCounts.get(gid) ?? 0) + 1)
+    const sharedGroupIds = [...groupCounts.entries()].filter(([, c]) => c >= 2)
+    return sharedGroupIds.length >= 2
+  })
 }
 
 describe('buildContactClusters (algorithmic)', () => {

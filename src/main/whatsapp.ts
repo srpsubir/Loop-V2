@@ -24,6 +24,75 @@ export interface WAMessage {
   text: string | null
 }
 
+// Louvain modularity optimisation (Blondel et al. 2008).
+// graph: node → (neighbor → weight). Returns node → communityLabel.
+// Maximises Q = fraction of intra-community edges minus random-graph expectation.
+// High-cohesion clusters (wedding group 0.93) score high; diffuse scenes (salsa 0.07) get split.
+function louvain(graph: Map<string, Map<string, number>>): Map<string, string> {
+  const nodes = [...graph.keys()]
+  if (nodes.length === 0) return new Map()
+
+  const community = new Map<string, string>(nodes.map(n => [n, n]))
+
+  let m = 0
+  for (const neighbors of graph.values()) for (const w of neighbors.values()) m += w
+  m /= 2
+  if (m === 0) return community
+
+  // ki[n] = sum of edge weights incident to n
+  const ki = new Map<string, number>()
+  for (const [node, neighbors] of graph) {
+    let s = 0; for (const w of neighbors.values()) s += w
+    ki.set(node, s)
+  }
+
+  // sigTot[comm] = sum of ki for all nodes in comm
+  const sigTot = new Map<string, number>()
+  for (const [node, comm] of community)
+    sigTot.set(comm, (sigTot.get(comm) ?? 0) + (ki.get(node) ?? 0))
+
+  let improved = true
+  while (improved) {
+    improved = false
+    for (const node of nodes) {
+      const currComm = community.get(node)!
+      const ki_node = ki.get(node) ?? 0
+
+      // Edges from node to current community members (excluding self)
+      let ki_in_curr = 0
+      for (const [nb, w] of graph.get(node) ?? [])
+        if (community.get(nb) === currComm) ki_in_curr += w
+
+      // Temporarily remove node from its community
+      sigTot.set(currComm, (sigTot.get(currComm) ?? 0) - ki_node)
+      community.set(node, '\x00')
+
+      // k_i,in per candidate community
+      const candIn = new Map<string, number>()
+      for (const [nb, w] of graph.get(node) ?? []) {
+        const nc = community.get(nb)!
+        if (nc !== '\x00') candIn.set(nc, (candIn.get(nc) ?? 0) + w)
+      }
+      candIn.set(currComm, ki_in_curr) // always consider original community
+
+      // Pick community maximising ΔQ = k_i,in(C)/m − sigTot(C)·ki/(2m²)
+      let bestComm = currComm
+      let bestScore = ki_in_curr / m - (sigTot.get(currComm) ?? 0) * ki_node / (2 * m * m)
+      for (const [comm, ki_in] of candIn) {
+        if (comm === currComm) continue
+        const score = ki_in / m - (sigTot.get(comm) ?? 0) * ki_node / (2 * m * m)
+        if (score > bestScore) { bestScore = score; bestComm = comm }
+      }
+
+      community.set(node, bestComm)
+      sigTot.set(bestComm, (sigTot.get(bestComm) ?? 0) + ki_node)
+      if (bestComm !== currComm) improved = true
+    }
+  }
+
+  return community
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 class WhatsAppManager extends EventEmitter {
   private static instance: WhatsAppManager
@@ -355,7 +424,7 @@ class WhatsAppManager extends EventEmitter {
       this.listGroupsWithMeta(),
     ])
 
-    if (groups.length === 0) return []
+    if (groups.length === 0) return { clusters: [], groups: [] }
 
     // Build contact → groups index (only contacts that appear in at least 1 group)
     const contactGroups = new Map<string, string[]>()  // jid → [groupId, ...]
@@ -366,10 +435,11 @@ class WhatsAppManager extends EventEmitter {
       }
     }
 
-    // Bipartite projection: link contacts only if Jaccard similarity of their group sets >= 0.3
-    // Jaccard = |shared groups| / |union of groups|. Prevents giant-component collapse
-    // in dense social graphs where everyone shares 1-2 groups by coincidence.
-    const adjacency = new Map<string, Set<string>>()
+    // Bipartite projection → weighted contact graph.
+    // Edge weight = jaccard × (1 + log(1 + dmCount)) so contacts you actually DM
+    // have much stronger edges than strangers who happen to share groups.
+    // Jaccard ≥ 0.2 gate keeps truly unrelated contacts disconnected.
+    const weightedGraph = new Map<string, Map<string, number>>()
 
     for (const g of groups) {
       const members = g.members
@@ -381,33 +451,41 @@ class WhatsAppManager extends EventEmitter {
           const intersection = [...ga].filter(gid => gb.has(gid)).length
           const union = new Set([...ga, ...gb]).size
           const jaccard = union > 0 ? intersection / union : 0
-          if (jaccard >= 0.3) {
-            if (!adjacency.has(a)) adjacency.set(a, new Set())
-            if (!adjacency.has(b)) adjacency.set(b, new Set())
-            adjacency.get(a)!.add(b)
-            adjacency.get(b)!.add(a)
+          if (jaccard < 0.2) continue
+          const dmBoost = Math.max(
+            tieMap.get(a)?.messageCount ?? 0,
+            tieMap.get(b)?.messageCount ?? 0,
+          )
+          const weight = jaccard * (1 + Math.log(1 + dmBoost))
+          if (!weightedGraph.has(a)) weightedGraph.set(a, new Map())
+          if (!weightedGraph.has(b)) weightedGraph.set(b, new Map())
+          const prev = weightedGraph.get(a)!.get(b) ?? 0
+          if (weight > prev) {
+            weightedGraph.get(a)!.set(b, weight)
+            weightedGraph.get(b)!.set(a, weight)
           }
         }
       }
     }
 
-    // Greedy community detection: BFS flood-fill connected components
-    const visited = new Set<string>()
-    const rawClusters: string[][] = []
-    for (const node of adjacency.keys()) {
-      if (visited.has(node)) continue
-      const component: string[] = []
-      const queue = [node]
-      while (queue.length > 0) {
-        const curr = queue.shift()!
-        if (visited.has(curr)) continue
-        visited.add(curr)
-        component.push(curr)
-        for (const neighbor of adjacency.get(curr) ?? []) {
-          if (!visited.has(neighbor)) queue.push(neighbor)
-        }
-      }
-      if (component.length >= 2) rawClusters.push(component)
+    // Louvain modularity optimisation — finds communities by maximising the ratio of
+    // intra-community edge density to what you'd expect in a random graph of the same degree.
+    // Naturally dissolves low-cohesion mega-clusters (Son Cubano problem).
+    const communityOf = louvain(weightedGraph)
+
+    // Group nodes by community label → rawClusters
+    const communityMembers = new Map<string, string[]>()
+    for (const [node, comm] of communityOf) {
+      if (!communityMembers.has(comm)) communityMembers.set(comm, [])
+      communityMembers.get(comm)!.push(node)
+    }
+    const rawClusters = [...communityMembers.values()].filter(c => c.length >= 2)
+
+    // Build a binary adjacency view for cohesion computation (Jaccard ≥ 0.2 edge exists)
+    const adjacency = new Map<string, Set<string>>()
+    for (const [a, neighbors] of weightedGraph) {
+      if (!adjacency.has(a)) adjacency.set(a, new Set())
+      for (const [b] of neighbors) adjacency.get(a)!.add(b)
     }
 
     const groupById = new Map(groups.map(g => [g.id, g]))
