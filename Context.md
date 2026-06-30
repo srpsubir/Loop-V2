@@ -4,8 +4,8 @@ _Last updated: 2026-06-30_
 
 ## Current branch state
 
-Ahead of `origin/main` by 11 commits. Not yet pushed.
-Latest commit: `b220517` — Context.md Phase 1 complete
+Ahead of `origin/main` by 12 commits. Not yet pushed.
+Latest commit: `c1d9904` — fix(nav): goYourLoops now sets onboardingComplete: true on happy path
 
 ---
 
@@ -35,32 +35,37 @@ Tests  129 passed | 2 skipped (131)
 
 ---
 
-## Active instability — what is actually blocking progress
+## Navigation instability — FIXED (2026-06-30)
 
-**Navigation click-through is broken.** The app is unstable enough that design review cannot happen — clicking through screens does not work reliably. This is the primary blocker. Until this is fixed, nothing downstream (design review, D-series, feature work) can proceed.
+**Root cause found and resolved.** The app now boots directly to Your Loops.
 
-**Root cause: unknown. Needs investigation.**
-Symptoms reported: clicking through screens fails during design review. Specific failure mode (hang, white screen, wrong navigation, state mismatch) TBD — needs live investigation.
+**What was broken:**
+1. `goYourLoops` (App.tsx:475) never set `onboardingComplete: true`. Only `goSkip` did. So every launch after completing onboarding normally started at the welcome screen.
+2. `chapters: []` was empty in state.json — seed data contacts existed but the chapters array was never populated.
+
+**Fixes applied:**
+- `c1d9904`: `goYourLoops` now async-patches `onboardingComplete: true` before navigating. Idempotent — safe for all callers (stay-close done, chapter-detail back, settings back).
+- state.json patched manually with 4 seed chapters + completion flags (`onboardingComplete`, `chapterDetectionComplete`, `stayCloseComplete`, `emailCaptured` all set to `true`).
+
+**Verified:** App launches directly to Your Loops. All 4 chapters visible. Clara W nudge card, Edinburgh echo card both rendering.
 
 ---
 
 ## Phase 2 — queued (stability sprint continues)
 
-Sequence:
+Sequence (no sign-off needed):
 
-1. **Investigate + fix navigation click-through bug** — immediate, blocks everything
-2. **Secondary layer code fixes** (no sign-off needed):
-   - S-1: Socket listener cleanup on reconnect (`whatsapp.ts`)
-   - S-2: IPC timeout on `chapters:detect` (30s `Promise.race`)
-   - S-3: Re-entrancy guard on `chapters:detect` (flag)
-   - S-5: Sentry renderer config (DSN + environment + release)
-   - S-6: React error boundaries on every screen
-3. **MAV-171** — WA connection failure-path test suite
-4. **MAV-172** — Retry budget + circuit breaker
-5. **MAV-173** — CI workflow
-6. **Auto-update** — MAV-47 is DONE (completed 2026-06-29). Wire electron-updater. *(Needs UX sign-off on notification design only.)*
+1. **S-1**: Socket listener cleanup on reconnect (`whatsapp.ts`) — before `makeWASocket()`, call `sock.ev.removeAllListeners()` then null it
+2. **S-2**: IPC timeout on `chapters:detect` — wrap `buildContactClusters()` in `Promise.race` with 30s timeout
+3. **S-3**: Re-entrancy guard on `chapters:detect` — `let detecting = false` flag
+4. **S-5**: Sentry renderer init — pass DSN + environment + release matching main process
+5. **S-6**: React error boundaries on every screen
+6. **MAV-171** — WA connection failure-path test suite (`src/test/whatsapp-connection.test.ts`)
+7. **MAV-172** — Retry budget + circuit breaker in `whatsapp.ts`
+8. **MAV-173** — CI workflow (`.github/workflows/ci.yml`)
+9. **Auto-update** — Wire `electron-updater` (UX notification design needs sign-off)
 
-**D-series (design debt) does NOT start until the app is stable enough to click through.**
+**D-series (design debt) is now unblocked** — app is stable enough to click through.
 
 ---
 
@@ -84,15 +89,16 @@ Apple Developer ID + notarization completed 2026-06-29. DMG buildable via `npm r
 
 ---
 
-## Seed data
+## Seed data (dev)
 
 4 chapters in state.json:
-- Casa Mañana (active): tomas-k, mia-j, nb-niamh
-- Yoga Sceptics (fading): dw-david, cw-clara [clara = nudge]
-- Zalando Crew (birthday-fading): bn-ben, rh-rahul, sl-sara [sara bday in 2 days]
-- Edinburgh MSc (fading + echo): kc-kieran, am-ana, pk-priya [kieran bday today]
+- Casa Mañana (active): tomas-k, mia-j, nb-niamh [lastContactDate set to 30d ago]
+- Yoga Sceptics (fading): dw-david, cw-clara [clara = nudge eligible]
+- Zalando Crew (birthday): bn-ben, rh-rahul, sl-sara [sara bday July 2]
+- Edinburgh MSc (echo + birthday): kc-kieran, am-ana, pk-priya [kieran bday July 1, echo = 8 years ago]
 
 Contacts: 11 JSON files in ~/Documents/Loop/contacts/
+State flags: onboardingComplete, chapterDetectionComplete, stayCloseComplete, emailCaptured — all true
 
 ---
 
