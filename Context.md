@@ -51,21 +51,27 @@ Tests  129 passed | 2 skipped (131)
 
 ---
 
-## Phase 2 — queued (stability sprint continues)
+## Phase 2 — COMPLETE (2026-06-30)
 
-Sequence (no sign-off needed):
+All stability sprint items shipped:
 
-1. **S-1**: Socket listener cleanup on reconnect (`whatsapp.ts`) — before `makeWASocket()`, call `sock.ev.removeAllListeners()` then null it
-2. **S-2**: IPC timeout on `chapters:detect` — wrap `buildContactClusters()` in `Promise.race` with 30s timeout
-3. **S-3**: Re-entrancy guard on `chapters:detect` — `let detecting = false` flag
-4. **S-5**: Sentry renderer init — pass DSN + environment + release matching main process
-5. **S-6**: React error boundaries on every screen
-6. **MAV-171** — WA connection failure-path test suite (`src/test/whatsapp-connection.test.ts`)
-7. **MAV-172** — Retry budget + circuit breaker in `whatsapp.ts`
-8. **MAV-173** — CI workflow (`.github/workflows/ci.yml`)
-9. **Auto-update** — Wire `electron-updater` (UX notification design needs sign-off)
+| Item | Commit | Status |
+|---|---|---|
+| S-1: Socket listener cleanup | `e95db53`-area | DONE |
+| S-2: IPC timeout on chapters:detect | `ipc.ts` | DONE |
+| S-3: Re-entrancy guard on chapters:detect | `ipc.ts` | DONE |
+| S-5: Sentry renderer init | `main.tsx` | DONE |
+| S-6: React ErrorBoundary | `ErrorBoundary.tsx` | DONE |
+| H1: Chapter detection infinite hang | `5d37be1` | DONE |
+| H2: 30s IPC timeout (waitForStore) | `c1a660c` | DONE |
+| H3: QR "failed" blink | `aee2ab7` | DONE |
+| MAV-172: Circuit breaker + backoff | `aee2ab7` | DONE |
+| MAV-173: CI workflow | `058189c` | DONE |
 
-**D-series (design debt) is now unblocked** — app is stable enough to click through.
+**Remaining pre-consumer items:**
+- **MAV-171** — WA connection failure-path test suite (`src/test/whatsapp-connection.test.ts`)
+- **Auto-update** — Wire `electron-updater` (UX notification design needs sign-off)
+- **D-series** — Design debt: now fully unblocked. Requires Mobbin → Magic Patterns → sign-off workflow.
 
 ---
 
