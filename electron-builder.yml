@@ -2,6 +2,11 @@ appId: com.loop.app
 productName: Loop
 copyright: Copyright © 2026 Subir Paul
 
+publish:
+  provider: github
+  owner: srpsubir
+  repo: Loop-V2
+
 directories:
   buildResources: resources
   output: dist

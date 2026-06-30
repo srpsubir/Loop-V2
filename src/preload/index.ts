@@ -40,6 +40,12 @@ const loopAPI = {
       ipcRenderer.on('whatsapp:disconnected', handler)
       return () => ipcRenderer.off('whatsapp:disconnected', handler)
     },
+    onConnectionFailed: (cb: (reason?: string) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, data: { statusCode?: number; reason?: string }) =>
+        cb(data?.reason)
+      ipcRenderer.on('whatsapp:connection-failed', handler)
+      return () => ipcRenderer.off('whatsapp:connection-failed', handler)
+    },
   },
 
   scan: {
@@ -99,6 +105,38 @@ const loopAPI = {
     const handler = (_e: Electron.IpcRendererEvent, contactId: string) => cb(contactId)
     ipcRenderer.on('reconnection:detected', handler)
     return () => ipcRenderer.off('reconnection:detected', handler)
+  },
+
+  update: {
+    onChecking: (cb: () => void) => {
+      ipcRenderer.on('update:checking', cb)
+      return () => ipcRenderer.off('update:checking', cb)
+    },
+    onAvailable: (cb: (data: { version: string }) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, data: { version: string }) => cb(data)
+      ipcRenderer.on('update:available', handler)
+      return () => ipcRenderer.off('update:available', handler)
+    },
+    onNotAvailable: (cb: () => void) => {
+      ipcRenderer.on('update:not-available', cb)
+      return () => ipcRenderer.off('update:not-available', cb)
+    },
+    onDownloading: (cb: (data: { percent: number }) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, data: { percent: number }) => cb(data)
+      ipcRenderer.on('update:downloading', handler)
+      return () => ipcRenderer.off('update:downloading', handler)
+    },
+    onReady: (cb: (data: { version: string }) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, data: { version: string }) => cb(data)
+      ipcRenderer.on('update:ready', handler)
+      return () => ipcRenderer.off('update:ready', handler)
+    },
+    onError: (cb: (data: { message: string }) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, data: { message: string }) => cb(data)
+      ipcRenderer.on('update:error', handler)
+      return () => ipcRenderer.off('update:error', handler)
+    },
+    installNow: (): Promise<void> => ipcRenderer.invoke('update:install-now'),
   },
 
   analytics: {

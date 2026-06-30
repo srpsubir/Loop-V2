@@ -1,4 +1,5 @@
 import { BrowserWindow, ipcMain, shell } from 'electron'
+import { installUpdateNow } from './updater'
 import * as path from 'path'
 import * as fs from 'fs'
 import { readState, patchState, listContacts, saveContact, deleteContact, LOOP_DIR, STATE_FILE, CONTACTS_DIR } from './store'
@@ -107,6 +108,11 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
       console.warn('[DIAG] Chat store read failed:', e)
     }
     // END DIAGNOSTIC
+  })
+
+  wa.on('connection-failed', ({ statusCode, reason }: { statusCode?: number; reason?: string } = {}) => {
+    getWindow()?.webContents.send('whatsapp:connection-failed', { statusCode, reason })
+    track('whatsapp_connection_failed', { status_code: statusCode, reason })
   })
 
   wa.on('disconnected', async ({ statusCode, loggedOut }: { statusCode?: number; loggedOut?: boolean } = {}) => {
@@ -289,5 +295,9 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
   // ── Photos ────────────────────────────────────────────────────────────────
 
   registerPhotosHandlers()
+
+  // ── Auto-update ───────────────────────────────────────────────────────────
+
+  ipcMain.handle('update:install-now', () => installUpdateNow())
 
 }

@@ -6,6 +6,7 @@ import Scanner from './scanner'
 import { initAnalytics, track, shutdownAnalytics } from './analytics'
 import WhatsAppManager from './whatsapp'
 import { readState } from './store'
+import { initAutoUpdater } from './updater'
 
 initAnalytics()
 
@@ -81,6 +82,8 @@ app.whenReady().then(async () => {
   registerAllHandlers(getWindow)
 
   await createWindow()
+
+  initAutoUpdater(getWindow)
 
   // Auto-reconnect WhatsApp for returning users — wa.start() is otherwise only
   // called from the WhatsAppConnectScreen, so it never ran on re-launch.
