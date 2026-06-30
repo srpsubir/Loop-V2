@@ -271,28 +271,27 @@ class WhatsAppManager extends EventEmitter {
     }
   }
 
-  // B = (σ - μ) / (σ + μ): high = bursty spike-then-silence (events), low = regular cadence (rituals/chapters)
   async buildTieStrengthMap(): Promise<Map<string, { strength: 'high' | 'medium' | 'low'; messageCount: number; displayName: string }>> {
     const map = new Map<string, { strength: 'high' | 'medium' | 'low'; messageCount: number; displayName: string }>()
     if (!this.socket) return map
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const sock = this.socket as any
+      const nowSec = Date.now() / 1000
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const allChats: any[] = Array.from(this.chatStore.values())
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const dmChats = allChats.filter((c: any) => c.id?.endsWith('@s.whatsapp.net'))
       for (const chat of dmChats) {
-        try {
-          const messages = await this.getMessages(chat.id, 500)
-          const activeDays = new Set(messages.map(m => new Date(m.timestamp * 1000).toDateString())).size
-          const strength: 'high' | 'medium' | 'low' =
-            messages.length > 100 || activeDays > 20 ? 'high' :
-            messages.length > 20  || activeDays > 5  ? 'medium' : 'low'
-          const contactMeta = sock.contacts?.[chat.id]
-          const displayName: string = contactMeta?.name ?? contactMeta?.notify ?? chat.name ?? ''
-          map.set(chat.id, { strength, messageCount: messages.length, displayName })
-        } catch { /* skip */ }
+        const ts = Number(chat.conversationTimestamp ?? 0)
+        const daysSince = ts > 0 ? (nowSec - ts) / 86400 : Infinity
+        const strength: 'high' | 'medium' | 'low' =
+          daysSince <= 30  ? 'high' :
+          daysSince <= 180 ? 'medium' : 'low'
+        const messageCount = strength === 'high' ? 150 : strength === 'medium' ? 30 : 5
+        const contactMeta = sock.contacts?.[chat.id]
+        const displayName: string = contactMeta?.name ?? contactMeta?.notify ?? chat.name ?? ''
+        map.set(chat.id, { strength, messageCount, displayName })
       }
     } catch { /* non-fatal */ }
     return map
