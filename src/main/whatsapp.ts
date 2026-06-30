@@ -329,11 +329,6 @@ class WhatsAppManager extends EventEmitter {
   }[]> {
     if (!this.socket) return []
     try {
-      // Wait for Baileys to finish syncing the chat store before fetching groups.
-      // groupFetchAllParticipating() can return stale/empty results if called before
-      // the chats.set event fires.
-      await this.waitForStore()
-
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const sock = this.socket as any
       const myJid = (sock.user?.id ?? '').replace(/:\d+@/, '@')
