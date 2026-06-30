@@ -229,7 +229,7 @@ function PickerStep({
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search contacts..."
+              placeholder="Search by name..."
               style={{
                 flex: 1,
                 border: 'none',

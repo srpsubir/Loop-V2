@@ -100,7 +100,7 @@ export function DeadThreadCard({
             transition: 'background-color 120ms ease',
           }}
         >
-          Try again
+          Reach out again
         </button>
         <button
           type="button"

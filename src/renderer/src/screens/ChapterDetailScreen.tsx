@@ -104,6 +104,8 @@ function FilmStripEmpty() {
 export function ChapterDetailScreen({ chapterId, onBack, onOpenStory }: ChapterDetailScreenProps) {
   const [data, setData] = useState<ChapterData>({ chapter: null, contacts: [], appState: null })
   const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState(false)
+  const [editValue, setEditValue] = useState('')
 
   useEffect(() => {
     async function load() {
@@ -256,7 +258,7 @@ export function ChapterDetailScreen({ chapterId, onBack, onOpenStory }: ChapterD
       <div style={{ maxWidth: 760, margin: '0 auto', padding: '36px 40px 72px' }}>
 
         {/* Name this chapter prompt (shown for inference-created chapters) */}
-        {chapter.confirmed === false && (
+        {chapter.confirmed === false && !editing && (
           <div style={{
             background: 'var(--accent-faint)',
             border: '1px solid rgba(184,98,74,0.18)',
@@ -275,21 +277,9 @@ export function ChapterDetailScreen({ chapterId, onBack, onOpenStory }: ChapterD
             </div>
             <button
               type="button"
-              onClick={async () => {
-                const newName = window.prompt('Name this chapter', chapter.name)
-                if (newName && newName.trim() && appState) {
-                  try {
-                    await window.loop.chapters.setName(chapter.id, newName.trim())
-                    const updated = appState.chapters.map((ch) =>
-                      ch.id === chapter.id ? { ...ch, name: newName.trim(), confirmed: true } : ch
-                    )
-                    setData((d) => ({
-                      ...d,
-                      chapter: { ...chapter, name: newName.trim(), confirmed: true },
-                      appState: d.appState ? { ...d.appState, chapters: updated } : d.appState,
-                    }))
-                  } catch { /* pass */ }
-                }
+              onClick={() => {
+                setEditValue(chapter.name)
+                setEditing(true)
               }}
               style={{
                 flexShrink: 0,
@@ -307,6 +297,107 @@ export function ChapterDetailScreen({ chapterId, onBack, onOpenStory }: ChapterD
             >
               Name it
             </button>
+          </div>
+        )}
+
+        {/* Inline edit UI */}
+        {editing && (
+          <div style={{
+            marginBottom: 28,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 16,
+            padding: '24px',
+            background: 'var(--surface)',
+            borderRadius: 'var(--radius-md)',
+          }}>
+            <input
+              type="text"
+              autoFocus
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && editValue.trim() && appState) {
+                  const newName = editValue.trim()
+                  window.loop.chapters.setName(chapter.id, newName).then(() => {
+                    const updated = appState.chapters.map((ch) =>
+                      ch.id === chapter.id ? { ...ch, name: newName, confirmed: true } : ch
+                    )
+                    setData((d) => ({
+                      ...d,
+                      chapter: { ...chapter, name: newName, confirmed: true },
+                      appState: d.appState ? { ...d.appState, chapters: updated } : d.appState,
+                    }))
+                    setEditing(false)
+                  }).catch(() => {})
+                } else if (e.key === 'Escape') {
+                  setEditing(false)
+                }
+              }}
+              style={{
+                width: '100%',
+                fontFamily: 'var(--font-serif)',
+                fontSize: 22,
+                fontWeight: 600,
+                textAlign: 'center',
+                color: 'var(--text-primary)',
+                background: 'transparent',
+                border: 'none',
+                borderBottom: '2px solid var(--accent)',
+                padding: '8px 0',
+                outline: 'none',
+              }}
+            />
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={async () => {
+                  if (!editValue.trim() || !appState) return
+                  const newName = editValue.trim()
+                  try {
+                    await window.loop.chapters.setName(chapter.id, newName)
+                    const updated = appState.chapters.map((ch) =>
+                      ch.id === chapter.id ? { ...ch, name: newName, confirmed: true } : ch
+                    )
+                    setData((d) => ({
+                      ...d,
+                      chapter: { ...chapter, name: newName, confirmed: true },
+                      appState: d.appState ? { ...d.appState, chapters: updated } : d.appState,
+                    }))
+                    setEditing(false)
+                  } catch { /* pass */ }
+                }}
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: '#F9F5EE',
+                  background: 'var(--accent)',
+                  border: 'none',
+                  borderRadius: 'var(--radius-full)',
+                  padding: '10px 20px',
+                  cursor: 'pointer',
+                }}
+              >
+                Save
+              </button>
+              <button
+                onClick={() => setEditing(false)}
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: 'var(--text-secondary)',
+                  background: 'transparent',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-full)',
+                  padding: '10px 20px',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         )}
 

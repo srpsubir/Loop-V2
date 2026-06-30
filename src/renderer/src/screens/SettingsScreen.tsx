@@ -361,7 +361,7 @@ export function SettingsScreen({ onBack, onConnect }: SettingsScreenProps) {
                 <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.5, color: connected ? 'var(--positive)' : 'var(--text-muted)', marginTop: 3 }}>
                   {connected
                     ? 'Connected. Loop is reading your conversations.'
-                    : 'Not connected. Loop can only remember what it can see.'}
+                    : 'Not connected. Loop can only remember conversations you share with it.'}
                 </div>
               </div>
               <Btn variant={connected ? 'secondary' : 'primary'} size="sm" onClick={handleToggleConnection}>
@@ -382,7 +382,7 @@ export function SettingsScreen({ onBack, onConnect }: SettingsScreenProps) {
               <Section label="Invite your chapters">
                 <div style={{ padding: '12px 14px 6px' }}>
                   <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0 0 14px' }}>
-                    Invite the people from your chapters to close the loop.
+                    Invite the people from your chapters to join Loop.
                   </p>
                   <div style={{ borderTop: '1px solid var(--border-light)' }}>
                     {inviteCodes.map((c, i) => (

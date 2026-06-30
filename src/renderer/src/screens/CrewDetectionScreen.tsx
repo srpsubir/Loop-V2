@@ -376,7 +376,7 @@ export function CrewDetectionScreen({ onComplete, onSkip }: CrewDetectionScreenP
         <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>
           Step 3 of 5
         </div>
-        <div style={eyebrow}>Your crew</div>
+        <div style={eyebrow}>Your people</div>
         <div style={{
           fontFamily: 'var(--font-serif)', fontSize: 36, fontWeight: 600,
           color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1.2, marginBottom: 14,
@@ -472,13 +472,13 @@ export function CrewDetectionScreen({ onComplete, onSkip }: CrewDetectionScreenP
             fontFamily: 'var(--font-serif)', fontSize: 30, fontWeight: 600,
             color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1.22, marginBottom: 10,
           }}>
-            Your crew.
+            Your people.
           </div>
           <p style={{
             fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-secondary)',
             lineHeight: 1.65, marginBottom: 36, maxWidth: 420,
           }}>
-            Tap anyone to remove them. Everyone else shows up in Your Loop.
+            Click anyone to remove them. Everyone else shows up in Your Loop.
           </p>
 
           {byChapter.map(({ chapter, crew }) => (

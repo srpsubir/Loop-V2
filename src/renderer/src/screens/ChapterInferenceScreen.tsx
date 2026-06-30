@@ -182,9 +182,6 @@ function ChapterInferenceView({ chapters, onConfirm, onSkip }: {
 
       <div style={{ maxWidth: 760, width: '100%', margin: '0 auto', padding: '52px 40px 120px' }}>
         <header style={{ marginBottom: 44 }}>
-          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>
-            Step 2 of 5
-          </div>
           <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 38, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1.15, margin: '0 0 12px' }}>
             Loop found your chapters
           </h1>

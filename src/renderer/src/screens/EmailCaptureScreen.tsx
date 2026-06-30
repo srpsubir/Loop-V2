@@ -70,17 +70,6 @@ export function EmailCaptureScreen({ onDone }: Props) {
         gap: 28,
       }}>
 
-        {/* Step indicator */}
-        <div style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 11,
-          letterSpacing: '.08em',
-          textTransform: 'uppercase',
-          color: 'var(--text-muted)',
-        }}>
-          Step 5 of 5
-        </div>
-
         {/* Heading */}
         <div style={{ textAlign: 'center' }}>
           <div style={{
@@ -103,7 +92,7 @@ export function EmailCaptureScreen({ onDone }: Props) {
             margin: 0,
             maxWidth: 360,
           }}>
-            Where should we reach you if Loop finds something worth sharing?
+            If we want to reach you, where should we send you a note?
           </p>
         </div>
 
@@ -174,10 +163,10 @@ export function EmailCaptureScreen({ onDone }: Props) {
               fontSize: 15,
               fontWeight: 600,
               cursor: canSubmit ? 'pointer' : 'not-allowed',
-              transition: 'background 0.15s',
+            transition: 'background 0.15s',
             }}
           >
-            {saving ? 'Saving…' : 'Sure'}
+            {saving ? 'Saving…' : 'Keep me posted'}
           </button>
           <button
             type="button"

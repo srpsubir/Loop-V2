@@ -122,7 +122,7 @@ export function StoryScreen({ contactId, onBack }: StoryScreenProps) {
   const heroSrc = brief?.heroPhotoPath ? `loop-file://${brief.heroPhotoPath}` : undefined
 
   function formatLastContact(iso: string | null): string {
-    if (!iso) return 'Never recorded'
+    if (!iso) return 'No history yet'
     const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
     if (days === 0) return 'Today'
     if (days === 1) return 'Yesterday'
@@ -265,14 +265,14 @@ export function StoryScreen({ contactId, onBack }: StoryScreenProps) {
               {contact.name}
             </div>
 
-            {/* Last contact */}
+            {/* Last spoke */}
             <div style={{
               fontFamily: 'var(--font-sans)',
               fontSize: 13,
               color: 'var(--text-muted)',
               marginTop: 6,
             }}>
-              Last contact: {formatLastContact(lastContactDate)}
+              Last spoke: {formatLastContact(lastContactDate)}
             </div>
 
             {/* Chapter tags — quiet context, never classification */}
@@ -343,7 +343,7 @@ export function StoryScreen({ contactId, onBack }: StoryScreenProps) {
           }}>
             Still coming together.
             <div style={{ fontFamily: 'var(--font-sans)', fontSize: 14, fontStyle: 'normal', marginTop: 8 }}>
-              Run a scan to let Loop read your conversation history.
+              Let Loop read your conversations.
             </div>
           </div>
         )}

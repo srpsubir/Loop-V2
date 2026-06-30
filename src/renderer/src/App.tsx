@@ -81,7 +81,9 @@ function WelcomeScreen({ onConnect }: { onConnect: () => void }) {
       >
         {/* Mark + wordmark */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, marginBottom: 32 }}>
-          <img src="/src/assets/images/loop-mark.svg" width={88} height={88} alt="" />
+          <svg width={88} height={88} viewBox="0 0 120 120" fill="none" role="img" aria-label="Loop">
+            <path d="M67 40 C 92 40, 96 74, 72 82 C 48 90, 30 74, 33 54 C 36 36, 58 28, 74 36 C 92 45, 92 78, 66 84 C 44 89, 26 76, 26 76" stroke="#B8624A" strokeWidth="7.5" strokeLinecap="round" fill="none"></path>
+          </svg>
           <span
             style={{
               fontFamily: 'var(--font-serif)',
@@ -605,6 +607,7 @@ export default function App() {
         <YourLoopsScreen
           onOpenChapter={(chapterId) => setNav({ screen: 'chapter-detail', chapterId })}
           onOpenSettings={() => setNav({ screen: 'settings' })}
+          onOpenStory={(contactId, chapterId) => setNav({ screen: 'story', contactId, chapterId })}
         />
       )
 

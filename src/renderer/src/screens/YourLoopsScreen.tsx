@@ -12,6 +12,7 @@ import { toPng } from 'html-to-image'
 interface YourLoopsScreenProps {
   onOpenChapter: (chapterId: string) => void
   onOpenSettings: () => void
+  onOpenStory: (contactId: string, chapterId: string) => void
 }
 
 type AtomState = 'active' | 'fading' | 'dead-thread' | 'birthday-live' | 'birthday-fading'
@@ -403,7 +404,7 @@ function OpeningMomentCard({ memory, chapters }: { memory: OnThisDayMemory; chap
 
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
-export function YourLoopsScreen({ onOpenChapter, onOpenSettings }: YourLoopsScreenProps) {
+export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: YourLoopsScreenProps) {
   const { state, contacts, loading } = useYourLoopsData()
   const [glowChapterId, setGlowChapterId] = useState<string | null>(null)
   const [echoCardOpen, setEchoCardOpen] = useState(false)
@@ -470,25 +471,18 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings }: YourLoopsScre
     return eligible[0] ?? null
   }, [contacts, state])
 
-  const handleNudgeMessage = useCallback(async () => {
+  const handleNudgeMessage = useCallback(() => {
     if (!nudgeContact || !state) return
-    const cs = state.contacts[nudgeContact.id]
-    if (cs) {
-      const newCount = (cs.reachOutCount ?? 0) + 1
-      await window.loop.state.patch({
-        contacts: {
-          ...state.contacts,
-          [nudgeContact.id]: {
-            ...cs,
-            lastReachOutAt: new Date().toISOString(),
-            reachOutCount: newCount,
-            suppressNudge: newCount >= 2,
-          },
-        },
-      }).catch(() => {})
+    // Pick first chapter as navigation context — user may belong to multiple
+    const chapterId = nudgeContact.chapterIds[0]
+    if (!chapterId) {
+      // Fallback: open WhatsApp directly if contact has no chapter assignment
+      if (nudgeContact.whatsappId) window.loop.shell.openWhatsApp(nudgeContact.whatsappId).catch(() => {})
+      return
     }
-    if (nudgeContact.whatsappId) window.loop.shell.openWhatsApp(nudgeContact.whatsappId).catch(() => {})
-  }, [nudgeContact, state])
+    // Navigate to Story; Story screen handles state update + WhatsApp open
+    onOpenStory(nudgeContact.id, chapterId)
+  }, [nudgeContact, state, onOpenStory])
 
   const handleNudgeDismiss = useCallback(async () => {
     if (!nudgeContact || !state) return
@@ -675,7 +669,7 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings }: YourLoopsScre
       )}
 
       {/* Quiet day card — ambient warmth when no actionable cards are showing */}
-      {!nudgeContact && !deadThreadContact && (
+      {!nudgeContact && !deadThreadContact && chapterAtoms.length > 0 && (
         <div style={{ padding: '16px 44px 0', flexShrink: 0 }}>
           <QuietDayCard
             chapterName={echoChapter?.name}

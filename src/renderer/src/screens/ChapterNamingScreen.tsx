@@ -152,10 +152,10 @@ export function ChapterNamingScreen({ candidate, index, total, onConfirm, onSkip
               fontSize: 15,
               fontWeight: 600,
               cursor: name.trim() ? 'pointer' : 'not-allowed',
-              transition: 'background 0.15s',
+            transition: 'background 0.15s',
             }}
           >
-            This looks right
+            Name it
           </button>
           <button
             type="button"
