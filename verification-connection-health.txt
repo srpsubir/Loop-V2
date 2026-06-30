@@ -1,0 +1,14 @@
+Connection health monitor verification report
+Branch: verify/connection-health (origin/main @ 3f89401)
+Date: 2026-06-30
+
+Scope
+- MAV-75: Connection health monitor UI
+
+Automated tests
+- Command: npm --prefix /Users/subirpaul/Loop-verify run test -- src/test/whatsapp-connection.test.ts src/test/WhatsAppConnect.test.tsx
+- Result: PASS (23 tests)
+
+Manual test
+- Steps: launch app, connect WhatsApp, disable Wi‑Fi, verify amber “Reconnecting…” banner appears
+- Result: NOT RUN (requires live app session)
