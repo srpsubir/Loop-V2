@@ -160,7 +160,7 @@ export function generateStory(
   const firstName = contact.name.split(' ')[0]
 
   const chapterNames = chapters
-    .filter((ch) => contact.chapterIds.includes(ch.id))
+    .filter((ch) => contact.chapterIds?.includes(ch.id) ?? false)
     .map((ch) => ch.name)
     .join(' and ')
 
@@ -322,7 +322,7 @@ class Scanner {
 
         // Track earliest message per chapter for Echo anniversary detection
         for (const msg of messages) {
-          for (const chId of contact.chapterIds) {
+          for (const chId of contact.chapterIds ?? []) {
             const prev = minMsgTsByChapter.get(chId) ?? Infinity
             if (msg.timestamp < prev) minMsgTsByChapter.set(chId, msg.timestamp)
           }
