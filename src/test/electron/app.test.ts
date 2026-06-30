@@ -41,7 +41,7 @@ describe('Loop Electron app (real)', () => {
     log('Launching Loop via Playwright')
     app = await electron.launch({
       args: [resolve(__dirname, '../../../out/main/index.js')],
-      env: { ...process.env, NODE_ENV: 'test' },
+      env: { ...process.env, NODE_ENV: 'test', LOOP_TEST: '1' },
       timeout: 20_000,
     })
     win = await app.firstWindow()

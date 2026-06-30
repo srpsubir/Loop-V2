@@ -16,7 +16,7 @@ let electronProc: ChildProcess
 beforeAll(async () => {
   const electronBin = resolve(__dirname, '../../../node_modules/electron/dist/Electron.app/Contents/MacOS/Electron')
   const mainEntry = resolve(__dirname, '../../../out/main/index.js')
-  electronProc = spawn(electronBin, [mainEntry], { detached: false, stdio: 'ignore' })
+  electronProc = spawn(electronBin, [mainEntry], { detached: false, stdio: 'ignore', env: { ...process.env, LOOP_TEST: '1' } })
   await new Promise((r) => setTimeout(r, 4000))
   log('Electron launched for nut.js tests')
 }, 20_000)

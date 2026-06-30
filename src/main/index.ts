@@ -44,7 +44,11 @@ async function createWindow(): Promise<void> {
   })
 
   mainWindow.on('ready-to-show', () => {
-    mainWindow!.show()
+    if (process.env.LOOP_TEST) {
+      mainWindow!.showInactive()
+    } else {
+      mainWindow!.show()
+    }
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
