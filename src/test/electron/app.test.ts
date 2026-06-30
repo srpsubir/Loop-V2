@@ -82,7 +82,7 @@ describe('Loop Electron app (real)', () => {
   })
 
   it('welcome screen shows tagline', async () => {
-    const visible = await win.getByText('The people who matter, never forgotten.').isVisible()
+    const visible = await win.getByText('Every chapter of your life, and the people you lived it with.').isVisible()
     log(`tagline visible: ${visible}`)
     expect(visible).toBe(true)
   })
@@ -94,7 +94,7 @@ describe('Loop Electron app (real)', () => {
   })
 
   it('welcome screen shows 3-step strip', async () => {
-    const visible = await win.getByText('Loop reads your chats').isVisible()
+    const visible = await win.getByText('Loop maps the chapters of your life').isVisible()
     log(`steps strip visible: ${visible}`)
     expect(visible).toBe(true)
   })

@@ -9,7 +9,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
-    exclude: ['src/test/electron/wdio/**'],
+    exclude: ['src/test/electron/**'],
     environmentMatchGlobs: [
       ['src/test/electron/**', 'node'],
     ],

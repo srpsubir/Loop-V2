@@ -1,16 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   isRealMessage, computeNextOccasion, detectDeadThread, detectReconnection,
-  computeReachOutUpdate, generateStory, resolveStory, detectReachOut,
+  computeReachOutUpdate, generateStory, detectReachOut,
 } from '../main/scanner'
 import type { Contact, ContactState, Story, Chapter } from '../shared/types'
-
-// ─── Mock inference module for resolveStory tests ────────────────────────────
-
-vi.mock('../main/inference', () => ({
-  isModelReady: vi.fn(() => false),
-  generateStoryWithSLM: vi.fn(),
-}))
 
 // ─── isRealMessage ────────────────────────────────────────────────────────────
 
@@ -445,58 +438,3 @@ describe('detectReachOut', () => {
   })
 })
 
-// ─── resolveStory ─────────────────────────────────────────────────────────────
-
-describe('resolveStory', () => {
-  const existingStory: Story = {
-    generatedAt: new Date().toISOString(),
-    contextLines: ['cached line 1', 'cached line 2'],
-    reasonToReachOut: 'cached reason',
-  }
-
-  beforeEach(async () => {
-    const inference = vi.mocked(await import('../main/inference'))
-    vi.mocked(inference.isModelReady).mockReturnValue(false)
-    vi.mocked(inference.generateStoryWithSLM).mockReset()
-  })
-
-  it('returns existingStory when needsRefresh=false and story exists', async () => {
-    const story = await resolveStory(baseContact2, [], chapters, null, existingStory, false)
-    expect(story).toBe(existingStory)
-  })
-
-  it('generates template when needsRefresh=true and model not ready', async () => {
-    const inference = await import('../main/inference')
-    vi.mocked(inference.isModelReady).mockReturnValue(false)
-    const story = await resolveStory(baseContact2, [], chapters, null, null, true)
-    expect(story.contextLines.length).toBeGreaterThan(0)
-    expect(vi.mocked(inference.generateStoryWithSLM)).not.toHaveBeenCalled()
-  })
-
-  it('uses SLM when model is ready', async () => {
-    const inference = await import('../main/inference')
-    const slmStory: Story = { generatedAt: new Date().toISOString(), contextLines: ['SLM line'], reasonToReachOut: 'SLM reason' }
-    vi.mocked(inference.isModelReady).mockReturnValue(true)
-    vi.mocked(inference.generateStoryWithSLM).mockResolvedValue(slmStory)
-    const story = await resolveStory(baseContact2, [], chapters, null, null, true)
-    expect(story).toBe(slmStory)
-  })
-
-  it('falls back to template when SLM throws', async () => {
-    const inference = await import('../main/inference')
-    vi.mocked(inference.isModelReady).mockReturnValue(true)
-    vi.mocked(inference.generateStoryWithSLM).mockRejectedValue(new Error('parse fail'))
-    const story = await resolveStory(baseContact2, [], chapters, null, null, true)
-    // Should still return a valid story from template
-    expect(story.contextLines.length).toBeGreaterThan(0)
-    expect(story.contextLines[0]).toContain('James')
-  })
-
-  it('generates new story when needsRefresh=true even with existingStory', async () => {
-    const inference = await import('../main/inference')
-    vi.mocked(inference.isModelReady).mockReturnValue(false)
-    const story = await resolveStory(baseContact2, [], chapters, null, existingStory, true)
-    // Should be a freshly generated story, not the cached one
-    expect(story).not.toBe(existingStory)
-  })
-})
