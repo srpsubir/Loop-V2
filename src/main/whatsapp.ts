@@ -104,6 +104,8 @@ class WhatsAppManager extends EventEmitter {
   private chatStore = new Map<string, any>()
   private storeReady = false
   private hasConnectedOnce = false
+  private reconnectAttempts = 0
+  private static readonly MAX_RECONNECT_ATTEMPTS = 8
 
   static getInstance(): WhatsAppManager {
     if (!WhatsAppManager.instance) WhatsAppManager.instance = new WhatsAppManager()
@@ -191,6 +193,7 @@ class WhatsAppManager extends EventEmitter {
         if (connection === 'open') {
           this.currentQR = null
           this.hasConnectedOnce = true
+          this.reconnectAttempts = 0
           this.setStatus('connected')
           this.emit('connected')
         }
@@ -199,11 +202,6 @@ class WhatsAppManager extends EventEmitter {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const statusCode = (lastDisconnect?.error as any)?.output?.statusCode
           const isLoggedOut = statusCode === DisconnectReason.loggedOut
-          const isRecoverable = [
-            DisconnectReason.connectionClosed,
-            DisconnectReason.connectionLost,
-            DisconnectReason.timedOut,
-          ].includes(statusCode)
 
           this.chatStore.clear()
           this.storeReady = false
@@ -211,18 +209,34 @@ class WhatsAppManager extends EventEmitter {
 
           if (isLoggedOut) {
             // Permanent logout — surface to UI and clear auth
+            this.reconnectAttempts = 0
             this.emit('disconnected', { statusCode, loggedOut: true })
             await this.clearAuth()
-          } else if (!this.hasConnectedOnce && isRecoverable) {
-            // Transient failure on first connect (before QR was ever accepted) —
-            // silently retry once after 800ms without showing an error to the user.
-            console.warn('[WhatsApp] Transient first-connect failure, retrying silently...')
-            setTimeout(() => this.start(), 800)
+          } else if (!this.hasConnectedOnce) {
+            // Pre-first-connect close: QR handshake transient, unrecognised Baileys status code,
+            // etc. Never surface as an error — just retry silently. The user is still on the QR
+            // screen and should see nothing until the connection either succeeds or we give up.
+            const delay = Math.min(800 * Math.pow(2, this.reconnectAttempts), 15_000)
+            this.reconnectAttempts++
+            console.warn(`[WhatsApp] Pre-connect close (code: ${statusCode}), retry ${this.reconnectAttempts} in ${delay}ms`)
+            if (this.reconnectAttempts <= WhatsAppManager.MAX_RECONNECT_ATTEMPTS) {
+              setTimeout(() => this.start(), delay)
+            } else {
+              this.reconnectAttempts = 0
+              this.emit('disconnected', { statusCode, loggedOut: false, exhausted: true })
+            }
           } else {
-            // Connected before but lost connection, or unrecognised close code —
-            // surface disconnect then schedule reconnect.
+            // Had a connection before — surface disconnect then reconnect with backoff.
+            const delay = Math.min(3000 * Math.pow(1.5, this.reconnectAttempts), 60_000)
+            this.reconnectAttempts++
+            console.warn(`[WhatsApp] Post-connect close (code: ${statusCode}), retry ${this.reconnectAttempts} in ${delay}ms`)
             this.emit('disconnected', { statusCode, loggedOut: false })
-            setTimeout(() => this.start(), 3000)
+            if (this.reconnectAttempts <= WhatsAppManager.MAX_RECONNECT_ATTEMPTS) {
+              setTimeout(() => this.start(), delay)
+            } else {
+              this.reconnectAttempts = 0
+              this.emit('disconnected', { statusCode, loggedOut: false, exhausted: true })
+            }
           }
         }
       })
