@@ -110,7 +110,17 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
   })
 
   wa.on('disconnected', async ({ statusCode, loggedOut }: { statusCode?: number; loggedOut?: boolean } = {}) => {
-    await patchState({ whatsappConnected: false })
+    try {
+      // Read current state before patching — a loggedOut event must never reset
+      // onboardingComplete or chapters, only flip whatsappConnected.
+      const current = await readState()
+      await patchState({
+        ...current,
+        whatsappConnected: false,
+      })
+    } catch (err) {
+      console.error('[ipc] Failed to patch state on disconnect:', err)
+    }
     getWindow()?.webContents.send('state:changed')
     getWindow()?.webContents.send('whatsapp:disconnected', { loggedOut: loggedOut ?? false })
     track('whatsapp_disconnected', { status_code: statusCode, logged_out: loggedOut })

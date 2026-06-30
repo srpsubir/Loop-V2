@@ -27,6 +27,8 @@ export async function ensureLoopDir(): Promise<void> {
   await fs.mkdir(CONTACTS_DIR, { recursive: true })
 }
 
+const BACKUP_FILE = STATE_FILE + '.backup'
+
 export async function readState(): Promise<AppState> {
   await ensureLoopDir()
   try {
@@ -34,13 +36,28 @@ export async function readState(): Promise<AppState> {
     const parsed = JSON.parse(raw) as Partial<AppState>
     return { ...DEFAULT_STATE, ...parsed }
   } catch {
-    await writeState(DEFAULT_STATE)
-    return { ...DEFAULT_STATE }
+    // Primary file missing or corrupt — try backup before resetting
+    try {
+      const backup = await fs.readFile(BACKUP_FILE, 'utf-8')
+      const parsed = JSON.parse(backup) as Partial<AppState>
+      console.warn('[store] state.json corrupt, restored from backup')
+      const restored = { ...DEFAULT_STATE, ...parsed }
+      await writeState(restored)
+      return restored
+    } catch {
+      console.warn('[store] No valid backup, writing DEFAULT_STATE')
+      await writeState(DEFAULT_STATE)
+      return { ...DEFAULT_STATE }
+    }
   }
 }
 
 export async function writeState(state: AppState): Promise<void> {
   await ensureLoopDir()
+  // Write to backup before overwriting primary so we can recover from mid-write corruption
+  try {
+    await fs.copyFile(STATE_FILE, BACKUP_FILE)
+  } catch { /* backup doesn't exist yet — fine */ }
   await fs.writeFile(STATE_FILE, JSON.stringify(state, null, 2), 'utf-8')
 }
 

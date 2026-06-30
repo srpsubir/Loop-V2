@@ -80,9 +80,12 @@ app.whenReady().then(async () => {
 
   // Auto-reconnect WhatsApp for returning users — wa.start() is otherwise only
   // called from the WhatsAppConnectScreen, so it never ran on re-launch.
+  // Errors are swallowed here: a failed reconnect must never corrupt state.json.
   readState().then((state) => {
     if (state.whatsappConnected) {
-      WhatsAppManager.getInstance().start().catch(console.error)
+      WhatsAppManager.getInstance().start().catch((err) => {
+        console.error('[main] WhatsApp auto-reconnect failed (state unchanged):', err)
+      })
     }
   }).catch(console.error)
 
