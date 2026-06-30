@@ -89,6 +89,31 @@ Apple Developer ID + notarization completed 2026-06-29. DMG buildable via `npm r
 
 ---
 
+## Dev runtime rules
+
+**Kill before launch — always one instance:**
+```bash
+ps aux | grep "node_modules/electron" | grep -v grep | awk '{print $2}' | xargs kill 2>/dev/null
+sleep 2 && npm run preview &>/tmp/loop-preview.log &
+```
+Never run `npm run preview` without killing first. Multiple instances cause duplicate dock icons and split WA connections.
+
+**State.json reset for detection testing:**
+```bash
+node -e "
+const fs=require('fs'),p=require('path').join(process.env.HOME,'Documents/Loop/state.json');
+const s=JSON.parse(fs.readFileSync(p,'utf8'));
+s.onboardingComplete=true; s.chapterDetectionComplete=false; s.chapters=[];
+fs.writeFileSync(p,JSON.stringify(s,null,2)); console.log('reset done');
+"
+```
+`onboardingComplete` can slip to false when the app disconnects while state has been manually edited — always re-check it after a reset.
+
+**State.json reset for design review (seed data):**
+Use the seed data script — sets onboardingComplete/chapterDetectionComplete/stayCloseComplete/emailCaptured all true + 4 chapters (Casa Mañana, Yoga Sceptics, Zalando Crew, Edinburgh MSc).
+
+---
+
 ## Seed data (dev)
 
 4 chapters in state.json:
@@ -98,7 +123,7 @@ Apple Developer ID + notarization completed 2026-06-29. DMG buildable via `npm r
 - Edinburgh MSc (echo + birthday): kc-kieran, am-ana, pk-priya [kieran bday July 1, echo = 8 years ago]
 
 Contacts: 11 JSON files in ~/Documents/Loop/contacts/
-State flags: onboardingComplete, chapterDetectionComplete, stayCloseComplete, emailCaptured — all true
+State flags (design review): onboardingComplete, chapterDetectionComplete, stayCloseComplete, emailCaptured — all true
 
 ---
 
