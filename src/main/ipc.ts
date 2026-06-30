@@ -148,18 +148,28 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
 
   // ── Chapter detection ─────────────────────────────────────────────────────
 
+  let detecting = false
   ipcMain.handle('chapters:detect', async () => {
-    const { clusters, groups } = await wa.buildContactClusters()
-    const { top, rest } = clustersToCandidates(clusters, groups)
-    await patchState({ detectedChapters: top, pendingChapters: rest })
-    track('chapters_detected', {
-      count_shown: top.length,
-      count_total: top.length + rest.length,
-      used_clusters: clusters.length >= 3,
-      cluster_count: clusters.length,
-    })
-    getWindow()?.webContents.send('state:changed')
-    return top
+    if (detecting) return []
+    detecting = true
+    try {
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('chapters:detect timed out after 30s')), 30_000)
+      )
+      const { clusters, groups } = await Promise.race([wa.buildContactClusters(), timeout])
+      const { top, rest } = clustersToCandidates(clusters, groups)
+      await patchState({ detectedChapters: top, pendingChapters: rest })
+      track('chapters_detected', {
+        count_shown: top.length,
+        count_total: top.length + rest.length,
+        used_clusters: clusters.length >= 3,
+        cluster_count: clusters.length,
+      })
+      getWindow()?.webContents.send('state:changed')
+      return top
+    } finally {
+      detecting = false
+    }
   })
 
   ipcMain.handle('chapters:confirm', async (_e, confirmedJids: string[]) => {

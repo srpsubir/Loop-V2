@@ -123,6 +123,13 @@ class WhatsAppManager extends EventEmitter {
     if (this.status === 'connected' || this.status === 'connecting') return
     this.setStatus('connecting')
 
+    // Clean up the previous socket's listeners before creating a new one.
+    // Baileys accumulates event listeners on reconnect if not explicitly removed.
+    if (this.socket) {
+      try { (this.socket as any).ev.removeAllListeners() } catch { /* ignore */ }
+      this.socket = null
+    }
+
     try {
       await fs.mkdir(AUTH_DIR, { recursive: true })
 
