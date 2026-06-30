@@ -45,6 +45,11 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
     getWindow()?.webContents.send('whatsapp:qr', qr)
   })
 
+  // New unified status event with metadata
+  wa.on('status', (status: string, metadata?: any) => {
+    getWindow()?.webContents.send('whatsapp:status-changed', { status, metadata })
+  })
+
   const waConnectStart: { time: number } = { time: 0 }
 
   wa.on('qr', () => { waConnectStart.time = Date.now() })
