@@ -19,4 +19,4 @@ Read `Context.md` at session start. Decisions marked "settled" are final — exe
 
 ## Known bugs fixed (do not reintroduce)
 
-- **Returning user 0-chapters bug (fixed 2026-06-29)**: `onboardingComplete: true` used to skip `chapter-inference` forever. Fixed via global `whatsapp.onConnected` listener in `App.tsx`. Covered by `wdio/returning-user-chapter-detection.test.ts`. If you touch navigation routing in `App.tsx`, run `npm run test:ipc` — the wdio suite will catch regressions.
+- **Returning user 0-chapters bug (fixed 2026-06-29)**: `onboardingComplete: true` used to skip `chapter-inference` forever. Fixed via global `whatsapp.onConnected` listener in `App.tsx`. Covered by `src/test/electron/wdio/returning-user-chapter-detection.test.ts`. If you touch navigation routing in `App.tsx`, run `npm run test:ipc` — the wdio suite will catch regressions.
