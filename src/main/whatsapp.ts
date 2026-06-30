@@ -102,6 +102,8 @@ class WhatsAppManager extends EventEmitter {
   private saveCreds: (() => Promise<void>) | null = null
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private chatStore = new Map<string, any>()
+  private storeReady = false
+  private hasConnectedOnce = false
 
   static getInstance(): WhatsAppManager {
     if (!WhatsAppManager.instance) WhatsAppManager.instance = new WhatsAppManager()
@@ -160,6 +162,7 @@ class WhatsAppManager extends EventEmitter {
       sock.ev.on('chats.set', ({ chats }: { chats: any[] }) => {
         this.chatStore.clear()
         for (const c of chats) this.chatStore.set(c.id, c)
+        this.storeReady = true
         this.emit('store-ready')
       })
 
@@ -180,6 +183,7 @@ class WhatsAppManager extends EventEmitter {
 
         if (connection === 'open') {
           this.currentQR = null
+          this.hasConnectedOnce = true
           this.setStatus('connected')
           this.emit('connected')
         }
@@ -187,15 +191,31 @@ class WhatsAppManager extends EventEmitter {
         if (connection === 'close') {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const statusCode = (lastDisconnect?.error as any)?.output?.statusCode
-          const shouldReconnect = statusCode !== DisconnectReason.loggedOut
-          this.chatStore.clear()
-          this.setStatus('disconnected')
-          this.emit('disconnected', { statusCode, loggedOut: !shouldReconnect })
+          const isLoggedOut = statusCode === DisconnectReason.loggedOut
+          const isRecoverable = [
+            DisconnectReason.connectionClosed,
+            DisconnectReason.connectionLost,
+            DisconnectReason.timedOut,
+          ].includes(statusCode)
 
-          if (shouldReconnect) {
-            setTimeout(() => this.start(), 3000)
-          } else {
+          this.chatStore.clear()
+          this.storeReady = false
+          this.setStatus('disconnected')
+
+          if (isLoggedOut) {
+            // Permanent logout — surface to UI and clear auth
+            this.emit('disconnected', { statusCode, loggedOut: true })
             await this.clearAuth()
+          } else if (!this.hasConnectedOnce && isRecoverable) {
+            // Transient failure on first connect (before QR was ever accepted) —
+            // silently retry once after 800ms without showing an error to the user.
+            console.warn('[WhatsApp] Transient first-connect failure, retrying silently...')
+            setTimeout(() => this.start(), 800)
+          } else {
+            // Connected before but lost connection, or unrecognised close code —
+            // surface disconnect then schedule reconnect.
+            this.emit('disconnected', { statusCode, loggedOut: false })
+            setTimeout(() => this.start(), 3000)
           }
         }
       })
@@ -220,6 +240,8 @@ class WhatsAppManager extends EventEmitter {
     }
     this.setStatus('disconnected')
     this.currentQR = null
+    this.hasConnectedOnce = false
+    this.storeReady = false
     await this.clearAuth()
   }
 
@@ -269,16 +291,24 @@ class WhatsAppManager extends EventEmitter {
     return map
   }
 
-  waitForStore(timeoutMs = 15000): Promise<void> {
-    if (this.chatStore.size > 0) return Promise.resolve()
-    return new Promise<void>((resolve) => {
-      const timer = setTimeout(resolve, timeoutMs)
-      this.once('store-ready', () => { clearTimeout(timer); resolve() })
-    })
-  }
-
   // Patterns that indicate broadcast/admin/noise groups rather than real social chapters
   private static readonly GARBAGE_NAME_RE = /\b(broadcast|announce|announcement|update|updates|news|newsletter|society|alumni|association|residents|colony|welfare|committee|notices?|info|helpdesk|support|class of|batch of|school of|investor meet|networking event)\b/i
+
+  private waitForStore(timeoutMs = 10_000): Promise<void> {
+    if (this.storeReady) return Promise.resolve()
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.off('store-ready', onReady)
+        console.warn('[WhatsApp] waitForStore timed out — proceeding without full chat store')
+        resolve()
+      }, timeoutMs)
+      const onReady = () => {
+        clearTimeout(timer)
+        resolve()
+      }
+      this.once('store-ready', onReady)
+    })
+  }
 
   async listGroupsWithMeta(): Promise<{
     id: string
@@ -293,6 +323,11 @@ class WhatsAppManager extends EventEmitter {
   }[]> {
     if (!this.socket) return []
     try {
+      // Wait for Baileys to finish syncing the chat store before fetching groups.
+      // groupFetchAllParticipating() can return stale/empty results if called before
+      // the chats.set event fires.
+      await this.waitForStore()
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const sock = this.socket as any
       const myJid = (sock.user?.id ?? '').replace(/:\d+@/, '@')
