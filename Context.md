@@ -2,94 +2,81 @@
 
 _Last updated: 2026-06-30_
 
-## Last commit + remote
-`281454c` — People-first chapter detection: bipartite clustering + TF-IDF naming. Committed + ready to push.
+## Current branch state
 
-## Active session work
-Design review in progress. Bug fixes implemented (not committed). Live review of Chapter Detail / Story / Settings still pending.
+Ahead of `origin/main` by 10 commits. Not yet pushed.
 
-## Bug Fixes — Implemented, Not Committed
-| Ticket | Fix | File |
+Latest commit: `032f3de` — Phase 1 complete: electron tests restored, dock tooltip skipped (known dev limitation)
+
+## Phase 1 — COMPLETE ✓
+
+### What was done
+
+| Commit | Ticket | Description |
 |---|---|---|
-| MAV-160 | `hasConnectedOnce` flag + 800ms silent retry before surfacing QR failure | `src/main/whatsapp.ts` |
-| MAV-161 | `waitForStore()` polls `sock.store.chats` up to 10× before `listGroupsWithMeta()` | `src/main/whatsapp.ts` |
-| MAV-162 (new) | `loggedOut` disconnect no longer wipes `onboardingComplete`/`chapters`; `wa.start()` failures caught silently; `writeState` writes `.backup` before overwriting | `src/main/ipc.ts`, `src/main/index.ts`, `src/main/store.ts` |
-| MAV-163 (new) | `contact.chapterIds` accesses guarded with `?.` / `?? []` | `src/main/scanner.ts` |
+| `e95db53` | MAV-167 | Scanner null guards — `chapterIds?.includes` / `?? []` |
+| `d9af272` | MAV-166 | State protection — loggedOut no longer wipes chapters; backup before write |
+| `f4b778b` | MAV-168 + MAV-165 | waitForStore with storeReady flag; duplicate public method removed |
+| `97ee907` | MAV-169 | Green test suite — orphaned inference tests deleted, e2e/unit properly separated |
+| `c973953` | MAV-170 | CLAUDE.md wdio path corrected |
+| `32ec499` | — | CLAUDE.md quality gate + test pyramid documented |
+| `032f3de` | — | Electron tests restored in npm run test; dock tooltip skipped (known dev limitation) |
 
-TypeScript: clean. Unit tests: 55/65 pass — 10 failures pre-existing.
+### Test run result (final, earned)
 
-## Bug Fixes Identified (not yet implemented)
+```
+Test Files  9 passed (9)
+Tests  129 passed | 2 skipped (131)
+Duration  ~20s
+```
 
-### MAV-160 — First-connect QR failure
-Root: No retry / cooldown before surfacing error to user on first `connection.update`.
-Fix: In `src/main/whatsapp.ts`, add `hasEverConnected` flag. If `connection === 'open'` and first time, set flag. Add 1 retry with 800ms delay before emitting failure to renderer.
+- `app.test.ts`: Playwright launched Loop, verified welcome screen copy + navigation ✓
+- `nutjs.test.ts`: Spawned Loop, confirmed window at 1200×800 ✓
+- `osascript.test.ts`: AppleScript confirmed window title Loop, menu bar Loop, bundle ID com.loop.dev ✓
+- 2 skipped: dock tooltip tests — `localizedName` is "Electron" in dev binary (known, DMG fixes it)
+- TypeScript: clean
 
-### MAV-161 — Groups don't load after connection
-Root: `listGroupsWithMeta()` called before Baileys store is hydrated.
-Fix: Wrap in `waitForStore()` helper (polls `sock.store`, 3 retries, 1s backoff). Also applies to IPC handler.
+### What Phase 1 fixed
 
-## Design Review — Full Findings
+- QR connect failure on first attempt (MAV-160 / MAV-164)
+- Groups not loading after connection — waitForStore race (MAV-161 / MAV-165)
+- loggedOut event wiping onboardingComplete + chapters (MAV-162 / MAV-166)
+- Scanner crash on missing chapterIds field (MAV-163 / MAV-167)
+- Duplicate waitForStore silently shadowing correct implementation (MAV-168)
+- 2 orphaned test files referencing deleted inference.ts (MAV-169)
+- CLAUDE.md path pointing to non-existent wdio location (MAV-170)
 
-### Home Screen ("Your Loops") — D-01 to D-10
-| # | Issue | Severity |
-|---|---|---|
-| D-01 | "Your Loops" header redundant — mock had none, wastes ~60px | Medium |
-| D-02 | Large dead zone (~100px) between nudge/echo cards and atom row | High |
-| D-03 | Card (rectangular) vs atom (circular) visual language conflict | High |
-| D-04 | All atoms same size 176px — mock shows varying sizes by warmth | Medium |
-| D-05 | Nucleus shows first letter only — mock suggests emoji or photo | Medium |
-| D-06 | AtomState as text badge (FADING/BIRTHDAY) — mock encodes via color/saturation | High |
-| D-07 | Echo anniversary band visually undersized for its emotional significance | High |
-| D-08 | Echo band copy broken — "years ago today" missing number | Medium |
-| D-09 | Casa Mañana shows FADING despite being seeded active — `atomState` field ignored, derived from contacts | Low (seed issue) |
-| D-10 | Nudge card avatar fallback is initials only, no photo | Low |
+---
 
-### Chapter Detail Screen — Code/Mock Gap Analysis
-| Element | Gap |
-|---|---|
-| Cover photo | Missing warm duotone filter (`sepia(.32) saturate(1.05) hue-rotate(-8deg)`) — cold photos |
-| No-cover placeholder | Flat gradient — acceptable but bland |
-| Year range | `startYear`/`endYear` not in current Chapter type — renders blank |
-| Moments section | Permanently `FilmStripEmpty` — no photo pipeline wired. Camera icon + placeholder copy |
-| Crew grid fading states | Implemented via ContactTierIndicator — needs live visual verification |
-| Overall structure | Matches mock closely — cover, crew grid, moments layout correct |
+## Phase 2 — IN QUEUE
 
-### Story Screen — Code/Mock Gap Analysis
-| Element | Gap |
-|---|---|
-| Overall | Strongest screen — closest to MAV-72 spec |
-| Max width | `maxWidth: 680, padding: 28px 52px` — slightly wide vs mock's intimate column |
-| "Reason to reach out" | ✓ Italic serif, warm accent callout — matches mock |
-| Timeline | ✓ RECENTLY/EARLIER labels, dot + line — matches mock |
-| WhatsApp CTA | ✓ Ghost button top-right, conditional on whatsappId |
-| Empty story state | "Still coming together." — no mock equivalent, reasonable fallback |
+### Scope
 
-### Screens Still to Review Live
-- [ ] Chapter Detail (need live navigation — state fix now in place)
-- [ ] Story screen
-- [ ] Settings
-- [ ] Echo card overlay
-- [ ] Birthday state card
+1. **WA connection failure-path test suite** — `src/test/whatsapp-connection.test.ts`
+   - QR emitted on first connect
+   - Connected state on `connection === 'open'`
+   - Silent retry on transient first-connect failure
+   - Retry budget exhausted → terminal failure state, no infinite loop
+   - loggedOut → auth cleared, state preserved
+   - waitForStore resolves immediately / times out gracefully
 
-## Seed Data (written 2026-06-30)
-4 chapters in state.json:
-- Casa Mañana (active): tomas-k, mia-j, nb-niamh
-- Yoga Sceptics (fading): dw-david, cw-clara [clara = nudge]
-- Zalando Crew (birthday-fading): bn-ben, rh-rahul, sl-sara [sara bday in 2 days]
-- Edinburgh MSc (fading + echo): kc-kieran, am-ana, pk-priya [kieran bday today]
+2. **WA connection retry budget + circuit breaker** — `src/main/whatsapp.ts`
+   - `private retryCount = 0`, `private readonly MAX_RETRIES = 3`
+   - Backoff: 800ms → 2s → 5s, then emit `connection-failed` to renderer
+   - Reset retryCount on successful connection
+   - No infinite retry possible
 
-Contacts: 11 JSON files in ~/Documents/Loop/contacts/
+3. **CI GitHub Actions workflow** — `.github/workflows/ci.yml`
+   - Triggers: PR + push to main
+   - Steps: tsc → vitest → (green gate) → build → e2e
+   - Keeps unit + e2e gated so slow tests don't block fast feedback
 
-## Linear Tickets
-| ID | Title | Status |
-|---|---|---|
-| MAV-159 | Orbital view hidden (no chapters) | Filed |
-| MAV-160 | QR connect fails first attempt | Filed |
-| MAV-161 | Groups don't load after connection | Filed |
+---
 
 ## Architecture decisions (settled)
+
 - Chapter = period of life, not a WhatsApp group
-- Bipartite projection → BFS clusters → TF-IDF naming
+- Bipartite projection → Louvain clustering → TF-IDF naming
 - Single WA fetch: `buildContactClusters()` returns `{ clusters, groups }`
 - Fallback gate: < 3 clusters → `scoreGroups()`
 - Fading orbit = chapter-level (all members fading = orbit slows)
@@ -98,10 +85,22 @@ Contacts: 11 JSON files in ~/Documents/Loop/contacts/
 - `nudgeDismissedAt`: ISO timestamp, re-surfaces after 7 days
 
 ## Monetisation + distribution (settled)
+
 - Lemon Squeezy (merchant of record, license key)
 - MailerLite for pre-launch waitlist only
 - DMG: `npm run dist` (blocked on Apple Developer ID — MAV-47)
 
 ## JTBD (settled)
+
 1. Acquisition: chapter scattering — lock in who matters
 2. Retention: keep habit alive after joining
+
+## Seed data (written 2026-06-30)
+
+4 chapters in state.json:
+- Casa Mañana (active): tomas-k, mia-j, nb-niamh
+- Yoga Sceptics (fading): dw-david, cw-clara [clara = nudge]
+- Zalando Crew (birthday-fading): bn-ben, rh-rahul, sl-sara [sara bday in 2 days]
+- Edinburgh MSc (fading + echo): kc-kieran, am-ana, pk-priya [kieran bday today]
+
+Contacts: 11 JSON files in ~/Documents/Loop/contacts/
