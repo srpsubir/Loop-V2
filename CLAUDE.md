@@ -2,9 +2,18 @@
 
 ## Before reporting any implementation complete
 
-1. Run `npm run test` — all vitest unit tests must pass
+1. Run `npm run test` — all 114 vitest unit tests must pass (6 files, node + jsdom environments)
 2. For any change touching IPC handlers or navigation routing: run `npm run test:ipc` — all wdio tests must pass
 3. No TypeScript errors: `npx tsc --noEmit` must exit clean
+
+## Test pyramid
+
+- `npm run test` — unit tests only (fast, always runnable, no build required). Excludes `src/test/electron/**`.
+- `npm run test:e2e` — Playwright + osascript + nutjs against a built Electron app. Requires `npm run build` first.
+- `npm run test:ipc` — wdio IPC suite. Requires `npm run build` first.
+- `npm run test:all` — all three layers in sequence.
+
+**If `npm run test` is red, fix it before anything else. A torn net catches nothing.**
 
 ## Product decisions — do not re-question
 
