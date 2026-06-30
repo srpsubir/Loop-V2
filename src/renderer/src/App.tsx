@@ -472,7 +472,10 @@ export default function App() {
     return off
   }, [])
 
-  const goYourLoops = useCallback(() => setNav({ screen: 'your-loops' }), [])
+  const goYourLoops = useCallback(async () => {
+    try { await window.loop.state.patch({ onboardingComplete: true }) } catch { /* pass */ }
+    setNav({ screen: 'your-loops' })
+  }, [])
   const goStayClose = useCallback(async () => {
     try {
       const state = await window.loop.state.get()
