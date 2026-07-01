@@ -267,7 +267,9 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
 
   ipcMain.handle('data:getDir', () => LOOP_DIR)
 
-  ipcMain.handle('data:deleteAll', async () => {
+  ipcMain.handle('data:deleteAll', async (_e, opts?: { confirmed?: boolean }) => {
+    // MAV-178: require explicit confirmation flag — rejects accidental or unauthenticated IPC calls
+    if (opts?.confirmed !== true) return
     try {
       const files = await fs.promises.readdir(CONTACTS_DIR)
       await Promise.all(files.map((f) => fs.promises.unlink(path.join(CONTACTS_DIR, f)).catch(() => {})))
