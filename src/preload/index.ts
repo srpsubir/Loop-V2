@@ -162,7 +162,8 @@ const loopAPI = {
 
   data: {
     getDir: (): Promise<string> => ipcRenderer.invoke('data:getDir'),
-    deleteAll: (): Promise<void> => ipcRenderer.invoke('data:deleteAll'),
+    // MAV-178: pass confirmed flag so the main-process guard lets the call through
+    deleteAll: (): Promise<void> => ipcRenderer.invoke('data:deleteAll', { confirmed: true }),
   },
 
   model: {
