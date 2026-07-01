@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { ArrowLeft, Camera } from 'lucide-react'
+import { ArrowLeft, Camera, Trash2 } from 'lucide-react'
 import { IconButton } from '../components'
 import { ContactTierIndicator } from '../components/ContactTierIndicator'
 import { ConnectionStatusBadge } from '../components/ConnectionStatusBadge'
@@ -100,6 +100,89 @@ function FilmStripEmpty() {
   )
 }
 
+// ─── Remove chapter confirm dialog ───────────────────────────────────────────
+
+function RemoveChapterDialog({ chapterName, open, onClose, onConfirm }: {
+  chapterName: string; open: boolean; onClose: () => void; onConfirm: () => void
+}) {
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open, onClose])
+  if (!open) return null
+  return (
+    <div
+      role="presentation"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 100,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+        background: 'rgba(42,31,27,0.32)', backdropFilter: 'saturate(1.05) blur(1px)',
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="remove-chapter-title"
+        style={{
+          width: '100%', maxWidth: 440,
+          background: 'var(--bg)', borderRadius: 'var(--radius-lg)',
+          boxShadow: 'var(--shadow-xl)', padding: 28,
+        }}
+      >
+        <div style={{
+          width: 44, height: 44, borderRadius: 'var(--radius-full)',
+          background: 'var(--terracotta-faint)', color: 'var(--accent)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+        }}>
+          <Trash2 size={20} strokeWidth={2} />
+        </div>
+        <div
+          id="remove-chapter-title"
+          style={{
+            fontFamily: 'var(--font-serif)', fontSize: 22, fontWeight: 600,
+            color: 'var(--text-primary)', letterSpacing: '-0.01em', lineHeight: 1.25,
+          }}
+        >
+          Remove "{chapterName}"?
+        </div>
+        <div style={{
+          fontFamily: 'var(--font-sans)', fontSize: 14,
+          color: 'var(--text-secondary)', lineHeight: 1.55, marginTop: 8,
+        }}>
+          Removing this chapter removes everyone in it from Loop's memory. This can't be undone.
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 24 }}>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              background: 'transparent', color: 'var(--accent)', border: 'none',
+              fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 600,
+              padding: '0 4px', cursor: 'pointer', borderRadius: 'var(--radius-full)',
+            }}
+          >
+            Keep chapter
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            style={{
+              background: 'var(--accent)', color: '#F9F5EE', border: 'none',
+              fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 600,
+              padding: '9px 20px', cursor: 'pointer', borderRadius: 'var(--radius-full)',
+            }}
+          >
+            Remove chapter
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
 export function ChapterDetailScreen({ chapterId, onBack, onOpenStory }: ChapterDetailScreenProps) {
@@ -107,6 +190,7 @@ export function ChapterDetailScreen({ chapterId, onBack, onOpenStory }: ChapterD
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
   const [editValue, setEditValue] = useState('')
+  const [confirmRemove, setConfirmRemove] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -126,6 +210,22 @@ export function ChapterDetailScreen({ chapterId, onBack, onOpenStory }: ChapterD
   }, [chapterId])
 
   const { chapter, contacts, appState } = data
+
+  const handleRemoveChapter = async () => {
+    if (!appState || !chapter) return
+    setConfirmRemove(false)
+    try {
+      const updatedChapters = appState.chapters.filter((ch) => ch.id !== chapterId)
+      const updatedContacts = { ...appState.contacts }
+      for (const contact of contacts) {
+        delete updatedContacts[contact.id]
+        await window.loop.contacts.delete(contact.id).catch(() => {})
+      }
+      await window.loop.state.patch({ chapters: updatedChapters, contacts: updatedContacts })
+    } catch { /* pass */ }
+    onBack()
+  }
+
   const coverSrc = chapter?.coverPhotoPath ? `loop-file://${chapter.coverPhotoPath}` : undefined
 
   const yearRange =
@@ -458,7 +558,35 @@ export function ChapterDetailScreen({ chapterId, onBack, onOpenStory }: ChapterD
           Moments
         </div>
         <FilmStripEmpty />
+
+        {/* Remove chapter */}
+        <div style={{ marginTop: 48, paddingTop: 24, borderTop: '1px solid var(--border-light)', display: 'flex', justifyContent: 'center' }}>
+          <button
+            type="button"
+            onClick={() => setConfirmRemove(true)}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              fontFamily: 'var(--font-sans)', fontSize: 13,
+              color: 'var(--text-muted)', padding: '6px 12px',
+              borderRadius: 'var(--radius-full)',
+              display: 'flex', alignItems: 'center', gap: 6,
+              transition: 'color var(--duration-fast) var(--ease-out)',
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--accent)' }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)' }}
+          >
+            <Trash2 size={13} strokeWidth={2} />
+            Remove chapter
+          </button>
+        </div>
       </div>
+
+      <RemoveChapterDialog
+        chapterName={chapter.name}
+        open={confirmRemove}
+        onClose={() => setConfirmRemove(false)}
+        onConfirm={handleRemoveChapter}
+      />
     </div>
   )
 }
