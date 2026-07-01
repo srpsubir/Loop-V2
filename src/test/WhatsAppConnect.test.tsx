@@ -39,7 +39,8 @@ const mockLoop = {
     }),
   },
   state: {
-    get: vi.fn().mockResolvedValue({ onboardingComplete: false, whatsappConnected: false }),
+    // privacyAcceptedAt is set so tests bypass the privacy notice screen (MAV-179/180)
+    get: vi.fn().mockResolvedValue({ onboardingComplete: false, whatsappConnected: false, privacyAcceptedAt: '2026-01-01T00:00:00.000Z' }),
     patch: vi.fn().mockResolvedValue({}),
     onChange: vi.fn(() => () => {}),
   },
@@ -71,7 +72,7 @@ describe('WhatsApp connect screen', () => {
     vi.clearAllMocks()
     mockLoop.whatsapp.start.mockResolvedValue('connecting')
     mockLoop.whatsapp.status.mockResolvedValue({ status: 'connecting', qr: null })
-    mockLoop.state.get.mockResolvedValue({ onboardingComplete: false, whatsappConnected: false })
+    mockLoop.state.get.mockResolvedValue({ onboardingComplete: false, whatsappConnected: false, privacyAcceptedAt: '2026-01-01T00:00:00.000Z' })
     Object.defineProperty(window, 'loop', { value: mockLoop, writable: true })
   })
 

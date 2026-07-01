@@ -13,6 +13,7 @@ import { CrewDetectionScreen } from './screens/CrewDetectionScreen'
 import { ChapterNamingScreen } from './screens/ChapterNamingScreen'
 import { EmailCaptureScreen } from './screens/EmailCaptureScreen'
 import { StayCloseScreen } from './screens/StayCloseScreen'
+import { PrivacyNoticeScreen } from './screens/PrivacyNoticeScreen'
 import type { ChapterCandidate } from '@shared/types'
 import { ConnectionStateProvider } from './ConnectionStateContext'
 
@@ -20,6 +21,7 @@ import { ConnectionStateProvider } from './ConnectionStateContext'
 
 type Nav =
   | { screen: 'welcome' }
+  | { screen: 'privacy-notice' }
   | { screen: 'whatsapp-connect' }
   | { screen: 'chapter-inference' }
   | { screen: 'crew-detection' }
@@ -504,7 +506,28 @@ export default function App() {
     case 'welcome':
       return (
         <WelcomeScreen
-          onConnect={() => setNav({ screen: 'whatsapp-connect' })}
+          onConnect={async () => {
+            try {
+              const state = await window.loop.state.get()
+              if (!state.privacyAcceptedAt) {
+                setNav({ screen: 'privacy-notice' })
+                return
+              }
+            } catch { /* main not ready yet — show notice to be safe */ }
+            setNav({ screen: 'whatsapp-connect' })
+          }}
+        />
+      )
+
+    case 'privacy-notice':
+      return (
+        <PrivacyNoticeScreen
+          onAccept={async () => {
+            try {
+              await window.loop.state.patch({ privacyAcceptedAt: new Date().toISOString() })
+            } catch { /* best-effort */ }
+            setNav({ screen: 'whatsapp-connect' })
+          }}
         />
       )
 
