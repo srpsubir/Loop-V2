@@ -37,7 +37,7 @@
   /* Ink — never pure black */
   --ink:                #2A1F1B;
   --ink-mid:            #6B5447;
-  --ink-muted:          #A38F85;
+  --ink-muted:          #7A6056;
 
   /* Hairlines */
   --line:               #DDD0C0;
@@ -141,6 +141,9 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+button:focus-visible,
+[role="button"]:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: inherit; }
+
 html, body, #root {
   height: 100%;
   width: 100%;
@@ -154,7 +157,3 @@ html, body, #root {
   overflow: hidden;
 }
 
-/* macOS-style scrollbars */
-::-webkit-scrollbar { width: 11px; height: 11px; }
-::-webkit-scrollbar-thumb { background: var(--surface-raised); border-radius: 999px; border: 3px solid var(--bg); }
-::-webkit-scrollbar-track { background: transparent; }

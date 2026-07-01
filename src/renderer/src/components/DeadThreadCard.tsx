@@ -21,8 +21,8 @@ export function DeadThreadCard({
       aria-label={`Resting thread with ${contactName}`}
       style={{
         backgroundColor: 'var(--surface)',
-        border: '1px solid var(--border)',
         borderRadius: 'var(--radius-md)',
+        boxShadow: 'var(--shadow-sm)',
         padding: 16,
         boxSizing: 'border-box',
       }}
@@ -75,13 +75,13 @@ export function DeadThreadCard({
         fontSize: 13,
         fontStyle: 'italic',
         color: 'var(--text-secondary)',
-        margin: '10px 0 0 0',
+        margin: '8px 0 0 0',
         lineHeight: 1.45,
       }}>
         Still quiet from {contactName}. No rush.
       </p>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 12 }}>
         <button
           type="button"
           onClick={onTryAgain}

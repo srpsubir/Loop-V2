@@ -6,16 +6,16 @@ export interface QuietDayCardProps {
   onClick?: () => void  // optional: tap to open that chapter (State A only)
 }
 
-const SURFACE   = '#F0EBE3'
 const HOVER_BG  = 'rgba(184,98,74,0.05)'
 
 const cardBase: React.CSSProperties = {
   border:      '1px solid rgba(42,31,27,0.08)',
-  borderRadius: 12,
+  borderRadius: 'var(--radius-md)',
   padding:     '20px 24px',
   maxWidth:    440,
   width:       '100%',
   boxSizing:   'border-box',
+  background:  'var(--surface)',
 }
 
 export function QuietDayCard({ chapterName, yearsAgo, onClick }: QuietDayCardProps) {
@@ -37,35 +37,35 @@ export function QuietDayCard({ chapterName, yearsAgo, onClick }: QuietDayCardPro
         } : undefined}
         style={{
           ...cardBase,
-          backgroundColor: clickable && hovered ? HOVER_BG : SURFACE,
+          backgroundColor: clickable && hovered ? HOVER_BG : undefined,
           cursor: clickable ? 'pointer' : 'default',
         }}
       >
         <div style={{
-          fontFamily:    'Inter, system-ui, sans-serif',
+          fontFamily:    'var(--font-sans)',
           fontSize:      11,
           textTransform: 'uppercase',
           letterSpacing: '0.08em',
-          color:         '#A38F85',
+          color:         'var(--text-muted)',
         }}>
           {yearsAgo} {yearsAgo === 1 ? 'year' : 'years'} ago
         </div>
         <h3 style={{
-          fontFamily: 'Lora, Georgia, serif',
+          fontFamily: 'var(--font-serif)',
           fontSize:   20,
           fontWeight: 600,
-          color:      '#2A1F1B',
+          color:      'var(--text-primary)',
           lineHeight: 1.2,
           margin:     '8px 0 0 0',
         }}>
           {chapterName} started.
         </h3>
         <p style={{
-          fontFamily: 'Inter, system-ui, sans-serif',
+          fontFamily: 'var(--font-sans)',
           fontSize:   13,
-          color:      '#6B5447',
+          color:      'var(--text-secondary)',
           lineHeight: 1.55,
-          marginTop:  6,
+          marginTop:  8,
           marginBottom: 0,
         }}>
           Your people from that chapter are still close.
@@ -75,24 +75,24 @@ export function QuietDayCard({ chapterName, yearsAgo, onClick }: QuietDayCardPro
   }
 
   return (
-    <div style={{ ...cardBase, backgroundColor: SURFACE, cursor: 'default' }}>
+    <div style={{ ...cardBase, cursor: 'default' }}>
       <h3 style={{
-        fontFamily: 'Lora, Georgia, serif',
+        fontFamily: 'var(--font-serif)',
         fontSize:   20,
         fontStyle:  'italic',
         fontWeight: 400,
-        color:      '#A38F85',
+        color:      'var(--text-muted)',
         lineHeight: 1.2,
         margin:     0,
       }}>
         A quiet day.
       </h3>
       <p style={{
-        fontFamily: 'Inter, system-ui, sans-serif',
+        fontFamily: 'var(--font-sans)',
         fontSize:   13,
-        color:      '#6B5447',
+        color:      'var(--text-secondary)',
         lineHeight: 1.55,
-        marginTop:  6,
+        marginTop:  8,
         marginBottom: 0,
       }}>
         Your people are close.

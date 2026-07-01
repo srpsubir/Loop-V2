@@ -191,8 +191,8 @@ function AtomVisual({ atom }: { atom: ChapterAtom }) {
   const angleStep = electrons.length > 0 ? 360 / electrons.length : 90
 
   const nucleusShadow = atom.atomState === 'birthday-live'
-    ? '0 0 0 4px rgba(184,98,74,0.12), 0 2px 8px rgba(42,31,27,0.10)'
-    : '0 2px 8px rgba(42,31,27,0.07)'
+    ? '0 0 0 4px rgba(184,98,74,0.12), 0 4px 12px rgba(42,31,27,0.10)'
+    : 'var(--shadow-md)'
 
   return (
     <div style={{ position: 'relative', width: ATOM_SIZE, height: ATOM_SIZE, flexShrink: 0 }}>
@@ -211,7 +211,7 @@ function AtomVisual({ atom }: { atom: ChapterAtom }) {
         inset: 0,
         animationName: 'yls-orbit',
         animationDuration: `${cfg.orbitMs}ms`,
-        animationTimingFunction: 'linear',
+        animationTimingFunction: 'ease-in-out',
         animationIterationCount: 'infinite',
         animationPlayState: cfg.paused ? 'paused' : 'running',
       } as React.CSSProperties}>
@@ -234,7 +234,7 @@ function AtomVisual({ atom }: { atom: ChapterAtom }) {
               height: ELECTRON_SIZE,
               borderRadius: '50%',
               background: color,
-              boxShadow: '0 1px 3px rgba(42,31,27,0.15)',
+              boxShadow: 'var(--shadow-sm)',
             }} />
           </div>
         ))}
@@ -276,6 +276,7 @@ function AtomVisual({ atom }: { atom: ChapterAtom }) {
 
 function AtomCard({ atom, glow, onClick }: { atom: ChapterAtom; glow: boolean; onClick: () => void }) {
   const [hov, setHov] = useState(false)
+  const [pressed, setPressed] = useState(false)
   const cfg = CFG[atom.atomState]
 
   return (
@@ -285,7 +286,9 @@ function AtomCard({ atom, glow, onClick }: { atom: ChapterAtom; glow: boolean; o
       onClick={onClick}
       onKeyDown={(e) => e.key === 'Enter' && onClick()}
       onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
+      onMouseLeave={() => { setHov(false); setPressed(false) }}
+      onMouseDown={() => setPressed(true)}
+      onMouseUp={() => setPressed(false)}
       data-testid="chapter-atom"
       data-chapter-id={atom.chapter.id}
       data-atom-state={atom.atomState}
@@ -293,12 +296,13 @@ function AtomCard({ atom, glow, onClick }: { atom: ChapterAtom; glow: boolean; o
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: 14,
+        gap: 12,
         cursor: 'pointer',
         padding: '16px 20px 18px',
         borderRadius: 'var(--radius-lg)',
         background: hov ? 'var(--surface)' : 'transparent',
-        transition: 'background var(--duration-fast) var(--ease-out)',
+        transform: pressed ? 'scale(0.97)' : hov ? 'scale(1.02)' : 'scale(1)',
+        transition: 'background var(--duration-fast) var(--ease-out), transform 120ms var(--ease-out)',
         outline: 'none',
         flexShrink: 0,
         minWidth: 200,
@@ -327,7 +331,7 @@ function AtomCard({ atom, glow, onClick }: { atom: ChapterAtom; glow: boolean; o
             letterSpacing: '.1em',
             textTransform: 'uppercase',
             color: cfg.nucleusText,
-            marginTop: 5,
+            marginTop: 4,
             fontWeight: 700,
           }}>
             {cfg.badge}
@@ -353,7 +357,7 @@ function OpeningMomentCard({ memory, chapters }: { memory: OnThisDayMemory; chap
   return (
     <div style={{
       margin: '20px 44px 0',
-      padding: '18px 24px',
+      padding: '16px 24px',
       background: 'var(--surface)',
       borderRadius: 'var(--radius-lg)',
       borderLeft: '3px solid var(--accent-light)',
@@ -695,13 +699,13 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
       {echoChapter && !echoCardOpen && (
         <div style={{
           margin: '8px 44px 26px',
-          padding: '14px 18px',
+          padding: '12px 16px',
           background: 'var(--accent-faint)',
           borderRadius: 'var(--radius-lg)',
           border: '1px solid rgba(184,98,74,0.18)',
           display: 'flex',
           alignItems: 'center',
-          gap: 14,
+          gap: 12,
           flexShrink: 0,
         }}>
           {/* Pulsing dot */}
@@ -773,7 +777,7 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
           <div style={{
             display: 'flex',
             gap: 8,
-            padding: '32px 44px',
+            padding: '16px 44px 32px',
             alignItems: 'center',
             flexShrink: 0,
           }}>
@@ -835,7 +839,7 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
               padding: '40px 36px 36px',
               display: 'flex',
               flexDirection: 'column',
-              boxShadow: '0 24px 64px rgba(36,24,18,0.28)',
+              boxShadow: 'var(--shadow-xl)',
               animation: 'echoCardIn 460ms ease both',
               boxSizing: 'border-box',
             }}
@@ -870,7 +874,7 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
               letterSpacing: '.14em',
               textTransform: 'uppercase',
               color: 'var(--accent)',
-              marginBottom: 14,
+              marginBottom: 12,
             }}>
               An Echo
             </div>
@@ -948,7 +952,7 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
             </div>
 
             {/* Loop signature */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                 <circle cx="9" cy="9" r="7.5" stroke="var(--accent)" strokeWidth="1.4" />
                 <circle cx="9" cy="9" r="2.5" fill="var(--accent)" />

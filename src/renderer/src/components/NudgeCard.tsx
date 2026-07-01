@@ -19,9 +19,8 @@ export function NudgeCard({ contactName, contactInitials, nudgeText, onMessage, 
       gap: 12,
       padding: 16,
       background: 'var(--surface)',
-      border: '1px solid var(--border)',
       borderRadius: 'var(--radius-md)',
-      boxShadow: '0 1px 4px rgba(42,31,27,0.06)',
+      boxShadow: 'var(--shadow-sm)',
     }}>
       {/* Avatar */}
       <div style={{
@@ -62,12 +61,12 @@ export function NudgeCard({ contactName, contactInitials, nudgeText, onMessage, 
           fontSize: 13,
           fontStyle: 'italic',
           color: 'var(--text-secondary)',
-          marginTop: 3,
+          marginTop: 4,
           lineHeight: 1.45,
         }}>
           {nudgeText}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
           <button
             onClick={onMessage}
             onMouseEnter={() => setHovMsg(true)}

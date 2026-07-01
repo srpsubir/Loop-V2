@@ -49,7 +49,8 @@ export function ConnectionStatusBadge() {
         height: '48px',
         width: '100%',
         boxSizing: 'border-box',
-        borderBottom: '1px solid rgba(255,255,255,0.08)',
+        background: '#2A1F1B',
+        borderBottom: '1px solid rgba(42,31,27,0.2)',
         flexShrink: 0,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
