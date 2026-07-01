@@ -151,6 +151,34 @@ export function computeReachOutUpdate(prevCount: number): {
 
 // ─── Brief generation (template-based, fully local) ──────────────────────────
 
+const STORY_STOP_WORDS = new Set([
+  'the','a','an','and','or','but','in','on','at','to','for','of','with','is','it',
+  'was','are','be','been','has','have','had','he','she','they','we','you','i','me',
+  'my','your','his','her','our','its','this','that','what','how','so','just','yes',
+  'no','ok','okay','hi','hey','haha','hahaha','lol','yeah','yep','nope','oh','ah',
+  'gonna','gotta','wanna','let','get','got','know','think','like','good','great',
+  'need','want','will','can','do','did','not','up','out','go','going','one','also',
+  'too','very','really','back','time','day','days','week','now','then','there','here',
+])
+
+function extractTopics(messages: WAMessage[]): string[] {
+  const freq = new Map<string, number>()
+  for (const msg of messages) {
+    if (!isRealMessage(msg)) continue
+    const words = (msg.text ?? '')
+      .toLowerCase()
+      .replace(/[^a-z\s]/g, ' ')
+      .split(/\s+/)
+      .filter(w => w.length > 3 && !STORY_STOP_WORDS.has(w))
+    for (const w of words) freq.set(w, (freq.get(w) ?? 0) + 1)
+  }
+  return [...freq.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 2)
+    .filter(([, count]) => count >= 2)
+    .map(([w]) => w)
+}
+
 export function generateStory(
   contact: Contact,
   messages: WAMessage[],
@@ -159,14 +187,22 @@ export function generateStory(
 ): Story {
   const firstName = contact.name.split(' ')[0]
 
-  const chapterNames = chapters
+  const chapterName = chapters
     .filter((ch) => contact.chapterIds?.includes(ch.id) ?? false)
-    .map((ch) => ch.name)
-    .join(' and ')
+    .map((ch) => ch.name)[0] ?? null
 
-  const line1 = chapterNames
-    ? `You and ${firstName} go back to your ${chapterNames} days.`
-    : `${firstName} is someone you've stayed close to.`
+  const topics = extractTopics(messages)
+
+  let line1: string
+  if (chapterName && topics.length > 0) {
+    line1 = `${firstName} was part of your ${chapterName} chapter. You two talked a lot about ${topics[0]}.`
+  } else if (chapterName) {
+    line1 = `${firstName} was part of your ${chapterName} chapter.`
+  } else if (topics.length > 0) {
+    line1 = `You and ${firstName} talked a lot about ${topics[0]}.`
+  } else {
+    line1 = `${firstName} is someone you've stayed close to.`
+  }
 
   const lastReal = messages.find(isRealMessage)
   let line2: string
@@ -175,17 +211,17 @@ export function generateStory(
     if (days === 0)      line2 = 'You were in touch today.'
     else if (days === 1) line2 = 'You spoke yesterday.'
     else if (days < 7)   line2 = `You last spoke ${days} days ago.`
-    else if (days < 30)  line2 = `It has been ${Math.floor(days / 7)} week${Math.floor(days / 7) === 1 ? '' : 's'} since you last spoke.`
-    else if (days < 365) line2 = `It has been ${Math.floor(days / 30)} month${Math.floor(days / 30) === 1 ? '' : 's'} since you last spoke.`
-    else                 line2 = 'It has been over a year since you last spoke.'
+    else if (days < 30)  line2 = `It's been ${Math.floor(days / 7)} week${Math.floor(days / 7) === 1 ? '' : 's'} — longer than usual for you two.`
+    else if (days < 365) line2 = `It's been ${Math.floor(days / 30)} month${Math.floor(days / 30) === 1 ? '' : 's'}. Worth a message.`
+    else                 line2 = `It's been over a year. ${firstName} would probably love to hear from you.`
   } else {
-    line2 = "You haven't spoken in a while."
+    line2 = "You haven't spoken in a while. Worth a message."
   }
 
   return {
     generatedAt: new Date().toISOString(),
     contextLines: [line1, line2],
-    reasonToReachOut: nextOccasion?.label ?? `A good time to check in with ${firstName}.`,
+    reasonToReachOut: nextOccasion?.label ?? `Worth reaching out to ${firstName}.`,
   }
 }
 
