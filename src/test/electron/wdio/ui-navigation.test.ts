@@ -25,30 +25,48 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
 
   before(async () => {
     log('Injecting navigation test state')
-    await browser.execute(async (chId, cId, chName, cName) => {
-      await window.loop.contacts.save({
-        id: cId,
-        name: cName,
-        whatsappId: '447700900099@s.whatsapp.net',
-        tier: 'close' as const,
-        chapterIds: [chId],
-        intervalDays: 30,
-      })
-      await window.loop.state.patch({
-        onboardingComplete: true,
-        chapters: [{ id: chId, name: chName, active: true }],
-        contacts: {
-          [cId]: {
-            lastContactDate: new Date(Date.now() - 5 * 86400000).toISOString(),
-            lastScanAt: new Date().toISOString(),
-            nextOccasion: null,
+    // NOTE: the wdio-electron-service runs a WebDriver *Classic* session, where
+    // browser.execute() maps to the synchronous Execute Script endpoint and does
+    // NOT await a returned promise. Using executeAsync + done() guarantees the
+    // async IPC writes (contacts.save / state.patch) resolve and persist to
+    // disk before window.location.reload() reads state back.
+    const injectErr = await browser.executeAsync(async (chId, cId, chName, cName, done) => {
+      try {
+        await window.loop.contacts.save({
+          id: cId,
+          name: cName,
+          whatsappId: '447700900099@s.whatsapp.net',
+          tier: 'close' as const,
+          chapterIds: [chId],
+          intervalDays: 30,
+        })
+        await window.loop.state.patch({
+          onboardingComplete: true,
+          chapters: [{ id: chId, name: chName, active: true }],
+          contacts: {
+            [cId]: {
+              lastContactDate: new Date(Date.now() - 5 * 86400000).toISOString(),
+              lastScanAt: new Date().toISOString(),
+              nextOccasion: null,
+            },
           },
-        },
-      } as never)
+        } as never)
+        done(null)
+      } catch (err) {
+        done(String(err))
+      }
     }, CH_ID, C_ID, CH_NAME, C_NAME)
+    if (injectErr) throw new Error(`Navigation state injection failed: ${injectErr}`)
 
     await browser.execute(() => { window.location.reload() })
     await browser.pause(2500)
+
+    // Diagnostic: confirm what actually landed in persisted state at runtime.
+    const chaptersJson = await browser.executeAsync(async (done) => {
+      const s = await window.loop.state.get()
+      done(JSON.stringify(s?.chapters ?? null))
+    })
+    log(`Runtime state chapters after reload: ${chaptersJson}`)
     log('State injected, app reloaded')
   })
 
@@ -102,9 +120,9 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
   })
 
   it('tapping Open WhatsApp sets storyOpenedAt in ContactState', async () => {
-    const stateBefore = await browser.execute(async (cId) => {
+    const stateBefore = await browser.executeAsync(async (cId, done) => {
       const s = await window.loop.state.get()
-      return s.contacts[cId]?.storyOpenedAt ?? null
+      done(s.contacts[cId]?.storyOpenedAt ?? null)
     }, C_ID)
     log(`storyOpenedAt before tap: ${stateBefore}`)
 
@@ -112,9 +130,9 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
     await cta.click()
     await browser.pause(800)
 
-    const stateAfter = await browser.execute(async (cId) => {
+    const stateAfter = await browser.executeAsync(async (cId, done) => {
       const s = await window.loop.state.get()
-      return s.contacts[cId]?.lastReachOutAt ?? null
+      done(s.contacts[cId]?.lastReachOutAt ?? null)
     }, C_ID)
     expect(stateAfter).not.toBeNull()
     log(`lastReachOutAt set after tap: ${stateAfter}`)
@@ -160,7 +178,7 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
   // ─── Signal state rendering (MAV-95 §2) ────────────────────────────────────
 
   it('chapter with fading contact shows fading atom state', async () => {
-    await browser.execute(async (chId, cId) => {
+    await browser.executeAsync(async (chId, cId, done) => {
       await window.loop.state.patch({
         contacts: {
           [cId]: {
@@ -170,9 +188,7 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
           },
         },
       } as never)
-      // Trigger re-render
-      const win = window as { loop?: { state?: { onChange?: unknown } } }
-      void win
+      done(null)
     }, CH_ID, C_ID)
 
     await browser.execute(() => { window.location.reload() })
@@ -184,7 +200,7 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
   })
 
   it('chapter with dead-thread contact shows dead-thread atom state', async () => {
-    await browser.execute(async (chId, cId) => {
+    await browser.executeAsync(async (chId, cId, done) => {
       await window.loop.state.patch({
         contacts: {
           [cId]: {
@@ -198,6 +214,7 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
           },
         },
       } as never)
+      done(null)
     }, CH_ID, C_ID)
     await browser.execute(() => { window.location.reload() })
     await browser.pause(2500)
@@ -209,7 +226,7 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
 
   it('chapter with birthday-live contact shows birthday-live atom state', async () => {
     const bd = new Date(Date.now() + 3 * 86400000) // 3 days from now
-    await browser.execute(async (cId, bdIso) => {
+    await browser.executeAsync(async (cId, bdIso, done) => {
       await window.loop.state.patch({
         contacts: {
           [cId]: {
@@ -223,6 +240,7 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
           },
         },
       } as never)
+      done(null)
     }, C_ID, bd.toISOString())
     await browser.execute(() => { window.location.reload() })
     await browser.pause(2500)
@@ -233,7 +251,9 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
   })
 
   it('no signals + onThisDayMemory → Opening Moment card visible', async () => {
-    await browser.execute(async (cId) => {
+    // nextOccasion: null explicitly clears the birthday-live signal set by the
+    // previous test, so showOpeningMoment's !hasSignals precondition holds.
+    await browser.executeAsync(async (cId, done) => {
       await window.loop.state.patch({
         contacts: {
           [cId]: {
@@ -250,6 +270,7 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
           date: new Date(Date.now() - 3 * 365 * 86400000).toISOString(),
         },
       } as never)
+      done(null)
     }, C_ID)
     await browser.execute(() => { window.location.reload() })
     await browser.pause(2500)
