@@ -4,11 +4,18 @@ _Last updated: 2026-07-01_
 
 ## Current branch state
 
-In sync with `origin/main`. Latest: `3f89401` — feat(MAV-75) by Warp/Oz (being reverted — see below).
+`main` — in sync with `origin/main`. Latest commit: `c228600` — MAV-184: add chapter removal to ChapterDetailScreen.
+
+Uncommitted local changes:
+- `src/renderer/src/screens/PrivacyNoticeScreen.tsx` — WCAG contrast fix + spacing (in progress via bg agent, commit pending)
+- `src/renderer/src/screens/YourLoopsScreen.tsx` — Option A static orbit dots (in progress via bg agent, commit pending)
+- `src/test/electron/app.test.ts` — added `privacyAcceptedAt` to initial state write (E2E fix, commit pending)
+- `vitest.e2e.config.ts` — new file, separates E2E config (commit pending)
+- `package.json` — `test:e2e` script updated to use `vitest.e2e.config.ts`
 
 ---
 
-## What shipped (all committed + pushed)
+## What shipped (committed + pushed to origin/main)
 
 | Item | Commit | Status |
 |---|---|---|
@@ -18,57 +25,61 @@ In sync with `origin/main`. Latest: `3f89401` — feat(MAV-75) by Warp/Oz (being
 | MAV-173: CI workflow | `058189c` | DONE |
 | MAV-171: WA connection test suite | `8e1e114` | DONE |
 | Auto-update (electron-updater) | `c709870` | DONE |
-| UX end-to-end flow fixes (copy/navigation) | `09d87fd` | DONE |
-| MAV-75: Warp/Oz build | `3f89401` | REVERTED — wrong spec |
+| UX end-to-end flow fixes | `09d87fd` | DONE |
+| MAV-75 Warp/Oz build + revert | `3f89401` / `a66ee1c` | REVERTED |
+| MAV-75 correct rebuild | `fb5ff84` | DONE |
+| MAV-178: data:deleteAll gate | `c4e909f` | DONE |
+| MAV-179 + MAV-180: privacy notice + LLM consent | `32f748f` | DONE |
+| MAV-184: chapter removal UI | `c228600` | DONE |
 
 ---
 
-## MAV-75 — IN PROGRESS (correct-spec rebuild)
+## What's pending
 
-Warp's MAV-75 implementation was reverted. Spec violations:
-- Banner positioned at bottom (should be top slim bar)
-- Full amber/red color fill (should be dark bg + small colored dot)
-- Wrong copy (error codes shown to users, wrong messages)
-- Dismissible via X button (should never dismiss)
-- No `ConnectionStateContext` (wired inline in component)
-- No auto-retry on window focus
-- `consecutiveProtocolErrors` classification missing
+### Option A — Static orbit dots (YourLoopsScreen)
+MP design `7ald56f51fltmzzg9kckai` signed off. Background agent implementing: replace rotating electron track with static contact dots at fixed evenly-spaced positions on orbit ring. Commit pending.
 
-**Locked design decisions:**
-- Badge: top slim bar, ~48px, full width, inline not fixed
-- Colors: dot only — amber (#f59e0b) for reconnecting, soft red (#ef4444) for others
-- Never dismissible — always visible until state clears
-- Auto-retry once on window focus after `failed` (5 min gate)
+### PrivacyNoticeScreen spacing fixes
+- `margin: '0 0 10px'` → `'0 0 8px'`
+- `padding: '14px 16px'` → `'12px 16px'`
+- `marginTop: 14` → `12` (footer)
+Commit pending (same agent as Option A).
 
-**Locked copy:**
-- reconnecting: "Reconnecting... (attempt N of M)" / "Your chapters are still available."
-- failed: "Could not reconnect to WhatsApp." / "Your chapters are still available to read." / [Retry] [Disconnect]
-- protocol_error: "WhatsApp connection issue." / "Check for a Loop update to reconnect." / [Check for update] [Retry anyway]
-- logged_out: "You've been signed out of WhatsApp." / "Sign in again to keep your chapters up to date." / [Sign in again]
+### MAV-75 — ConnectionStatusBadge (correct spec)
+Design locked. Still pending implementation:
+- Top slim bar, ~48px, full width, inline not fixed
+- Dot only for color: amber (#f59e0b) reconnecting, soft red (#ef4444) others
+- Never dismissible
+- Auto-retry on window focus after `failed` (5-min gate)
+- New files: `ConnectionStateContext.tsx`, `ConnectionStatusBadge.tsx`
+- Update: `App.tsx` (wrap provider), `YourLoopsScreen.tsx` (render badge)
 
-**New files to create:**
-- `src/renderer/src/ConnectionStateContext.tsx`
-- `src/renderer/src/components/ConnectionStatusBadge.tsx`
-
-**Files to update:**
-- `src/renderer/src/App.tsx` — wrap post-onboarding screens in provider
-- `src/renderer/src/screens/YourLoopsScreen.tsx` — render badge at top
-
-Session 3 (Context + Badge + YourLoops) → Session 4 (ChapterDetail feature gating) → tests green → commit.
+### SLM / Your Story
+`node-llama-cpp` in `package.json` but zero imports anywhere. No `inference.ts`. `resolveStory()` in `src/main/scanner.ts:211` always falls through to `generateStory()` (pure string template). Under investigation via Linear ticket audit. This is the engine for the Story screen for fading contacts — V2 priority.
 
 ---
 
-## vitest config — FIXED (2026-07-01)
+## Test status
 
-Changed `exclude: ['src/test/electron/wdio/**']` → `exclude: ['src/test/electron/**']`.
-E2E electron tests (nutjs, osascript) no longer bleed into `npm run test`.
+| Layer | Command | Status |
+|---|---|---|
+| Unit (vitest) | `npm run test` | ✅ 144 passing |
+| E2E (Playwright) | `npm run test:e2e` | ⚠️ Fix applied (privacyAcceptedAt), not yet re-run |
+| IPC (wdio) | `npm run test:ipc` | ❌ 9 failures in ui-navigation.test.ts |
+
+**IPC failures root cause (under Warp investigation):**
+- Test 1 (`[data-chapter-id="test-nav-ch1"]`) passes, Test 2 (`*=The Nav Crew`) fails after 5000ms
+- Likely: `browser.execute(async fn)` does not await IPC calls; state.patch races with window.location.reload()
+- Fix: convert to `browser.executeAsync` in before hook
+
+**DMG:** `npm run dist` — unblocked, gated on all tests green + features shipped.
 
 ---
 
 ## Architecture decisions (settled)
 
 - Chapter = period of life, not a WhatsApp group
-- Bipartite projection → Louvain clustering → TF-IDF naming
+- Bipartite projection → Louvain clustering → TF-IDF naming (ALL IMPLEMENTED in whatsapp.ts + chapters.ts)
 - Single WA fetch: `buildContactClusters()` returns `{ clusters, groups }`
 - Fallback gate: < 3 clusters → `scoreGroups()`
 - Fading orbit = chapter-level
@@ -76,6 +87,15 @@ E2E electron tests (nutjs, osascript) no longer bleed into `npm run test`.
 - `isNudgeEligible`: close tier + whatsappId + fading + !suppressNudge + 7-day cooldown
 - State lives in `~/Documents/Loop/state.json` — only via `store.ts`
 - IPC handlers in `src/main/ipc.ts` — one place only
+
+---
+
+## Open design topics (need dedicated sessions before building)
+
+1. Nostalgia / quiet-day card placement in Your Loops (Topic 11, MAV-79)
+2. Warm vs Close tier distinction UX
+3. Dead thread / second loop product design
+4. "On your mind" CTA framing + "Brief" naming
 
 ---
 
