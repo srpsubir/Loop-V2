@@ -88,6 +88,22 @@ Open questions for these features are UX placement/polish decisions in the new a
 
 ---
 
+## Product vision (locked 2026-07-02)
+
+Loop is a **dual-layer relationship companion**. Two co-equal layers, same underlying data:
+
+- **People layer** (relationship intelligence): Close contacts, chapter-agnostic, sorted by urgency. Answers "who do I want to stay close to right now?" Built via Stay Close strip on YourLoopsScreen + relationship strength score.
+- **Chapter layer** (identity + memory): Orbit atoms, era-scoped, nostalgic. Answers "who was I during that period, and who was there with me?" Already built.
+
+Neither layer subordinates the other. Do not re-open this debate. See PRODUCT_CONVERSATIONS.md Vision section and Linear epic for full context.
+
+**V1 roadmap (approved):**
+- Sprint 1: Stay Close strip (A1), tier upgrade in StoryScreen (A4), empty state (A5)
+- Sprint 2: DM scan pass (C2), relationship strength score (C1), StayCloseScreen redesign (A3), urgency signals (A6)
+- Sprint 3: Multi-chapter detection (B6), cross-chapter visual signals (B4/B5)
+
+---
+
 ## Architecture decisions (settled)
 
 - Chapter = period of life, not a WhatsApp group

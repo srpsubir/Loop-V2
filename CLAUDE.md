@@ -19,6 +19,8 @@
 
 Read `Context.md` at session start. Decisions marked "settled" are final — execute, don't present as choices.
 
+**Vision (locked 2026-07-02):** Loop is a dual-layer relationship companion. PEOPLE LAYER (relationship intelligence: who do I stay close to, chapter-agnostic) and CHAPTER LAYER (identity + memory: who was I then, who was there) are co-equal. Neither subordinates the other. Do not re-open the chapter-first vs people-first debate — both are first-class. See PRODUCT_CONVERSATIONS.md Vision section for full statement.
+
 ## Architecture constraints
 
 - `ChapterInferenceScreen` is the only caller of `chapters.detect()` — any change to chapter detection flow must go through it or explicitly justify the divergence

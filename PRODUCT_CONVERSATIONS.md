@@ -3,6 +3,26 @@
 
 ---
 
+# Vision (locked — do not re-open)
+
+> Loop is an intelligent relationship companion that holds two things simultaneously: the people you want to stay close to, and the identities you lived through while you were with them.
+>
+> Neither dimension subordinates the other. Same underlying data. Two lenses. The people layer answers "who do I want to maintain a relationship with, right now?" The chapter layer answers "who was I during that period of my life, and who was there with me?"
+>
+> A person who knew you across multiple chapters of your life is significant on both dimensions — and Loop should honour that, not flatten it.
+>
+> This is what makes Loop distinct: every other product picks one dimension. LinkedIn is people-first. Instagram is chapter-first. Google Photos is chapter-first. Loop holds both, because real relationships are inseparable from the identities that existed when you were in them.
+
+**Positioning anchor:** "Loop maps the *people* from every chapter of your life and keeps you close to them, without the mental load of remembering to reach out." / "Not a reminder. A memory."
+
+**Research grounding:** Tie strength detection is a solved problem in social network analysis (Granovetter 1973, EPJ Data Science 2020). Strongest signals: reciprocity, interaction frequency, temporal consistency, multi-channel co-presence. Strong ties use BOTH group channels AND private DMs. Loop's novel contribution: applying this intelligence privately, locally, on-device — returning the intelligence to the individual rather than harvesting it for a platform.
+
+**Architecture:** Two co-equal layers on the same data.
+- **People layer** (relationship intelligence): Close contacts, chapter-agnostic, sorted by urgency. "Who needs me right now?"
+- **Chapter layer** (identity + memory): Orbit atoms, visual timeline, era-scoped. "Who was I then, and who was there with me?"
+
+---
+
 # Jobs To Be Done
 
 These are the two primary user jobs Loop is built to serve. Both exist as implemented features; this section anchors the user-research framing so it survives context resets.
