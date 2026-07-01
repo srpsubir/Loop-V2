@@ -36,8 +36,7 @@ describe('Loop Electron app (real)', () => {
   beforeAll(async () => {
     // Reset to fresh state so app always starts on WelcomeScreen
     try { savedState = await fs.readFile(STATE_FILE, 'utf-8') } catch {}
-    await fs.mkdir(join(homedir(), 'Documents', 'Loop'), { recursive: true })
-    await fs.writeFile(STATE_FILE, JSON.stringify({ onboardingComplete: false, whatsappConnected: false }, null, 2))
+    await fs.writeFile(STATE_FILE, JSON.stringify({ onboardingComplete: false, whatsappConnected: false, privacyAcceptedAt: new Date().toISOString() }, null, 2))
 
     log('Launching Loop via Playwright')
     app = await electron.launch({

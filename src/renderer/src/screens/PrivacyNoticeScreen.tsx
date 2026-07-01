@@ -6,7 +6,7 @@ import { Button } from '../components'
 const TOKEN_CSS = `
 :root {
   --bg: #F9F5EE; --surface: #EFE6D6; --surface-raised: #E8DBCA;
-  --text-primary: #2A1F1B; --text-secondary: #6B5447; --text-muted: #A38F85;
+  --text-primary: #2A1F1B; --text-secondary: #6B5447; --text-muted: #7A6056;
   --text-on-accent: #F9F5EE;
   --accent: #B8624A; --accent-hover: #A6543E;
   --border: #DDD0C0; --border-light: #EDE3D5;
@@ -75,7 +75,7 @@ export function PrivacyNoticeScreen({ onAccept }: PrivacyNoticeScreenProps) {
               fontWeight: 600,
               color: 'var(--text-primary)',
               letterSpacing: '-0.01em',
-              margin: '0 0 10px',
+              margin: '0 0 8px',
               lineHeight: 1.2,
             }}
           >
@@ -144,7 +144,7 @@ export function PrivacyNoticeScreen({ onAccept }: PrivacyNoticeScreenProps) {
             gap: 12,
             cursor: 'pointer',
             marginBottom: 28,
-            padding: '14px 16px',
+            padding: '12px 16px',
             background: consented ? 'rgba(184,98,74,0.06)' : 'var(--surface)',
             borderRadius: 'var(--radius-md)',
             border: `1.5px solid ${consented ? 'var(--accent)' : 'var(--border)'}`,
@@ -193,7 +193,7 @@ export function PrivacyNoticeScreen({ onAccept }: PrivacyNoticeScreenProps) {
             fontSize: 11.5,
             color: 'var(--text-muted)',
             textAlign: 'center',
-            marginTop: 14,
+            marginTop: 12,
             lineHeight: 1.5,
           }}
         >

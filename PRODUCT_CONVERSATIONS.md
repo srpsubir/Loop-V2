@@ -3,6 +3,26 @@
 
 ---
 
+# Jobs To Be Done
+
+These are the two primary user jobs Loop is built to serve. Both exist as implemented features; this section anchors the user-research framing so it survives context resets.
+
+## JTBD 1 — Nostalgia
+> "I want to relive the best chapters of my life and feel the warmth of who I was with."
+
+**Implemented via:** QuietDayCard (echo chapter state), EchoCard, OpeningMomentCard (On This Day memory surface).
+**Emotional register:** warmth, gratitude, beautiful surprise — no CTA, no action required.
+**Key principle:** "The nostalgia layer is the soul of the product. This is what makes Loop different from a CRM." (Topic 1, MAV-69)
+
+## JTBD 2 — Losing Touch
+> "I'm beginning to lose touch with my closest friends, but I don't have time to schedule stuff with them — I need a gentle nudge."
+
+**Implemented via:** Fading contacts (30-day intervalDays default for close tier), NudgeCard ("You've been quiet with {firstName}. Worth a message."), StayCloseScreen, DeadThreadCard.
+**Key mechanic:** isMemberFading checks daysSince > contact.intervalDays → triggers fading orbit state → NudgeCard surfaces most-overdue eligible contact.
+**Note:** The "I don't have time to schedule" framing is a verbatim user-research quote — Loop deliberately avoids scheduling/calendar mechanics and lowers the bar to a single message.
+
+---
+
 ### What Loop is
 
 Loop is a Mac app that helps you stay genuinely close to the people who matter. Not through reminders or CRM discipline. Through memory, warmth, and the feeling of standing in the sun after an overcast sky.

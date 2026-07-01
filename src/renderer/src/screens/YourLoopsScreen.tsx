@@ -188,7 +188,6 @@ const ELECTRON_SIZE = 20
 function AtomVisual({ atom }: { atom: ChapterAtom }) {
   const cfg = CFG[atom.atomState]
   const electrons = atom.crewColors.slice(0, 4)
-  const angleStep = electrons.length > 0 ? 360 / electrons.length : 90
 
   const nucleusShadow = atom.atomState === 'birthday-live'
     ? '0 0 0 4px rgba(184,98,74,0.12), 0 4px 12px rgba(42,31,27,0.10)'
@@ -205,40 +204,27 @@ function AtomVisual({ atom }: { atom: ChapterAtom }) {
         boxSizing: 'border-box',
       }} />
 
-      {/* Rotating electron track */}
-      <div style={{
-        position: 'absolute',
-        inset: 0,
-        animationName: 'yls-orbit',
-        animationDuration: `${cfg.orbitMs}ms`,
-        animationTimingFunction: 'ease-in-out',
-        animationIterationCount: 'infinite',
-        animationPlayState: cfg.paused ? 'paused' : 'running',
-      } as React.CSSProperties}>
-        {electrons.map((color, i) => (
+      {/* Static contact dots on orbit ring */}
+      {electrons.map((color, i) => {
+        const angleDeg = i * (360 / electrons.length)
+        const x = Math.round(ATOM_SIZE / 2 + ORBIT_R * Math.sin((angleDeg * Math.PI) / 180) - ELECTRON_SIZE / 2)
+        const y = Math.round(ATOM_SIZE / 2 - ORBIT_R * Math.cos((angleDeg * Math.PI) / 180) - ELECTRON_SIZE / 2)
+        return (
           <div
             key={i}
             style={{
               position: 'absolute',
-              top: '50%',
-              left: '50%',
-              width: ELECTRON_SIZE,
-              height: ELECTRON_SIZE,
-              marginTop: -(ELECTRON_SIZE / 2),
-              marginLeft: -(ELECTRON_SIZE / 2),
-              transform: `rotate(${i * angleStep}deg) translateX(${ORBIT_R}px)`,
-            }}
-          >
-            <div style={{
+              left: x,
+              top: y,
               width: ELECTRON_SIZE,
               height: ELECTRON_SIZE,
               borderRadius: '50%',
               background: color,
               boxShadow: 'var(--shadow-sm)',
-            }} />
-          </div>
-        ))}
-      </div>
+            }}
+          />
+        )
+      })}
 
       {/* Nucleus */}
       <div style={{
