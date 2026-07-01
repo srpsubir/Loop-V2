@@ -34,6 +34,14 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Patch Electron plist for tests
+        run: |
+          /usr/libexec/PlistBuddy \
+            -c "Set :CFBundleName Loop" \
+            -c "Set :CFBundleDisplayName Loop" \
+            -c "Set :CFBundleIdentifier com.loop.dev" \
+            node_modules/electron/dist/Electron.app/Contents/Info.plist
+
       - name: Electron e2e
         run: npm run test:e2e
         env:
