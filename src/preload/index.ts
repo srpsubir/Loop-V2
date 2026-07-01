@@ -46,18 +46,6 @@ const loopAPI = {
       ipcRenderer.on('whatsapp:connection-failed', handler)
       return () => ipcRenderer.off('whatsapp:connection-failed', handler)
     },
-    onStatusChanged: (cb: (status: string, metadata?: { 
-      attempt?: number; 
-      maxAttempts?: number; 
-      nextRetryIn?: number; 
-      errorCode?: number; 
-      errorReason?: string 
-    }) => void) => {
-      const handler = (_e: Electron.IpcRendererEvent, data: { status: string; metadata?: any }) =>
-        cb(data.status, data.metadata)
-      ipcRenderer.on('whatsapp:status-changed', handler)
-      return () => ipcRenderer.off('whatsapp:status-changed', handler)
-    },
   },
 
   scan: {

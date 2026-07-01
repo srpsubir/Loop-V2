@@ -13,7 +13,6 @@ import { CrewDetectionScreen } from './screens/CrewDetectionScreen'
 import { ChapterNamingScreen } from './screens/ChapterNamingScreen'
 import { EmailCaptureScreen } from './screens/EmailCaptureScreen'
 import { StayCloseScreen } from './screens/StayCloseScreen'
-import { ConnectionStatusBanner } from './components/ConnectionStatusBanner'
 import type { ChapterCandidate } from '@shared/types'
 
 // ─── Nav state ────────────────────────────────────────────────────────────────
@@ -500,20 +499,7 @@ export default function App() {
     setNav({ screen: 'your-loops' })
   }, [])
 
-  // Show connection status banner on post-onboarding screens only
-  const showConnectionBanner = [
-    'your-loops',
-    'chapter-detail',
-    'story',
-    'settings',
-    'crew-detection',
-    'chapter-naming',
-    'email-capture',
-    'stay-close',
-  ].includes(nav.screen)
-
-  const renderScreen = () => {
-    switch (nav.screen) {
+  switch (nav.screen) {
     case 'welcome':
       return (
         <WelcomeScreen
@@ -647,17 +633,5 @@ export default function App() {
 
     default:
       return null
-    }
   }
-
-  return (
-    <>
-      {renderScreen()}
-      {showConnectionBanner && (
-        <ConnectionStatusBanner
-          onNavigateToQR={() => setNav({ screen: 'whatsapp-connect' })}
-        />
-      )}
-    </>
-  )
 }

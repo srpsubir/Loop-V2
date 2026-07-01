@@ -154,8 +154,8 @@ describe('WhatsApp connection lifecycle', () => {
 
     sock.ev.emit('connection.update', closeUpdate(428))
 
-    // Status is set to 'disconnected' internally to allow retry, but 'disconnected' event
-    // is NOT emitted — the QR screen should show nothing (no flash).
+    // Status changes to disconnected internally but the 'disconnected' event
+    // must NOT be emitted — the QR screen should show nothing.
     expect(wa.getStatus()).toBe('disconnected')
     expect(disconnectedHandler).not.toHaveBeenCalled()
 
@@ -182,8 +182,6 @@ describe('WhatsApp connection lifecycle', () => {
 
     sock.ev.emit('connection.update', closeUpdate(999))
 
-    // Status is set to 'disconnected' internally to allow retry, but 'disconnected' event
-    // is NOT emitted — the QR screen should show nothing (no flash).
     expect(wa.getStatus()).toBe('disconnected')
     expect(disconnectedHandler).not.toHaveBeenCalled()
     expect(vi.getTimerCount()).toBeGreaterThan(0)
@@ -218,8 +216,7 @@ describe('WhatsApp connection lifecycle', () => {
     expect(disconnectedHandler).toHaveBeenCalledWith(
       expect.objectContaining({ loggedOut: false }),
     )
-    // Status is now 'reconnecting' after first successful connection (MAV-75)
-    expect(wa.getStatus()).toBe('reconnecting')
+    expect(wa.getStatus()).toBe('disconnected')
 
     // Advance 3 s — reconnect timer fires → start() → second makeWASocket call.
     await vi.advanceTimersByTimeAsync(3000)
@@ -256,42 +253,14 @@ describe('WhatsApp connection lifecycle', () => {
     expect(mockMakeWASocket).toHaveBeenCalledTimes(1) // only the original start()
   })
 
-  // ── Case 7: Retry budget exhausted → status set to 'failed' (MAV-75) ─────────
+  // ── Case 7: Retry budget exhausted (MAV-172) ──────────────────────────────────
+  //   The production code currently emits disconnected{exhausted:true} after 8
+  //   failed attempts. MAV-172 will add a dedicated 'connection-failed' event.
+  //   The test is left as todo until that event lands.
 
-  it('7: retry budget exhausted after hasConnectedOnce → status set to failed with metadata', async () => {
-    await wa.start()
-
-    // Establish first connection
-    sock.ev.emit('connection.update', { connection: 'open' })
-    expect(wa.hasConnectedOnce).toBe(true)
-
-    const statusHandler = vi.fn()
-    wa.on('status', statusHandler)
-
-    // Exhaust retry budget: close and let it retry 8 times
-    for (let i = 1; i <= 8; i++) {
-      const sockN = makeSocket()
-      mockMakeWASocket.mockReturnValueOnce(sockN)
-      sock.ev.emit('connection.update', closeUpdate(428))
-      // Advance timer to trigger the retry
-      const delay = Math.min(3000 * Math.pow(1.5, i - 1), 60_000)
-      await vi.advanceTimersByTimeAsync(delay + 100)
-      sock = sockN  // Update socket reference for next iteration
-    }
-
-    // After 8 retries, the 9th close should set status to 'failed'
-    sock.ev.emit('connection.update', closeUpdate(428))
-
-    // Status should be 'failed' with metadata
-    expect(wa.getStatus()).toBe('failed')
-    expect(statusHandler).toHaveBeenCalledWith(
-      'failed',
-      expect.objectContaining({
-        errorCode: 428,
-        errorReason: 'Connection attempts exhausted',
-      }),
-    )
-  })
+  it.todo(
+    '7: retry budget exhausted → connection-failed event emitted, no further retries (MAV-172)',
+  )
 
   // ── Case 8: waitForStore resolves immediately when storeReady = true ──────────
 
@@ -377,110 +346,5 @@ describe('WhatsApp connection lifecycle', () => {
     expect(wa.storeReady).toBe(false)
     expect(wa.getCurrentQR()).toBeNull()
     expect(wa.getStatus()).toBe('disconnected')
-  })
-
-  // ── MAV-75: New connection states ────────────────────────────
-
-  it('12: post-connect close → status set to reconnecting with retry metadata', async () => {
-    await wa.start()
-
-    // Establish first connection
-    sock.ev.emit('connection.update', { connection: 'open' })
-    expect(wa.hasConnectedOnce).toBe(true)
-
-    const statusHandler = vi.fn()
-    wa.on('status', statusHandler)
-
-    // Close after first connect
-    sock.ev.emit('connection.update', closeUpdate(428))
-
-    // Status should be 'reconnecting' with metadata
-    expect(wa.getStatus()).toBe('reconnecting')
-    expect(statusHandler).toHaveBeenCalledWith(
-      'reconnecting',
-      expect.objectContaining({
-        attempt: 1,
-        maxAttempts: 8,
-        nextRetryIn: expect.any(Number),
-        errorCode: 428,
-      }),
-    )
-  })
-
-  it('13: protocol error code 440 (badSession) → status set to protocol_error', async () => {
-    await wa.start()
-
-    // Establish first connection
-    sock.ev.emit('connection.update', { connection: 'open' })
-
-    const statusHandler = vi.fn()
-    wa.on('status', statusHandler)
-
-    // Close with protocol error code 440 (badSession)
-    sock.ev.emit('connection.update', closeUpdate(440))
-
-    expect(wa.getStatus()).toBe('protocol_error')
-    expect(statusHandler).toHaveBeenCalledWith(
-      'protocol_error',
-      expect.objectContaining({
-        errorCode: 440,
-        errorReason: expect.stringContaining('Bad session'),
-      }),
-    )
-
-    // Should not retry protocol errors
-    await vi.runAllTimersAsync()
-    expect(mockMakeWASocket).toHaveBeenCalledTimes(1)
-  })
-
-  it('14: protocol error code 515 (restartRequired) → status set to protocol_error', async () => {
-    await wa.start()
-
-    // Establish first connection
-    sock.ev.emit('connection.update', { connection: 'open' })
-
-    const statusHandler = vi.fn()
-    wa.on('status', statusHandler)
-
-    // Close with protocol error code 515 (restartRequired)
-    sock.ev.emit('connection.update', closeUpdate(515))
-
-    expect(wa.getStatus()).toBe('protocol_error')
-    expect(statusHandler).toHaveBeenCalledWith(
-      'protocol_error',
-      expect.objectContaining({
-        errorCode: 515,
-        errorReason: expect.stringContaining('Restart required'),
-      }),
-    )
-
-    // Should not retry protocol errors
-    await vi.runAllTimersAsync()
-    expect(mockMakeWASocket).toHaveBeenCalledTimes(1)
-  })
-
-  it('15: loggedOut code 401 → status set to logged_out', async () => {
-    await wa.start()
-
-    // Establish first connection
-    sock.ev.emit('connection.update', { connection: 'open' })
-
-    const statusHandler = vi.fn()
-    wa.on('status', statusHandler)
-
-    // Close with loggedOut code 401
-    sock.ev.emit('connection.update', closeUpdate(401))
-
-    expect(wa.getStatus()).toBe('logged_out')
-    // The 'status' event should have been emitted
-    expect(statusHandler).toHaveBeenCalledWith('logged_out', undefined)
-
-    // Flush microtasks so clearAuth() can complete
-    await flushMicrotasks()
-    expect(mockFsReaddir).toHaveBeenCalled()
-
-    // Should not retry after logout
-    await vi.runAllTimersAsync()
-    expect(mockMakeWASocket).toHaveBeenCalledTimes(1)
   })
 })
