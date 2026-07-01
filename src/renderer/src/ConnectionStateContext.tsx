@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react'
 
 type ConnectionState =
   | { status: 'connected' }
@@ -20,8 +20,11 @@ const ConnectionStateContext = createContext<ConnectionStateContextValue>({
   disconnect: () => {},
 })
 
+const FOCUS_RETRY_GATE_MS = 5 * 60 * 1000
+
 export function ConnectionStateProvider({ children }: { children: React.ReactNode }) {
   const [connectionState, setConnectionState] = useState<ConnectionState>({ status: 'disconnected' })
+  const lastFailedAt = useRef<number | null>(null)
 
   useEffect(() => {
     window.loop.whatsapp.status().then(({ status }) => {
@@ -43,8 +46,20 @@ export function ConnectionStateProvider({ children }: { children: React.ReactNod
     )
 
     const unsubFailed = window.loop.whatsapp.onConnectionFailed((_reason?: string) => {
+      lastFailedAt.current = Date.now()
       setConnectionState({ status: 'failed' })
     })
+
+    const handleFocus = () => {
+      if (
+        lastFailedAt.current !== null &&
+        Date.now() - lastFailedAt.current >= FOCUS_RETRY_GATE_MS
+      ) {
+        lastFailedAt.current = null
+        ;(window.loop.whatsapp as any).retry()
+      }
+    }
+    window.addEventListener('focus', handleFocus)
 
     const unsubLoggedOut = (window.loop.whatsapp as any).onLoggedOut(() => {
       setConnectionState({ status: 'logged_out' })
@@ -63,6 +78,7 @@ export function ConnectionStateProvider({ children }: { children: React.ReactNod
       unsubFailed()
       unsubLoggedOut()
       unsubProtocolError()
+      window.removeEventListener('focus', handleFocus)
     }
   }, [])
 
