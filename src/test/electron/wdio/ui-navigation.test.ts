@@ -67,6 +67,18 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
       done(JSON.stringify(s?.chapters ?? null))
     })
     log(`Runtime state chapters after reload: ${chaptersJson}`)
+
+    // Diagnostic: is the chapter name actually rendered as DOM text?
+    const domProbe = await browser.execute((needle) => {
+      const bodyText = document.body.innerText || ''
+      const atomCards = document.querySelectorAll('[data-chapter-id]').length
+      return JSON.stringify({
+        bodyIncludesName: bodyText.includes(needle),
+        atomCards,
+        bodyTextSample: bodyText.slice(0, 300),
+      })
+    }, CH_NAME)
+    log(`DOM probe: ${domProbe}`)
     log('State injected, app reloaded')
   })
 
@@ -77,8 +89,10 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
   })
 
   it('chapter atom shows chapter name as text', async () => {
-    const label = await browser.$(`*=${CH_NAME}`)
+    const label = await browser.$(`[data-testid="chapter-name"]`)
     await label.waitForExist({ timeout: 5000 })
+    const text = await label.getText()
+    expect(text).toContain(CH_NAME)
     log(`Chapter label visible: ${CH_NAME}`)
   })
 

@@ -4,14 +4,9 @@ _Last updated: 2026-07-01_
 
 ## Current branch state
 
-`main` — in sync with `origin/main`. Latest commit: `c228600` — MAV-184: add chapter removal to ChapterDetailScreen.
+`main` — in sync with `origin/main`. Latest commit: `773272d` — fix(ipc-tests): convert browser.execute(async) to executeAsync to fix classic-mode race.
 
-Uncommitted local changes:
-- `src/renderer/src/screens/PrivacyNoticeScreen.tsx` — WCAG contrast fix + spacing (in progress via bg agent, commit pending)
-- `src/renderer/src/screens/YourLoopsScreen.tsx` — Option A static orbit dots (in progress via bg agent, commit pending)
-- `src/test/electron/app.test.ts` — added `privacyAcceptedAt` to initial state write (E2E fix, commit pending)
-- `vitest.e2e.config.ts` — new file, separates E2E config (commit pending)
-- `package.json` — `test:e2e` script updated to use `vitest.e2e.config.ts`
+No uncommitted changes.
 
 ---
 
@@ -31,19 +26,15 @@ Uncommitted local changes:
 | MAV-178: data:deleteAll gate | `c4e909f` | DONE |
 | MAV-179 + MAV-180: privacy notice + LLM consent | `32f748f` | DONE |
 | MAV-184: chapter removal UI | `c228600` | DONE |
+| Design quality fixes (contrast, spacing, shadows) | `176faa3` | DONE |
+| Option A static orbit dots + PrivacyNoticeScreen spacing | `13cf73d` | DONE |
+| JTBD framing + Context.md | `69922d0` | DONE |
+| E2E privacyAcceptedAt gate + vitest.e2e.config.ts | `14ebde7` | DONE |
+| IPC executeAsync race fix (Warp) | `773272d` | DONE |
 
 ---
 
 ## What's pending
-
-### Option A — Static orbit dots (YourLoopsScreen)
-MP design `7ald56f51fltmzzg9kckai` signed off. Background agent implementing: replace rotating electron track with static contact dots at fixed evenly-spaced positions on orbit ring. Commit pending.
-
-### PrivacyNoticeScreen spacing fixes
-- `margin: '0 0 10px'` → `'0 0 8px'`
-- `padding: '14px 16px'` → `'12px 16px'`
-- `marginTop: 14` → `12` (footer)
-Commit pending (same agent as Option A).
 
 ### MAV-75 — ConnectionStatusBadge (correct spec)
 Design locked. Still pending implementation:
@@ -54,8 +45,34 @@ Design locked. Still pending implementation:
 - New files: `ConnectionStateContext.tsx`, `ConnectionStatusBadge.tsx`
 - Update: `App.tsx` (wrap provider), `YourLoopsScreen.tsx` (render badge)
 
-### SLM / Your Story
-`node-llama-cpp` in `package.json` but zero imports anywhere. No `inference.ts`. `resolveStory()` in `src/main/scanner.ts:211` always falls through to `generateStory()` (pure string template). Under investigation via Linear ticket audit. This is the engine for the Story screen for fading contacts — V2 priority.
+### IPC tests (wdio) — one fix remaining
+- Race condition (executeAsync) fixed by Warp — confirmed working (state injection now correct, DOM probe shows `bodyIncludesName: true`)
+- Remaining failure: `*=text` selector in wdio Classic mode only matches `<a>` elements, not divs. Fix applied: `data-testid="chapter-name"` added to chapter name div in `YourLoopsScreen.tsx`; test updated to use attribute selector. Not yet re-run to confirm green.
+- 4 other wdio specs still `.disabled` — to be re-enabled once ui-navigation is fully green.
+
+### SLM / Your Story (MAV-153)
+`node-llama-cpp` in `package.json` but zero imports anywhere. No `inference.ts`. `resolveStory()` in `src/main/scanner.ts:211` always falls through to `generateStory()` (pure string template). V2 priority, intentionally unstarted.
+
+### QuietDayCard P0 bug (from DESIGN_REVIEW.md)
+`QuietDayCard` renders unconditionally on YourLoopsScreen. When `chapters = []`, it says "Your people are close." — a false statement. Needs a `chapters.length > 0` guard before rendering QuietDayCard.
+
+### DMG
+`npm run dist` — gated on all tests green + features shipped.
+
+---
+
+## Features implemented in code (not pending)
+
+These exist in code and are NOT open design topics — they were built:
+
+| Feature | Files |
+|---|---|
+| Nostalgia / quiet-day (JTBD 1) | `QuietDayCard.tsx`, `OnThisDay.tsx`, `OpeningMomentCard` in YourLoopsScreen |
+| Close tier / fading nudge (JTBD 2) | `ContactTierIndicator.tsx`, `StayCloseScreen.tsx`, `NudgeCard.tsx`, 30-day intervalDays in scanner |
+| Dead thread detection | `DeadThreadCard.tsx`, `detectDeadThread()` in scanner |
+| Story screen (renamed from Brief) | `StoryScreen.tsx` |
+
+Open questions for these features are UX placement/polish decisions in the new atom architecture (see PRODUCT_CONVERSATIONS.md Topics 3, 4, 11, 12).
 
 ---
 
@@ -65,14 +82,9 @@ Design locked. Still pending implementation:
 |---|---|---|
 | Unit (vitest) | `npm run test` | ✅ 144 passing |
 | E2E (Playwright) | `npm run test:e2e` | ⚠️ Fix applied (privacyAcceptedAt), not yet re-run |
-| IPC (wdio) | `npm run test:ipc` | ❌ 9 failures in ui-navigation.test.ts |
+| IPC (wdio) | `npm run test:ipc` | ⚠️ Fix in progress (data-testid selector), not yet re-run |
 
-**IPC failures root cause (under Warp investigation):**
-- Test 1 (`[data-chapter-id="test-nav-ch1"]`) passes, Test 2 (`*=The Nav Crew`) fails after 5000ms
-- Likely: `browser.execute(async fn)` does not await IPC calls; state.patch races with window.location.reload()
-- Fix: convert to `browser.executeAsync` in before hook
-
-**DMG:** `npm run dist` — unblocked, gated on all tests green + features shipped.
+**DMG:** `npm run dist` — unblocked once all tests green.
 
 ---
 
@@ -87,15 +99,6 @@ Design locked. Still pending implementation:
 - `isNudgeEligible`: close tier + whatsappId + fading + !suppressNudge + 7-day cooldown
 - State lives in `~/Documents/Loop/state.json` — only via `store.ts`
 - IPC handlers in `src/main/ipc.ts` — one place only
-
----
-
-## Open design topics (need dedicated sessions before building)
-
-1. Nostalgia / quiet-day card placement in Your Loops (Topic 11, MAV-79)
-2. Warm vs Close tier distinction UX
-3. Dead thread / second loop product design
-4. "On your mind" CTA framing + "Brief" naming
 
 ---
 

@@ -300,7 +300,7 @@ function AtomCard({ atom, glow, onClick }: { atom: ChapterAtom; glow: boolean; o
     >
       <AtomVisual atom={atom} />
       <div style={{ textAlign: 'center' }}>
-        <div style={{
+        <div data-testid="chapter-name" style={{
           fontFamily: 'var(--font-serif)',
           fontSize: 15,
           fontWeight: 600,
