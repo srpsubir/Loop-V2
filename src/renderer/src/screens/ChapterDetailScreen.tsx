@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { ArrowLeft, Camera } from 'lucide-react'
 import { IconButton } from '../components'
 import { ContactTierIndicator } from '../components/ContactTierIndicator'
+import { ConnectionStatusBadge } from '../components/ConnectionStatusBadge'
 import type { Chapter, Contact, AppState, ContactState } from '@shared/types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -162,6 +163,7 @@ export function ChapterDetailScreen({ chapterId, onBack, onOpenStory }: ChapterD
 
   return (
     <div style={{ height: '100%', overflowY: 'auto', background: 'var(--bg)' }}>
+      <ConnectionStatusBadge />
 
       {/* Full-bleed cover */}
       <div style={{ position: 'relative', height: 260, flexShrink: 0 }}>

@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain, shell } from 'electron'
+import { BrowserWindow, ipcMain, shell, app } from 'electron'
 import { installUpdateNow } from './updater'
 import * as path from 'path'
 import * as fs from 'fs'
@@ -110,9 +110,31 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
     // END DIAGNOSTIC
   })
 
+  let lastFailureTime = 0
+
   wa.on('connection-failed', ({ statusCode, reason }: { statusCode?: number; reason?: string } = {}) => {
+    lastFailureTime = Date.now()
     getWindow()?.webContents.send('whatsapp:connection-failed', { statusCode, reason })
     track('whatsapp_connection_failed', { status_code: statusCode, reason })
+  })
+
+  wa.on('reconnecting', ({ attempt, max }: { attempt: number; max: number }) => {
+    getWindow()?.webContents.send('whatsapp:reconnecting', { attempt, max })
+  })
+
+  wa.on('logged-out', () => {
+    getWindow()?.webContents.send('whatsapp:logged-out')
+  })
+
+  wa.on('protocol-error', ({ reason }: { reason?: string }) => {
+    getWindow()?.webContents.send('whatsapp:protocol-error', { reason })
+  })
+
+  app.on('browser-window-focus', () => {
+    const status = wa.getStatus()
+    if (status === 'failed' && Date.now() - lastFailureTime >= 5 * 60 * 1000) {
+      ;(wa as any).retry().catch(console.error)
+    }
   })
 
   wa.on('disconnected', async ({ statusCode, loggedOut }: { statusCode?: number; loggedOut?: boolean } = {}) => {
@@ -130,6 +152,10 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
     getWindow()?.webContents.send('state:changed')
     getWindow()?.webContents.send('whatsapp:disconnected', { loggedOut: loggedOut ?? false })
     track('whatsapp_disconnected', { status_code: statusCode, logged_out: loggedOut })
+  })
+
+  ipcMain.handle('whatsapp:retry', async (): Promise<void> => {
+    await (wa as any).retry()
   })
 
   ipcMain.handle('whatsapp:start', async () => {

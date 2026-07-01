@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Settings, X } from 'lucide-react'
 import { IconButton } from '../components'
+import { ConnectionStatusBadge } from '../components/ConnectionStatusBadge'
+import { useConnectionState } from '../ConnectionStateContext'
 import { NudgeCard } from '../components/NudgeCard'
 import { QuietDayCard } from '../components/QuietDayCard'
 import { DeadThreadCard } from '../components/DeadThreadCard'
@@ -406,6 +408,7 @@ function OpeningMomentCard({ memory, chapters }: { memory: OnThisDayMemory; chap
 
 export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: YourLoopsScreenProps) {
   const { state, contacts, loading } = useYourLoopsData()
+  const { connectionState } = useConnectionState()
   const [glowChapterId, setGlowChapterId] = useState<string | null>(null)
   const [echoCardOpen, setEchoCardOpen] = useState(false)
   const [echoChapterId, setEchoChapterId] = useState<string | null>(null)
@@ -619,6 +622,7 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
           to   { transform: translateY(0) scale(1); opacity: 1 }
         }
       `}</style>
+      <ConnectionStatusBadge />
       {/* Header */}
       <div style={{
         display: 'flex',

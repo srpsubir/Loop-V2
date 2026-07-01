@@ -5,7 +5,7 @@ import { homedir } from 'os'
 
 const AUTH_DIR = join(homedir(), 'Documents', 'Loop', 'whatsapp-auth')
 
-export type WAConnectionStatus = 'disconnected' | 'connecting' | 'qr_pending' | 'connected'
+export type WAConnectionStatus = 'disconnected' | 'connecting' | 'qr_pending' | 'connected' | 'reconnecting' | 'failed' | 'logged_out' | 'protocol_error'
 
 export interface ContactCluster {
   contacts: Array<{ jid: string; displayName: string; tieStrength: 'high' | 'medium' | 'low' }>
@@ -105,7 +105,10 @@ class WhatsAppManager extends EventEmitter {
   private storeReady = false
   private hasConnectedOnce = false
   private reconnectAttempts = 0
+  private consecutiveProtocolErrors = 0
   private static readonly MAX_RECONNECT_ATTEMPTS = 8
+  private static readonly MAX_CIRCUIT_BREAKER_RETRIES = 3
+  private static readonly CIRCUIT_BREAKER_BACKOFF = [800, 2000, 5000]
 
   static getInstance(): WhatsAppManager {
     if (!WhatsAppManager.instance) WhatsAppManager.instance = new WhatsAppManager()
@@ -119,6 +122,18 @@ class WhatsAppManager extends EventEmitter {
   private setStatus(s: WAConnectionStatus): void {
     this.status = s
     this.emit('status', s)
+  }
+
+  private classifyCloseCode(statusCode: number | undefined): 'logged_out' | 'protocol' | 'transient' {
+    if (statusCode === 401 || statusCode === 440) return 'logged_out'
+    if (statusCode === 500 || statusCode === 411 || statusCode === 403 || statusCode === 405) return 'protocol'
+    return 'transient'
+  }
+
+  async retry(): Promise<void> {
+    this.reconnectAttempts = 0
+    this.consecutiveProtocolErrors = 0
+    await this.start()
   }
 
   async start(): Promise<void> {
@@ -194,6 +209,7 @@ class WhatsAppManager extends EventEmitter {
           this.currentQR = null
           this.hasConnectedOnce = true
           this.reconnectAttempts = 0
+          this.consecutiveProtocolErrors = 0
           this.setStatus('connected')
           this.emit('connected')
         }
@@ -201,21 +217,11 @@ class WhatsAppManager extends EventEmitter {
         if (connection === 'close') {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const statusCode = (lastDisconnect?.error as any)?.output?.statusCode
-          const isLoggedOut = statusCode === DisconnectReason.loggedOut
-
           this.chatStore.clear()
           this.storeReady = false
-          this.setStatus('disconnected')
 
-          if (isLoggedOut) {
-            // Permanent logout — surface to UI and clear auth
-            this.reconnectAttempts = 0
-            this.emit('disconnected', { statusCode, loggedOut: true })
-            await this.clearAuth()
-          } else if (!this.hasConnectedOnce) {
-            // Pre-first-connect close: QR handshake transient, unrecognised Baileys status code,
-            // etc. Never surface as an error — just retry silently. The user is still on the QR
-            // screen and should see nothing until the connection either succeeds or we give up.
+          if (!this.hasConnectedOnce) {
+            this.setStatus('disconnected')
             const delay = Math.min(800 * Math.pow(2, this.reconnectAttempts), 15_000)
             this.reconnectAttempts++
             console.warn(`[WhatsApp] Pre-connect close (code: ${statusCode}), retry ${this.reconnectAttempts} in ${delay}ms`)
@@ -223,21 +229,56 @@ class WhatsAppManager extends EventEmitter {
               setTimeout(() => this.start(), delay)
             } else {
               this.reconnectAttempts = 0
-              this.emit('disconnected', { statusCode, loggedOut: false, exhausted: true })
+              this.consecutiveProtocolErrors = 0
+              this.setStatus('failed')
+              this.emit('connection-failed', { reason: 'exhausted' })
             }
+            return
+          }
+
+          const classification = this.classifyCloseCode(statusCode)
+
+          if (classification === 'logged_out') {
+            this.reconnectAttempts = 0
+            this.consecutiveProtocolErrors = 0
+            this.setStatus('logged_out')
+            this.emit('logged-out')
+            await this.clearAuth()
+            return
+          }
+
+          if (classification === 'protocol') {
+            this.consecutiveProtocolErrors++
           } else {
-            // Had a connection before — surface disconnect then reconnect with backoff.
-            const delay = Math.min(3000 * Math.pow(1.5, this.reconnectAttempts), 60_000)
-            this.reconnectAttempts++
-            console.warn(`[WhatsApp] Post-connect close (code: ${statusCode}), retry ${this.reconnectAttempts} in ${delay}ms`)
-            this.emit('disconnected', { statusCode, loggedOut: false })
-            if (this.reconnectAttempts <= WhatsAppManager.MAX_RECONNECT_ATTEMPTS) {
-              setTimeout(() => this.start(), delay)
+            if (statusCode === 515 && this.consecutiveProtocolErrors >= 2) {
+              this.consecutiveProtocolErrors++
             } else {
-              this.reconnectAttempts = 0
-              this.emit('disconnected', { statusCode, loggedOut: false, exhausted: true })
+              this.consecutiveProtocolErrors = 0
             }
           }
+
+          if (this.consecutiveProtocolErrors >= 3) {
+            this.reconnectAttempts = 0
+            this.consecutiveProtocolErrors = 0
+            this.setStatus('protocol_error')
+            this.emit('protocol-error', { reason: `code:${statusCode}` })
+            return
+          }
+
+          if (this.reconnectAttempts >= WhatsAppManager.MAX_CIRCUIT_BREAKER_RETRIES) {
+            this.reconnectAttempts = 0
+            this.consecutiveProtocolErrors = 0
+            this.setStatus('failed')
+            this.emit('connection-failed', { reason: `code:${statusCode}` })
+            return
+          }
+
+          const delay = WhatsAppManager.CIRCUIT_BREAKER_BACKOFF[this.reconnectAttempts] ?? 5000
+          this.reconnectAttempts++
+          this.setStatus('reconnecting')
+          this.emit('reconnecting', { attempt: this.reconnectAttempts, max: WhatsAppManager.MAX_CIRCUIT_BREAKER_RETRIES })
+          console.warn(`[WhatsApp] Post-connect close (code: ${statusCode}), retry ${this.reconnectAttempts} in ${delay}ms`)
+          setTimeout(() => this.start(), delay)
         }
       })
 

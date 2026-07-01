@@ -46,6 +46,21 @@ const loopAPI = {
       ipcRenderer.on('whatsapp:connection-failed', handler)
       return () => ipcRenderer.off('whatsapp:connection-failed', handler)
     },
+    onReconnecting: (cb: (data: { attempt: number; max: number }) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, data: { attempt: number; max: number }) => cb(data)
+      ipcRenderer.on('whatsapp:reconnecting', handler)
+      return () => ipcRenderer.off('whatsapp:reconnecting', handler)
+    },
+    onLoggedOut: (cb: () => void) => {
+      ipcRenderer.on('whatsapp:logged-out', cb)
+      return () => ipcRenderer.off('whatsapp:logged-out', cb)
+    },
+    onProtocolError: (cb: (data: { reason?: string }) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, data: { reason?: string }) => cb(data)
+      ipcRenderer.on('whatsapp:protocol-error', handler)
+      return () => ipcRenderer.off('whatsapp:protocol-error', handler)
+    },
+    retry: (): Promise<void> => ipcRenderer.invoke('whatsapp:retry'),
   },
 
   scan: {

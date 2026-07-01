@@ -49,6 +49,16 @@ export interface OnThisDayMemory {
 
 // ─── Contact ─────────────────────────────────────────────────────────────────
 
+export type WAConnectionStatus =
+  | 'disconnected'
+  | 'connecting'
+  | 'qr_pending'
+  | 'connected'
+  | 'reconnecting'
+  | 'failed'
+  | 'logged_out'
+  | 'protocol_error'
+
 export type WarmthTier = 'close' | 'warm'
 
 export interface Contact {
@@ -110,6 +120,7 @@ export interface AppState {
   onThisDayMemory?: OnThisDayMemory | null
   contacts: Record<string, ContactState>  // keyed by contactId
   emailCaptured?: boolean                 // true once user submits or skips email capture
+  connectionFailureReason?: string
   stayCloseComplete?: boolean             // true once user completes Stay Close onboarding
   inviteCodes?: InviteCode[]              // 3 codes generated on first scan
 }

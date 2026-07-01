@@ -146,7 +146,7 @@ describe('WhatsApp connection lifecycle', () => {
   //   connectionClosed (428) is a recoverable code. Before hasConnectedOnce the
   //   manager retries silently with an 800 ms initial backoff.
 
-  it('3: pre-connect close (recoverable code 428) → silent 800 ms retry, no disconnected event', async () => {
+  it('3: pre-connect close (recoverable code 428) → silent 800 ms retry, no status change or disconnected event', async () => {
     await wa.start()
 
     const disconnectedHandler = vi.fn()
@@ -154,8 +154,7 @@ describe('WhatsApp connection lifecycle', () => {
 
     sock.ev.emit('connection.update', closeUpdate(428))
 
-    // Status changes to disconnected internally but the 'disconnected' event
-    // must NOT be emitted — the QR screen should show nothing.
+    // Status becomes disconnected briefly; the 'disconnected' EVENT is not emitted.
     expect(wa.getStatus()).toBe('disconnected')
     expect(disconnectedHandler).not.toHaveBeenCalled()
 
@@ -174,7 +173,7 @@ describe('WhatsApp connection lifecycle', () => {
   //   retried silently regardless of status code. Unknown codes no longer emit
   //   'disconnected' or flash a failure banner on the QR screen.
 
-  it('4: pre-connect close (unknown code 999) → also silently retried, no disconnected event', async () => {
+  it('4: pre-connect close (unknown code 999) → also silently retried, no status change or disconnected event', async () => {
     await wa.start()
 
     const disconnectedHandler = vi.fn()
@@ -195,15 +194,15 @@ describe('WhatsApp connection lifecycle', () => {
 
   // ── Case 5: Close after a successful connect ──────────────────────────────────
 
-  it('5: close after successful connect → disconnected event emitted, reconnect at 3 s', async () => {
+  it('5: close after successful connect → reconnecting status + event emitted, reconnect at 800 ms', async () => {
     await wa.start()
 
     // Establish the first connection.
     sock.ev.emit('connection.update', { connection: 'open' })
     expect(wa.hasConnectedOnce).toBe(true)
 
-    const disconnectedHandler = vi.fn()
-    wa.on('disconnected', disconnectedHandler)
+    const reconnectingHandler = vi.fn()
+    wa.on('reconnecting', reconnectingHandler)
 
     // Prepare the socket the reconnect will create before advancing timers.
     const sock2 = makeSocket()
@@ -211,37 +210,35 @@ describe('WhatsApp connection lifecycle', () => {
 
     sock.ev.emit('connection.update', closeUpdate(428))
 
-    // 'disconnected' fires synchronously inside the handler.
-    expect(disconnectedHandler).toHaveBeenCalledOnce()
-    expect(disconnectedHandler).toHaveBeenCalledWith(
-      expect.objectContaining({ loggedOut: false }),
+    // 'reconnecting' fires synchronously inside the handler.
+    expect(reconnectingHandler).toHaveBeenCalledOnce()
+    expect(reconnectingHandler).toHaveBeenCalledWith(
+      expect.objectContaining({ attempt: 1, max: 3 }),
     )
-    expect(wa.getStatus()).toBe('disconnected')
+    expect(wa.getStatus()).toBe('reconnecting')
 
-    // Advance 3 s — reconnect timer fires → start() → second makeWASocket call.
-    await vi.advanceTimersByTimeAsync(3000)
+    // Advance 800 ms — reconnect timer fires → start() → second makeWASocket call.
+    await vi.advanceTimersByTimeAsync(800)
     expect(mockMakeWASocket).toHaveBeenCalledTimes(2)
   })
 
   // ── Case 6: loggedOut close ───────────────────────────────────────────────────
 
-  it('6: loggedOut close → disconnected{loggedOut:true} emitted, clearAuth() called, no reconnect', async () => {
+  it('6: loggedOut close → logged_out status + logged-out event emitted, clearAuth() called, no reconnect', async () => {
     await wa.start()
 
     // A prior successful connection makes this scenario realistic.
     sock.ev.emit('connection.update', { connection: 'open' })
 
-    const disconnectedHandler = vi.fn()
-    wa.on('disconnected', disconnectedHandler)
+    const loggedOutHandler = vi.fn()
+    wa.on('logged-out', loggedOutHandler)
 
     // statusCode 401 = DisconnectReason.loggedOut as set in our mock.
     sock.ev.emit('connection.update', closeUpdate(401))
 
-    // 'disconnected' fires before the async clearAuth() suspends on await.
-    expect(disconnectedHandler).toHaveBeenCalledOnce()
-    expect(disconnectedHandler).toHaveBeenCalledWith(
-      expect.objectContaining({ loggedOut: true }),
-    )
+    // 'logged-out' fires before the async clearAuth() suspends on await.
+    expect(loggedOutHandler).toHaveBeenCalledOnce()
+    expect(wa.getStatus()).toBe('logged_out')
 
     // Flush microtasks so clearAuth() can complete.
     await flushMicrotasks()
@@ -253,14 +250,40 @@ describe('WhatsApp connection lifecycle', () => {
     expect(mockMakeWASocket).toHaveBeenCalledTimes(1) // only the original start()
   })
 
-  // ── Case 7: Retry budget exhausted (MAV-172) ──────────────────────────────────
-  //   The production code currently emits disconnected{exhausted:true} after 8
-  //   failed attempts. MAV-172 will add a dedicated 'connection-failed' event.
-  //   The test is left as todo until that event lands.
+  // ── Case 7: Retry budget exhausted (circuit breaker) ─────────────────────────
 
-  it.todo(
-    '7: retry budget exhausted → connection-failed event emitted, no further retries (MAV-172)',
-  )
+  it('7: post-connect retry budget exhausted → connection-failed event, no further retries', async () => {
+    await wa.start()
+
+    // Establish the first connection.
+    sock.ev.emit('connection.update', { connection: 'open' })
+
+    const failedHandler = vi.fn()
+    wa.on('connection-failed', failedHandler)
+
+    // CIRCUIT_BREAKER_BACKOFF = [800, 2000, 5000] — 3 retries allowed.
+    // Each iteration: close fires → retry scheduled → timer fires → new socket created.
+    for (let i = 0; i < 3; i++) {
+      const nextSock = makeSocket()
+      mockMakeWASocket.mockReturnValueOnce(nextSock)
+      sock.ev.emit('connection.update', closeUpdate(428))
+      await vi.advanceTimersByTimeAsync(10_000)
+      // Update sock reference so next close fires on the new socket.
+      sock = nextSock
+    }
+
+    // 4th close hits reconnectAttempts >= MAX_CIRCUIT_BREAKER_RETRIES → exhausted.
+    sock.ev.emit('connection.update', closeUpdate(428))
+    await flushMicrotasks()
+
+    expect(failedHandler).toHaveBeenCalledOnce()
+    expect(wa.getStatus()).toBe('failed')
+
+    // No more retries pending.
+    const callCount = mockMakeWASocket.mock.calls.length
+    await vi.runAllTimersAsync()
+    expect(mockMakeWASocket.mock.calls.length).toBe(callCount)
+  })
 
   // ── Case 8: waitForStore resolves immediately when storeReady = true ──────────
 

@@ -14,6 +14,7 @@ import { ChapterNamingScreen } from './screens/ChapterNamingScreen'
 import { EmailCaptureScreen } from './screens/EmailCaptureScreen'
 import { StayCloseScreen } from './screens/StayCloseScreen'
 import type { ChapterCandidate } from '@shared/types'
+import { ConnectionStateProvider } from './ConnectionStateContext'
 
 // ─── Nav state ────────────────────────────────────────────────────────────────
 
@@ -597,39 +598,51 @@ export default function App() {
 
     case 'stay-close':
       return (
-        <StayCloseScreen
-          onDone={goYourLoops}
-        />
+        <ConnectionStateProvider>
+          <StayCloseScreen
+            onDone={goYourLoops}
+          />
+        </ConnectionStateProvider>
       )
 
     case 'your-loops':
       return (
-        <YourLoopsScreen
-          onOpenChapter={(chapterId) => setNav({ screen: 'chapter-detail', chapterId })}
-          onOpenSettings={() => setNav({ screen: 'settings' })}
-          onOpenStory={(contactId, chapterId) => setNav({ screen: 'story', contactId, chapterId })}
-        />
+        <ConnectionStateProvider>
+          <YourLoopsScreen
+            onOpenChapter={(chapterId) => setNav({ screen: 'chapter-detail', chapterId })}
+            onOpenSettings={() => setNav({ screen: 'settings' })}
+            onOpenStory={(contactId, chapterId) => setNav({ screen: 'story', contactId, chapterId })}
+          />
+        </ConnectionStateProvider>
       )
 
     case 'chapter-detail':
       return (
-        <ChapterDetailScreen
-          chapterId={nav.chapterId}
-          onBack={goYourLoops}
-          onOpenStory={(contactId) => setNav({ screen: 'story', contactId, chapterId: nav.chapterId })}
-        />
+        <ConnectionStateProvider>
+          <ChapterDetailScreen
+            chapterId={nav.chapterId}
+            onBack={goYourLoops}
+            onOpenStory={(contactId) => setNav({ screen: 'story', contactId, chapterId: nav.chapterId })}
+          />
+        </ConnectionStateProvider>
       )
 
     case 'story':
       return (
-        <StoryScreen
-          contactId={nav.contactId}
-          onBack={() => setNav({ screen: 'chapter-detail', chapterId: nav.chapterId })}
-        />
+        <ConnectionStateProvider>
+          <StoryScreen
+            contactId={nav.contactId}
+            onBack={() => setNav({ screen: 'chapter-detail', chapterId: nav.chapterId })}
+          />
+        </ConnectionStateProvider>
       )
 
     case 'settings':
-      return <SettingsScreen onBack={goYourLoops} onConnect={() => setNav({ screen: 'whatsapp-connect' })} />
+      return (
+        <ConnectionStateProvider>
+          <SettingsScreen onBack={goYourLoops} onConnect={() => setNav({ screen: 'whatsapp-connect' })} />
+        </ConnectionStateProvider>
+      )
 
     default:
       return null
