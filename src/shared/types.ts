@@ -103,6 +103,9 @@ export interface ContactState {
   suppressNudge?: boolean         // true after 2 failed reach-outs
   nudgeDismissedAt?: string | null // ISO timestamp when user dismissed nudge card; resurfaces after 7 days
   messageStrength?: 'high' | 'medium' | 'low'  // computed from WhatsApp chat recency at scan time
+  reciprocityRatio?: number       // C1: min(sent,recv)/max(sent,recv), neutral 0.5 if <10 msgs
+  temporalConsistency?: number    // C1: distinct ISO weeks / span in weeks
+  relationshipStrength?: number   // C1: composite 0–1 score
 }
 
 // ─── App state ───────────────────────────────────────────────────────────────

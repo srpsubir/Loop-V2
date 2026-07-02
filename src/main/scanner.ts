@@ -257,6 +257,15 @@ export async function resolveStory(
   return generateStory(contact, messages, chapters, nextOccasion)
 }
 
+// ─── C1: ISO week helper ──────────────────────────────────────────────────────
+
+function isoWeek(ts: number): string {
+  const d = new Date(ts)
+  const jan4 = new Date(d.getFullYear(), 0, 4)
+  const week = Math.ceil(((d.getTime() - jan4.getTime()) / 86400000 + jan4.getDay() + 1) / 7)
+  return `${d.getFullYear()}-W${String(week).padStart(2, '0')}`
+}
+
 // ─── Scanner singleton ────────────────────────────────────────────────────────
 
 class Scanner {
@@ -351,6 +360,52 @@ class Scanner {
         const messageStrength: 'high' | 'medium' | 'low' | undefined =
           tieEntry ? tieEntry.strength : (prevState?.messageStrength ?? undefined)
 
+        // ─── C1: Accumulate per-message signals ──────────────────────────────
+        let sentCount = 0
+        let receivedCount = 0
+        const weekSet = new Set<string>()
+        let earliestTs = Infinity
+        let latestTs = -Infinity
+
+        for (const msg of messages) {
+          if (msg.fromMe) sentCount++; else receivedCount++
+          const ts = msg.timestamp * 1000
+          weekSet.add(isoWeek(ts))
+          if (ts < earliestTs) earliestTs = ts
+          if (ts > latestTs) latestTs = ts
+        }
+
+        // reciprocityScore: neutral 0.5 if fewer than 10 messages
+        const totalMsgs = sentCount + receivedCount
+        const reciprocityScore =
+          totalMsgs >= 10
+            ? Math.min(sentCount, receivedCount) / Math.max(sentCount, receivedCount, 1)
+            : 0.5
+
+        // frequencyScore: mapped from messageStrength
+        const frequencyScore =
+          messageStrength === 'high' ? 1.0
+          : messageStrength === 'medium' ? 0.6
+          : 0.3
+
+        // temporalScore: distinct ISO weeks / span in weeks (0.0 if <2 messages)
+        let temporalScore = 0.0
+        if (messages.length >= 2 && isFinite(earliestTs) && isFinite(latestTs)) {
+          const spanWeeks = Math.max(1, (latestTs - earliestTs) / (7 * 24 * 3600 * 1000))
+          temporalScore = Math.min(1, weekSet.size / spanWeeks)
+        }
+
+        // multiChannelBonus: 1 if in a chapter AND not low message strength
+        const multiChannelBonus =
+          (contact.chapterIds.length > 0 && messageStrength !== 'low') ? 1 : 0
+
+        // composite C1 score
+        const relationshipStrength =
+          reciprocityScore  * 0.35 +
+          frequencyScore    * 0.35 +
+          temporalScore     * 0.10 +
+          multiChannelBonus * 0.20
+
         updatedContacts[contact.id] = {
           lastContactDate,
           lastScanAt: now,
@@ -362,6 +417,9 @@ class Scanner {
           reconnectedAt:   justReconnected ? now : (prevState?.reconnectedAt ?? null),
           suppressNudge:   justReconnected ? false : (prevState?.suppressNudge ?? false),
           messageStrength,
+          reciprocityRatio: reciprocityScore,
+          temporalConsistency: temporalScore,
+          relationshipStrength,
         }
 
         // Track earliest message per chapter for Echo anniversary detection
