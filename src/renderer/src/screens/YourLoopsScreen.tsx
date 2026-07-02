@@ -4,6 +4,7 @@ import { IconButton } from '../components'
 import { ConnectionStatusBadge } from '../components/ConnectionStatusBadge'
 import { useConnectionState } from '../ConnectionStateContext'
 import { NudgeCard } from '../components/NudgeCard'
+import { ContactTierIndicator } from '../components/ContactTierIndicator'
 import { QuietDayCard } from '../components/QuietDayCard'
 import { DeadThreadCard } from '../components/DeadThreadCard'
 import type { AppState, Contact, ContactState, OnThisDayMemory, Chapter } from '@shared/types'
@@ -445,6 +446,19 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
     })
   }, [state, contacts])
 
+  const closeContacts = useMemo(() => {
+    if (!state) return []
+    return contacts
+      .filter((c) => c.tier === 'close')
+      .sort((a, b) => {
+        const msA = state.contacts[a.id]?.lastContactDate
+          ? Date.now() - new Date(state.contacts[a.id].lastContactDate!).getTime() : 0
+        const msB = state.contacts[b.id]?.lastContactDate
+          ? Date.now() - new Date(state.contacts[b.id].lastContactDate!).getTime() : 0
+        return msB - msA
+      })
+  }, [contacts, state])
+
   // Nudge card: most-overdue close contact eligible for a nudge
   const nudgeContact = useMemo(() => {
     if (!state) return null
@@ -750,6 +764,51 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
           </button>
         </div>
       )}
+
+      {/* Stay Close strip — A1 + A5 */}
+      <div style={{ padding: '16px 44px 0', flexShrink: 0 }}>
+        {closeContacts.length > 0 ? (
+          <>
+            <div style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '.08em',
+              textTransform: 'uppercase',
+              color: '#6B5C52',
+              marginBottom: 12,
+            }}>
+              Stay close
+            </div>
+            <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 4 }}>
+              {closeContacts.map((c) => {
+                const lastDate = state?.contacts[c.id]?.lastContactDate
+                const daysOverdue = lastDate
+                  ? Math.floor((Date.now() - new Date(lastDate).getTime()) / 86400000)
+                  : undefined
+                return (
+                  <div
+                    key={c.id}
+                    style={{ cursor: 'pointer', flexShrink: 0 }}
+                    onClick={() => onOpenStory(c.id, c.chapterIds[0] ?? '')}
+                  >
+                    <ContactTierIndicator tier="close" name={c.name} size={36} daysOverdue={daysOverdue} />
+                  </div>
+                )
+              })}
+            </div>
+          </>
+        ) : (
+          <div style={{ borderLeft: '3px solid #C4613C', paddingLeft: 12 }}>
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: '#6B5C52' }}>
+              The people who matter most, all in one place.
+            </div>
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: '#9B8B82', marginTop: 3 }}>
+              Mark someone as Close from their story.
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Horizontal atom timeline */}
       <div style={{

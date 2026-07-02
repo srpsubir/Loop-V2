@@ -7,6 +7,7 @@ interface ContactTierIndicatorProps {
   size?: number
   fading?: boolean
   src?: string
+  daysOverdue?: number
 }
 
 function toInitials(name: string): string {
@@ -25,6 +26,7 @@ export function ContactTierIndicator({
   size,
   fading = false,
   src,
+  daysOverdue,
 }: ContactTierIndicatorProps) {
   const isClose = tier === 'close'
   const avatarSize = size ?? (isClose ? 56 : 48)
@@ -92,6 +94,18 @@ export function ContactTierIndicator({
       }}>
         {name.split(' ')[0]}
       </div>
+
+      {daysOverdue !== undefined && (
+        <div style={{
+          fontFamily: 'var(--font-sans)',
+          fontSize: 10,
+          color: daysOverdue >= 30 ? '#C4613C' : '#9B8B82',
+          marginTop: -2,
+          textAlign: 'center',
+        }}>
+          {daysOverdue}d
+        </div>
+      )}
     </div>
   )
 }

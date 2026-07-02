@@ -81,6 +81,7 @@ export function StoryScreen({ contactId, onBack }: StoryScreenProps) {
     lastContactDate: null,
   })
   const [loading, setLoading] = useState(true)
+  const [tier, setTier] = useState<'close' | 'warm'>('warm')
 
   useEffect(() => {
     async function load() {
@@ -91,6 +92,7 @@ export function StoryScreen({ contactId, onBack }: StoryScreenProps) {
           window.loop.state.get() as Promise<AppState>,
         ])
         const contact = contacts.find((c) => c.id === contactId) ?? null
+        if (contact) setTier(contact.tier)
         const cs = state.contacts[contactId]
         const chapters = contact
           ? state.chapters.filter((ch) => contact.chapterIds.includes(ch.id))
@@ -283,6 +285,50 @@ export function StoryScreen({ contactId, onBack }: StoryScreenProps) {
                 ))}
               </div>
             )}
+
+            {/* Stay Close tier pill — A4 */}
+            <div style={{ marginTop: 12 }}>
+              {tier === 'warm' ? (
+                <button
+                  onClick={async () => {
+                    if (!contact) return
+                    await window.loop.contacts.save({ ...contact, tier: 'close', intervalDays: 30 })
+                    setTier('close')
+                  }}
+                  style={{
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: '#C4613C',
+                    background: 'transparent',
+                    border: '1px solid #C4613C',
+                    borderRadius: 100,
+                    padding: '4px 10px',
+                    cursor: 'pointer',
+                    letterSpacing: '.02em',
+                  }}
+                >
+                  Stay Close
+                </button>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: '#fff',
+                    background: '#C4613C',
+                    borderRadius: 100,
+                    padding: '4px 10px',
+                  }}>
+                    Close ✓
+                  </span>
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: '#9B8B82' }}>
+                    Staying close to {contact?.name.split(' ')[0]}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
