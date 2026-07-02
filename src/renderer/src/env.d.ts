@@ -21,6 +21,11 @@ interface LoopAPI {
     onQR: (cb: (qr: string) => void) => () => void
     onConnected: (cb: () => void) => () => void
     onDisconnected: (cb: (loggedOut: boolean) => void) => () => void
+    onConnectionFailed: (cb: (reason?: string) => void) => () => void
+    onReconnecting: (cb: (data: { attempt: number; max: number }) => void) => () => void
+    onLoggedOut: (cb: () => void) => () => void
+    onProtocolError: (cb: (data: { reason?: string }) => void) => () => void
+    retry: () => Promise<void>
   }
   scan: {
     run: () => Promise<void>
@@ -48,12 +53,33 @@ interface LoopAPI {
     confirm: (jids: string[]) => Promise<void>
     setName: (chapterId: string, name: string) => Promise<void>
   }
+  calendar: {
+    addEvent: (payload: {
+      contactName: string
+      occasionType?: string | null
+      occasionDate?: string | null
+      reasonToReachOut: string
+      contextLine?: string
+    }) => Promise<void>
+  }
+  update: {
+    onChecking: (cb: () => void) => () => void
+    onAvailable: (cb: (data: { version: string }) => void) => () => void
+    onNotAvailable: (cb: () => void) => () => void
+    onDownloading: (cb: (data: { percent: number }) => void) => () => void
+    onReady: (cb: (data: { version: string }) => void) => () => void
+    onError: (cb: (data: { message: string }) => void) => () => void
+    installNow: () => Promise<void>
+  }
   analytics: {
     track: (event: string, properties?: Record<string, unknown>) => void
   }
   data: {
     getDir: () => Promise<string>
     deleteAll: () => Promise<void>
+  }
+  model: {
+    status: () => Promise<{ exists: boolean; ready: boolean; downloading: boolean }>
   }
 }
 

@@ -8,13 +8,16 @@ export function ConnectionStatusBadge() {
 
   const isReconnecting = status === 'reconnecting'
   const dotColor = isReconnecting ? '#f59e0b' : '#ef4444'
+  const bgColor = isReconnecting ? 'rgba(245,158,11,0.08)' : 'rgba(239,68,68,0.08)'
+  const borderColor = isReconnecting ? 'rgba(245,158,11,0.2)' : 'rgba(239,68,68,0.2)'
+  const textColor = isReconnecting ? '#92400e' : '#991b1b'
 
   let primary = ''
   let secondary = ''
   let buttons: { label: string; action: () => void }[] = []
 
-  if (status === 'reconnecting' && connectionState.status === 'reconnecting') {
-    primary = `Reconnecting... (attempt ${connectionState.attempt} of ${connectionState.max})`
+  if (status === 'reconnecting') {
+    primary = `Reconnecting to WhatsApp... (attempt ${connectionState.attempt} of ${connectionState.max})`
     secondary = 'Your chapters are still available.'
   } else if (status === 'failed') {
     primary = 'Could not reconnect to WhatsApp.'
@@ -45,34 +48,49 @@ export function ConnectionStatusBadge() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0 16px',
+        padding: '0 24px',
         height: '48px',
         width: '100%',
         boxSizing: 'border-box',
-        background: '#2A1F1B',
-        borderBottom: '1px solid rgba(42,31,27,0.2)',
+        background: bgColor,
+        borderBottom: `1px solid ${borderColor}`,
         flexShrink: 0,
+        gap: 10,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
-            width: '8px',
-            height: '8px',
+            width: 8,
+            height: 8,
             borderRadius: '50%',
             backgroundColor: dotColor,
             flexShrink: 0,
             animation: isReconnecting ? 'pulse 1.5s ease-in-out infinite' : undefined,
           }} />
           <div>
-            <div style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.9)', lineHeight: '1.3' }}>
+            <div style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 13,
+              fontWeight: 500,
+              color: textColor,
+              lineHeight: '1.3',
+            }}>
               {primary}
             </div>
-            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', lineHeight: '1.3' }}>
-              {secondary}
-            </div>
+            {secondary && (
+              <div style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 11,
+                color: textColor,
+                opacity: 0.7,
+                lineHeight: '1.3',
+              }}>
+                {secondary}
+              </div>
+            )}
           </div>
         </div>
         {buttons.length > 0 && (
-          <div style={{ display: 'flex', gap: '12px', flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: 12, flexShrink: 0 }}>
             {buttons.map(({ label, action }) => (
               <button
                 key={label}
@@ -82,9 +100,12 @@ export function ConnectionStatusBadge() {
                   border: 'none',
                   padding: 0,
                   cursor: 'pointer',
-                  fontSize: '13px',
-                  color: 'rgba(255,255,255,0.7)',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 13,
+                  color: textColor,
                   fontWeight: 500,
+                  textDecoration: 'underline',
+                  textDecorationColor: `${textColor}66`,
                 }}
               >
                 {label}

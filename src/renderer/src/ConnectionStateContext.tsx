@@ -39,7 +39,7 @@ export function ConnectionStateProvider({ children }: { children: React.ReactNod
       setConnectionState({ status: 'disconnected' })
     })
 
-    const unsubReconnecting = (window.loop.whatsapp as any).onReconnecting(
+    const unsubReconnecting = window.loop.whatsapp.onReconnecting(
       (data: { attempt: number; max: number }) => {
         setConnectionState({ status: 'reconnecting', attempt: data.attempt, max: data.max })
       }
@@ -56,16 +56,16 @@ export function ConnectionStateProvider({ children }: { children: React.ReactNod
         Date.now() - lastFailedAt.current >= FOCUS_RETRY_GATE_MS
       ) {
         lastFailedAt.current = null
-        ;(window.loop.whatsapp as any).retry()
+        window.loop.whatsapp.retry()
       }
     }
     window.addEventListener('focus', handleFocus)
 
-    const unsubLoggedOut = (window.loop.whatsapp as any).onLoggedOut(() => {
+    const unsubLoggedOut = window.loop.whatsapp.onLoggedOut(() => {
       setConnectionState({ status: 'logged_out' })
     })
 
-    const unsubProtocolError = (window.loop.whatsapp as any).onProtocolError(
+    const unsubProtocolError = window.loop.whatsapp.onProtocolError(
       (data: { reason?: string }) => {
         setConnectionState({ status: 'protocol_error', reason: data?.reason })
       }
@@ -82,7 +82,7 @@ export function ConnectionStateProvider({ children }: { children: React.ReactNod
     }
   }, [])
 
-  const retryConnection = () => { ;(window.loop.whatsapp as any).retry() }
+  const retryConnection = () => { window.loop.whatsapp.retry() }
   const disconnect = () => { window.loop.whatsapp.disconnect() }
 
   return (
