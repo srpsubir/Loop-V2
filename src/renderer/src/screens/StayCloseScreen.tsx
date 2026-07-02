@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { Search, Check } from 'lucide-react'
-import type { Contact, Chapter } from '@shared/types'
+import { Search, Check, ChevronDown } from 'lucide-react'
+import type { Contact, Chapter, AppState, ContactState } from '@shared/types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -103,33 +103,90 @@ function IntentStep({ onContinue }: { onContinue: () => void }) {
   )
 }
 
+// ─── Strength badge ───────────────────────────────────────────────────────────
+
+function StrengthBadge({ strength }: { strength?: 'high' | 'medium' | 'low' }) {
+  if (strength === 'high') {
+    return (
+      <span style={{
+        fontFamily: 'var(--font-sans)', fontSize: 10, fontWeight: 500,
+        color: '#fff', background: '#C4613C',
+        borderRadius: 100, padding: '2px 7px', flexShrink: 0,
+      }}>Strong</span>
+    )
+  }
+  if (strength === 'medium') {
+    return (
+      <span style={{
+        fontFamily: 'var(--font-sans)', fontSize: 10, fontWeight: 500,
+        color: '#C4613C', background: 'transparent',
+        border: '1px solid #C4613C',
+        borderRadius: 100, padding: '2px 7px', flexShrink: 0,
+      }}>Moderate</span>
+    )
+  }
+  return (
+    <span style={{
+      fontFamily: 'var(--font-sans)', fontSize: 10, fontWeight: 500,
+      color: '#9B8B82', background: 'transparent',
+      border: '1px solid #9B8B82',
+      borderRadius: 100, padding: '2px 7px', flexShrink: 0,
+    }}>Light</span>
+  )
+}
+
 // ─── Step 2: Picker ───────────────────────────────────────────────────────────
+
+type SortMode = 'strength' | 'name' | 'recency'
 
 function PickerStep({
   contacts,
   chapters,
+  contactStates,
   onDone,
   onBack,
 }: {
   contacts: Contact[]
   chapters: Chapter[]
+  contactStates: Record<string, ContactState>
   onDone: (ids: string[]) => void
   onBack: () => void
 }) {
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [sortMode, setSortMode] = useState<SortMode>('strength')
   const [query, setQuery] = useState('')
 
-  const chapterMap = useMemo(() => {
-    const m: Record<string, string[]> = {}
-    for (const ch of chapters) m[ch.id] = [ch.name]
-    return m
-  }, [chapters])
+  const sortedContacts = useMemo(() => {
+    const cs = [...contacts]
+    if (sortMode === 'strength') {
+      cs.sort((a, b) => (contactStates[b.id]?.relationshipStrength ?? 0) - (contactStates[a.id]?.relationshipStrength ?? 0))
+    } else if (sortMode === 'name') {
+      cs.sort((a, b) => a.name.localeCompare(b.name))
+    } else {
+      cs.sort((a, b) => {
+        const ta = contactStates[a.id]?.lastContactDate ? new Date(contactStates[a.id].lastContactDate!).getTime() : 0
+        const tb = contactStates[b.id]?.lastContactDate ? new Date(contactStates[b.id].lastContactDate!).getTime() : 0
+        return tb - ta
+      })
+    }
+    return cs
+  }, [contacts, contactStates, sortMode])
+
+  const suggestedIds = useMemo(() => {
+    return new Set(
+      [...contacts]
+        .sort((a, b) => (contactStates[b.id]?.relationshipStrength ?? 0) - (contactStates[a.id]?.relationshipStrength ?? 0))
+        .slice(0, 5)
+        .map((c) => c.id)
+    )
+  }, [contacts, contactStates])
+
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(suggestedIds)
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim()
-    if (!q) return contacts
-    return contacts.filter((c) => c.name.toLowerCase().includes(q))
-  }, [contacts, query])
+    if (!q) return sortedContacts
+    return sortedContacts.filter((c) => c.name.toLowerCase().includes(q))
+  }, [sortedContacts, query])
 
   const toggle = (id: string) => {
     setSelectedIds((prev) => {
@@ -140,6 +197,9 @@ function PickerStep({
   }
 
   const count = selectedIds.size
+  const showDivider = !query && sortMode === 'strength'
+
+  let passedDivider = false
 
   return (
     <div style={{
@@ -160,70 +220,46 @@ function PickerStep({
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
-        maxHeight: 600,
+        maxHeight: 640,
       }}>
         {/* Header */}
         <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '14px 20px',
+          padding: '16px 20px 12px',
           borderBottom: '1px solid var(--border-light)',
           flexShrink: 0,
         }}>
-          <button
-            onClick={onBack}
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 13,
-              color: 'var(--text-secondary)',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: 0,
-            }}
-          >
-            Back
-          </button>
-          <div style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 13,
-            color: 'var(--text-muted)',
-          }}>
-            {count > 0 ? `${count} selected` : 'Select people'}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 600, color: 'var(--text-primary)' }}>
+              Stay Close
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <select
+                value={sortMode}
+                onChange={(e) => setSortMode(e.target.value as SortMode)}
+                style={{
+                  fontFamily: 'var(--font-sans)', fontSize: 11, color: '#C4613C',
+                  background: 'transparent', border: 'none', outline: 'none',
+                  cursor: 'pointer', appearance: 'none', paddingRight: 14,
+                }}
+              >
+                <option value="strength">Relationship strength</option>
+                <option value="recency">Recency</option>
+                <option value="name">Name</option>
+              </select>
+              <ChevronDown size={11} strokeWidth={2} color="#C4613C" style={{ marginLeft: -12, pointerEvents: 'none' }} />
+            </div>
           </div>
-          <button
-            onClick={() => count > 0 && onDone(Array.from(selectedIds))}
-            disabled={count === 0}
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 13,
-              fontWeight: 600,
-              color: count > 0 ? 'var(--accent)' : 'var(--text-muted)',
-              background: 'none',
-              border: 'none',
-              cursor: count > 0 ? 'pointer' : 'default',
-              padding: 0,
-            }}
-          >
-            Done
-          </button>
+          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-muted)' }}>
+            People you message most
+          </div>
         </div>
 
         {/* Search */}
-        <div style={{
-          padding: '10px 20px',
-          borderBottom: '1px solid var(--border-light)',
-          flexShrink: 0,
-        }}>
+        <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--border-light)', flexShrink: 0 }}>
           <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            background: 'var(--bg)',
-            borderRadius: 'var(--radius-md)',
-            padding: '8px 12px',
-            border: '1px solid var(--border-light)',
+            display: 'flex', alignItems: 'center', gap: 8,
+            background: 'var(--bg)', borderRadius: 'var(--radius-md)',
+            padding: '8px 12px', border: '1px solid var(--border-light)',
           }}>
             <Search size={14} strokeWidth={1.8} color="var(--text-muted)" />
             <input
@@ -231,13 +267,8 @@ function PickerStep({
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search by name..."
               style={{
-                flex: 1,
-                border: 'none',
-                background: 'transparent',
-                fontFamily: 'var(--font-sans)',
-                fontSize: 13,
-                color: 'var(--text-primary)',
-                outline: 'none',
+                flex: 1, border: 'none', background: 'transparent',
+                fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--text-primary)', outline: 'none',
               }}
             />
           </div>
@@ -246,83 +277,130 @@ function PickerStep({
         {/* List */}
         <div style={{ overflowY: 'auto', flex: 1 }}>
           {filtered.length === 0 ? (
-            <div style={{
-              padding: '32px 20px',
-              textAlign: 'center',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 14,
-              color: 'var(--text-muted)',
-            }}>
+            <div style={{ padding: '32px 20px', textAlign: 'center', fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)' }}>
               No contacts found.
             </div>
           ) : (
             filtered.map((contact) => {
               const isSelected = selectedIds.has(contact.id)
-              const tags = contact.chapterIds
-                .map((id) => chapters.find((ch) => ch.id === id)?.name)
-                .filter(Boolean) as string[]
+              const isSuggested = suggestedIds.has(contact.id)
+              const cs = contactStates[contact.id]
+              const strength = cs?.messageStrength
+
+              let showDividerBefore = false
+              if (showDivider && !isSuggested && !passedDivider) {
+                showDividerBefore = true
+                passedDivider = true
+              }
 
               return (
-                <button
-                  key={contact.id}
-                  onClick={() => toggle(contact.id)}
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    padding: '10px 20px',
-                    background: isSelected ? 'rgba(184,98,74,0.05)' : 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    transition: 'background 120ms',
-                  }}
-                >
-                  <ContactAvatar name={contact.name} size={40} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                <React.Fragment key={contact.id}>
+                  {showDividerBefore && (
                     <div style={{
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 14,
-                      fontWeight: 500,
-                      color: 'var(--text-primary)',
-                      lineHeight: 1.3,
+                      padding: '8px 20px 4px',
+                      fontFamily: 'var(--font-sans)', fontSize: 10,
+                      fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase',
+                      color: 'var(--text-muted)',
+                      borderTop: '1px solid var(--border-light)',
                     }}>
-                      {contact.name}
+                      Also suggested
                     </div>
-                    {tags.length > 0 && (
-                      <div style={{
-                        fontFamily: 'var(--font-sans)',
-                        fontSize: 11,
-                        color: 'var(--text-muted)',
-                        marginTop: 2,
-                      }}>
-                        {tags.join(', ')}
+                  )}
+                  <button
+                    onClick={() => toggle(contact.id)}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      padding: '10px 20px',
+                      paddingLeft: isSelected ? 17 : 20,
+                      borderLeft: isSelected ? '3px solid #C4613C' : '3px solid transparent',
+                      background: isSelected ? 'rgba(196,97,60,0.04)' : 'transparent',
+                      border: 'none',
+                      borderLeftWidth: 3,
+                      borderLeftStyle: 'solid',
+                      borderLeftColor: isSelected ? '#C4613C' : 'transparent',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'background 120ms',
+                    }}
+                  >
+                    <ContactAvatar name={contact.name} size={40} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{
+                          fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500,
+                          color: 'var(--text-primary)', lineHeight: 1.3,
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}>
+                          {contact.name}
+                        </div>
+                        <StrengthBadge strength={strength} />
                       </div>
-                    )}
-                  </div>
-                  <div style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: '50%',
-                    background: isSelected ? 'var(--accent)' : 'var(--bg)',
-                    border: isSelected ? 'none' : '1.5px solid var(--border)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    transition: 'background 120ms, border 120ms',
-                  }}>
-                    {isSelected && <Check size={12} strokeWidth={2.5} color="#F9F5EE" />}
-                  </div>
-                </button>
+                      {cs?.lastContactDate && (
+                        <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                          {formatRelative(cs.lastContactDate)}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{
+                      width: 22, height: 22, borderRadius: '50%',
+                      background: isSelected ? 'var(--accent)' : 'var(--bg)',
+                      border: isSelected ? 'none' : '1.5px solid var(--border)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      flexShrink: 0, transition: 'background 120ms, border 120ms',
+                    }}>
+                      {isSelected && <Check size={12} strokeWidth={2.5} color="#F9F5EE" />}
+                    </div>
+                  </button>
+                </React.Fragment>
               )
             })
           )}
         </div>
+
+        {/* Footer */}
+        <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border-light)', flexShrink: 0 }}>
+          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: 10 }}>
+            You can always add more from their story.
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <button onClick={onBack} style={{
+              fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--text-secondary)',
+              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+            }}>
+              Back
+            </button>
+            <button
+              onClick={() => count > 0 && onDone(Array.from(selectedIds))}
+              disabled={count === 0}
+              style={{
+                fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600,
+                color: '#fff',
+                background: count > 0 ? '#C4613C' : 'var(--text-muted)',
+                border: 'none', borderRadius: 6,
+                padding: '8px 18px', cursor: count > 0 ? 'pointer' : 'default',
+              }}
+            >
+              Save {count > 0 ? `${count} close ` : ''}contacts
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )
+}
+
+function formatRelative(iso: string): string {
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Yesterday'
+  if (days < 7) return `${days} days ago`
+  const weeks = Math.floor(days / 7)
+  if (days < 30) return `${weeks} ${weeks === 1 ? 'week' : 'weeks'} ago`
+  const months = Math.floor(days / 30)
+  return `${months} ${months === 1 ? 'month' : 'months'} ago`
 }
 
 // ─── Step 3: Confirmation ─────────────────────────────────────────────────────
@@ -442,6 +520,7 @@ export function StayCloseScreen({ onDone }: StayCloseScreenProps) {
   const [step, setStep] = useState<Step>('intent')
   const [contacts, setContacts] = useState<Contact[]>([])
   const [chapters, setChapters] = useState<Chapter[]>([])
+  const [contactStates, setContactStates] = useState<Record<string, ContactState>>({})
   const [selectedContacts, setSelectedContacts] = useState<Contact[]>([])
   const [saving, setSaving] = useState(false)
 
@@ -450,10 +529,11 @@ export function StayCloseScreen({ onDone }: StayCloseScreenProps) {
       try {
         const [cs, state] = await Promise.all([
           window.loop.contacts.list(),
-          window.loop.state.get(),
+          window.loop.state.get() as Promise<AppState>,
         ])
         setContacts(cs)
         setChapters(state.chapters)
+        setContactStates(state.contacts)
       } catch { /* pass */ }
     }
     load()
@@ -490,6 +570,7 @@ export function StayCloseScreen({ onDone }: StayCloseScreenProps) {
       <PickerStep
         contacts={contacts}
         chapters={chapters}
+        contactStates={contactStates}
         onDone={handlePickerDone}
         onBack={() => setStep('intent')}
       />
