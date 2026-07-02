@@ -468,6 +468,110 @@ class WhatsAppManager extends EventEmitter {
     }
   }
 
+  // ─── Post-Louvain merge pass ───────────────────────────────────────────────
+  // Louvain has a resolution limit (Fortunato & Barthélemy 2007): small clusters
+  // with low membership overlap end up as separate communities even when they
+  // represent the same life era. This greedy merge pass fixes over-fragmentation.
+
+  private static _mergeScore(a: ContactCluster, b: ContactCluster, nowSec: number): number {
+    // Temporal overlap fraction
+    const aEnd = a.eraEnd ?? nowSec
+    const bEnd = b.eraEnd ?? nowSec
+    const overlapStart = Math.max(a.eraStart, b.eraStart)
+    const overlapEnd = Math.min(aEnd, bEnd)
+    let temporalScore = 0
+    if (overlapEnd > overlapStart) {
+      const overlapDuration = overlapEnd - overlapStart
+      const longerSpan = Math.max(aEnd - a.eraStart, bEnd - b.eraStart)
+      temporalScore = Math.min(overlapDuration / Math.max(longerSpan, 1), 1)
+    }
+
+    // Jaccard on contact jids
+    const aJids = new Set(a.contacts.map(c => c.jid))
+    const bJids = new Set(b.contacts.map(c => c.jid))
+    const intersection = [...aJids].filter(j => bJids.has(j)).length
+    const union = new Set([...aJids, ...bJids]).size
+    const jaccardScore = union > 0 ? intersection / union : 0
+
+    // Shared word score between bestGroupNames
+    const words = (name: string) =>
+      name.toLowerCase().split(/\W+/).filter(w => w.length >= 3)
+    const aWords = new Set(words(a.bestGroupName))
+    const bWords = words(b.bestGroupName)
+    const sharedWords = bWords.filter(w => aWords.has(w)).length
+    const totalUniqueWords = new Set([...aWords, ...bWords]).size
+    const nameScore = totalUniqueWords > 0 ? sharedWords / totalUniqueWords : 0
+
+    return temporalScore * 0.6 + jaccardScore * 0.3 + nameScore * 0.1
+  }
+
+  private static _mergePair(a: ContactCluster, b: ContactCluster, nowSec: number): ContactCluster {
+    // Contacts: union by jid
+    const seen = new Set<string>()
+    const contacts: ContactCluster['contacts'] = []
+    for (const c of [...a.contacts, ...b.contacts]) {
+      if (!seen.has(c.jid)) { seen.add(c.jid); contacts.push(c) }
+    }
+
+    // sharedGroups: union
+    const sharedGroups = [...new Set([...a.sharedGroups, ...b.sharedGroups])]
+
+    // Era bounds
+    const eraStart = Math.min(a.eraStart, b.eraStart)
+    const eraEnd = (a.eraEnd !== null && b.eraEnd !== null)
+      ? Math.max(a.eraEnd, b.eraEnd)
+      : null
+
+    // Keep bestGroup from whichever cluster has higher cohesion
+    const primary = a.cohesion >= b.cohesion ? a : b
+
+    // Weighted-average cohesion (approximation — adjacency map not in scope)
+    const totalContacts = a.contacts.length + b.contacts.length
+    const cohesion = totalContacts > 0
+      ? (a.cohesion * a.contacts.length + b.cohesion * b.contacts.length) / totalContacts
+      : 0
+
+    void nowSec  // not needed for field computation but kept for API symmetry
+    return {
+      contacts,
+      sharedGroups,
+      bestGroupJid: primary.bestGroupJid,
+      bestGroupName: primary.bestGroupName,
+      eraStart,
+      eraEnd,
+      cohesion,
+    }
+  }
+
+  private static _mergeClusters(clusters: ContactCluster[], nowSec: number): ContactCluster[] {
+    let result = [...clusters]
+    let changed = true
+
+    while (changed) {
+      changed = false
+      let bestScore = 0
+      let bestI = -1, bestJ = -1
+
+      for (let i = 0; i < result.length; i++) {
+        for (let j = i + 1; j < result.length; j++) {
+          const score = WhatsAppManager._mergeScore(result[i], result[j], nowSec)
+          if (score > bestScore) {
+            bestScore = score; bestI = i; bestJ = j
+          }
+        }
+      }
+
+      if (bestScore >= 0.5) {
+        const merged = WhatsAppManager._mergePair(result[bestI], result[bestJ], nowSec)
+        result = result.filter((_, idx) => idx !== bestI && idx !== bestJ)
+        result.push(merged)
+        changed = true
+      }
+    }
+
+    return result
+  }
+
   async buildContactClusters(): Promise<{ clusters: ContactCluster[]; groups: Awaited<ReturnType<WhatsAppManager['listGroupsWithMeta']>> }> {
     const [tieMap, groups] = await Promise.all([
       this.buildTieStrengthMap(),
@@ -612,9 +716,12 @@ class WhatsAppManager extends EventEmitter {
       })
     }
 
+    // Post-Louvain merge pass: fix resolution-limit over-fragmentation
+    const mergedClusters = WhatsAppManager._mergeClusters(clusters, nowSec)
+
     // Sort by cohesion × size descending
-    clusters.sort((a, b) => (b.cohesion * b.contacts.length) - (a.cohesion * a.contacts.length))
-    return { clusters, groups }
+    mergedClusters.sort((a, b) => (b.cohesion * b.contacts.length) - (a.cohesion * a.contacts.length))
+    return { clusters: mergedClusters, groups }
   }
 
   async listGroups(): Promise<{ id: string; name: string; members: string[] }[]> {
