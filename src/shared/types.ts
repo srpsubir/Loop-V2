@@ -102,6 +102,7 @@ export interface ContactState {
   reconnectedAt?: string | null   // ISO timestamp when reply detected after reach-out
   suppressNudge?: boolean         // true after 2 failed reach-outs
   nudgeDismissedAt?: string | null // ISO timestamp when user dismissed nudge card; resurfaces after 7 days
+  messageStrength?: 'high' | 'medium' | 'low'  // computed from WhatsApp chat recency at scan time
 }
 
 // ─── App state ───────────────────────────────────────────────────────────────

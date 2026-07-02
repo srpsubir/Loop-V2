@@ -448,14 +448,20 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
 
   const closeContacts = useMemo(() => {
     if (!state) return []
+    const strengthMultiplier = (s: 'high' | 'medium' | 'low' | undefined) =>
+      s === 'high' ? 1.5 : s === 'low' ? 0.7 : 1.0
     return contacts
       .filter((c) => c.tier === 'close')
       .sort((a, b) => {
-        const msA = state.contacts[a.id]?.lastContactDate
-          ? Date.now() - new Date(state.contacts[a.id].lastContactDate!).getTime() : 0
-        const msB = state.contacts[b.id]?.lastContactDate
-          ? Date.now() - new Date(state.contacts[b.id].lastContactDate!).getTime() : 0
-        return msB - msA
+        const csA = state.contacts[a.id]
+        const csB = state.contacts[b.id]
+        const daysA = csA?.lastContactDate
+          ? (Date.now() - new Date(csA.lastContactDate).getTime()) / 86400000 : 0
+        const daysB = csB?.lastContactDate
+          ? (Date.now() - new Date(csB.lastContactDate).getTime()) / 86400000 : 0
+        const scoreA = daysA * strengthMultiplier(csA?.messageStrength)
+        const scoreB = daysB * strengthMultiplier(csB?.messageStrength)
+        return scoreB - scoreA
       })
   }, [contacts, state])
 
@@ -782,17 +788,19 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
             </div>
             <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 4 }}>
               {closeContacts.map((c) => {
-                const lastDate = state?.contacts[c.id]?.lastContactDate
+                const cs = state?.contacts[c.id]
+                const lastDate = cs?.lastContactDate
                 const daysOverdue = lastDate
                   ? Math.floor((Date.now() - new Date(lastDate).getTime()) / 86400000)
                   : undefined
+                const urgent = (daysOverdue !== undefined && daysOverdue >= 30) && cs?.messageStrength === 'high'
                 return (
                   <div
                     key={c.id}
                     style={{ cursor: 'pointer', flexShrink: 0 }}
                     onClick={() => onOpenStory(c.id, c.chapterIds[0] ?? '')}
                   >
-                    <ContactTierIndicator tier="close" name={c.name} size={36} daysOverdue={daysOverdue} />
+                    <ContactTierIndicator tier="close" name={c.name} size={36} daysOverdue={daysOverdue} urgent={urgent} />
                   </div>
                 )
               })}

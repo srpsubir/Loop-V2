@@ -293,6 +293,9 @@ class Scanner {
       let onThisDayMemory: OnThisDayMemory | null = null
       const minMsgTsByChapter = new Map<string, number>()
 
+      // Compute tie strength from chat recency (uses chatStore, no WA fetches)
+      const tieStrengthMap = wa.isConnected() ? await wa.buildTieStrengthMap() : new Map()
+
       for (let i = 0; i < contacts.length; i++) {
         const contact = contacts[i]
         this.send('scan:progress', contact.name, i + 1, contacts.length)
@@ -344,6 +347,10 @@ class Scanner {
           track('suggestion_shown', { suggestion_type: nextOccasion.type })
         }
 
+        const tieEntry = contact.whatsappId ? tieStrengthMap.get(contact.whatsappId) : undefined
+        const messageStrength: 'high' | 'medium' | 'low' | undefined =
+          tieEntry ? tieEntry.strength : (prevState?.messageStrength ?? undefined)
+
         updatedContacts[contact.id] = {
           lastContactDate,
           lastScanAt: now,
@@ -354,6 +361,7 @@ class Scanner {
           lastReachOutAt:  justReconnected ? null : (prevState?.lastReachOutAt ?? null),
           reconnectedAt:   justReconnected ? now : (prevState?.reconnectedAt ?? null),
           suppressNudge:   justReconnected ? false : (prevState?.suppressNudge ?? false),
+          messageStrength,
         }
 
         // Track earliest message per chapter for Echo anniversary detection

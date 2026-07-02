@@ -8,6 +8,7 @@ interface ContactTierIndicatorProps {
   fading?: boolean
   src?: string
   daysOverdue?: number
+  urgent?: boolean
 }
 
 function toInitials(name: string): string {
@@ -27,11 +28,12 @@ export function ContactTierIndicator({
   fading = false,
   src,
   daysOverdue,
+  urgent = false,
 }: ContactTierIndicatorProps) {
   const isClose = tier === 'close'
   const avatarSize = size ?? (isClose ? 56 : 48)
 
-  return (
+  const inner = (
     <div style={{
       display: 'flex',
       flexDirection: 'column',
@@ -108,4 +110,18 @@ export function ContactTierIndicator({
       )}
     </div>
   )
+
+  if (urgent) {
+    return (
+      <div style={{
+        background: 'rgba(196,97,60,0.08)',
+        borderRadius: 8,
+        padding: '4px',
+      }}>
+        {inner}
+      </div>
+    )
+  }
+
+  return inner
 }
