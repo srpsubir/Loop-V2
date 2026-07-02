@@ -279,11 +279,27 @@ export function StoryScreen({ contactId, onBack }: StoryScreenProps) {
 
             {/* Chapter tags — quiet context, never classification */}
             {chapters.length > 0 && (
-              <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-                {chapters.map((ch) => (
-                  <Tag key={ch.id} tone="chapter">{ch.name}</Tag>
-                ))}
-              </div>
+              <>
+                {chapters.length > 1 && (
+                  <div style={{
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 10,
+                    fontWeight: 600,
+                    letterSpacing: '.08em',
+                    textTransform: 'uppercase',
+                    color: 'var(--text-muted)',
+                    marginTop: 10,
+                    marginBottom: 6,
+                  }}>
+                    Across {chapters.length} chapters
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 8, marginTop: chapters.length === 1 ? 10 : 0, flexWrap: 'wrap' }}>
+                  {chapters.map((ch) => (
+                    <Tag key={ch.id} tone="chapter">{ch.name}</Tag>
+                  ))}
+                </div>
+              </>
             )}
 
             {/* Stay Close tier pill — A4 */}
