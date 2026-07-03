@@ -1,12 +1,50 @@
 import { app, shell, BrowserWindow, protocol, net } from 'electron'
 import { join } from 'path'
+import { promises as fs } from 'fs'
+import { homedir } from 'os'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerAllHandlers } from './ipc'
 import Scanner from './scanner'
 import { initAnalytics, track, shutdownAnalytics } from './analytics'
 import WhatsAppManager from './whatsapp'
-import { readState } from './store'
+import { readState, patchState } from './store'
 import { initAutoUpdater } from './updater'
+
+const AUTH_DIR = join(homedir(), 'Documents', 'Loop', 'whatsapp-auth')
+
+/**
+ * MAV-192: Guard against stale dev state persisting across installs.
+ * If state claims WA is connected but the Baileys auth directory is
+ * missing or empty, the session is gone — reset connection flags so
+ * the user is sent back through onboarding rather than seeing seed data.
+ */
+async function validateSessionState(): Promise<void> {
+  try {
+    const state = await readState()
+    if (!state.onboardingComplete && !state.whatsappConnected) return
+
+    // Check whether a real Baileys session exists
+    let authFiles: string[] = []
+    try {
+      authFiles = await fs.readdir(AUTH_DIR)
+    } catch {
+      // Directory missing entirely
+    }
+
+    const hasSession = authFiles.some((f) => f.endsWith('.json') && f !== 'wa-cache.json')
+
+    if (!hasSession && (state.whatsappConnected || state.onboardingComplete)) {
+      console.warn('[main] No Baileys session found but state claims connected — resetting onboarding flags')
+      await patchState({
+        whatsappConnected: false,
+        onboardingComplete: false,
+        chapterDetectionComplete: false,
+      })
+    }
+  } catch (err) {
+    console.error('[main] validateSessionState error (non-fatal):', err)
+  }
+}
 
 initAnalytics()
 
@@ -80,6 +118,9 @@ app.whenReady().then(async () => {
   })
 
   registerAllHandlers(getWindow)
+
+  // MAV-192: Validate session before window opens so renderer never sees stale state
+  await validateSessionState()
 
   await createWindow()
 

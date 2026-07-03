@@ -335,10 +335,11 @@ export function SettingsScreen({ onBack, onConnect }: SettingsScreenProps) {
   }
 
   return (
-    <div data-screen-label="Settings" style={{ minHeight: '100%', background: 'var(--bg)' }}>
+    <div data-screen-label="Settings" style={{ height: '100%', overflowY: 'auto', background: 'var(--bg)' }}>
       <style dangerouslySetInnerHTML={{ __html: TOKEN_CSS }} />
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 24px 0' }}>
+      {/* MAV-194: left-pad 80px to clear macOS traffic lights in hiddenInset titlebar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 24px 0 80px' }}>
         <IconBtn label="Back" onClick={onBack} icon={<ArrowLeft size={19} strokeWidth={2} />} />
       </div>
 

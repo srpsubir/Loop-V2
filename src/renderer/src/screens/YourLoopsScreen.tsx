@@ -604,6 +604,45 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
     )
   }
 
+  // MAV-193: WhatsApp connected but chapter detection not yet complete — show scanning state
+  if (state?.whatsappConnected && !state.chapterDetectionComplete) {
+    return (
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', gap: 20 }}>
+        <style>{`
+          @keyframes loopScanPulse {
+            0%, 100% { opacity: 0.35; transform: scale(0.92); }
+            50%       { opacity: 1;    transform: scale(1); }
+          }
+        `}</style>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {[0, 1, 2].map((i) => (
+            <div key={i} style={{
+              width: 8, height: 8, borderRadius: '50%',
+              background: 'var(--accent)',
+              animation: 'loopScanPulse 1.4s ease-in-out infinite',
+              animationDelay: `${i * 0.22}s`,
+            }} />
+          ))}
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.01em', marginBottom: 8 }}>
+            Loop is reading your conversations.
+          </div>
+          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+            This usually takes 1–2 minutes.<br />Your chapters will appear when it's done.
+          </div>
+        </div>
+        <div style={{ position: 'absolute', top: 20, right: 20 }}>
+          <IconButton
+            icon={<Settings size={16} strokeWidth={1.8} />}
+            label="Settings"
+            onClick={onOpenSettings}
+          />
+        </div>
+      </div>
+    )
+  }
+
   // Contacts and echo card data
   const echoCardChapter = echoCardOpen && echoChapterId
     ? state?.chapters.find(ch => ch.id === echoChapterId) ?? null
@@ -818,13 +857,13 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
         )}
       </div>
 
-      {/* Horizontal atom timeline */}
+      {/* Horizontal atom timeline — MAV-196: alignItems flex-start so atoms hug top, not float mid-section */}
       <div style={{
         flex: 1,
         overflowX: 'auto',
         overflowY: 'hidden',
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start',
       }}>
         {chapterAtoms.length > 0 ? (
           <div style={{
