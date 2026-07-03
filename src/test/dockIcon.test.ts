@@ -19,6 +19,7 @@ vi.mock('electron', () => ({
     setName: setNameMock,
     getVersion: () => '0.1.0',
     quit: vi.fn(),
+    requestSingleInstanceLock: vi.fn().mockReturnValue(true),
   },
   BrowserWindow: class {
     on = vi.fn()

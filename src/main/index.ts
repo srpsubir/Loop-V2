@@ -48,6 +48,19 @@ async function validateSessionState(): Promise<void> {
 
 initAnalytics()
 
+// MAV-199: Prevent multiple instances — second launch focuses the existing window instead
+const gotTheLock = app.requestSingleInstanceLock()
+if (!gotTheLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.focus()
+    }
+  })
+}
+
 // Set name and dock icon synchronously — before app.whenReady() to avoid flash
 app.setName('Loop')
 if (process.platform === 'darwin' && is.dev) {
