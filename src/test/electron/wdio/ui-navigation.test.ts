@@ -289,7 +289,7 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
     await browser.execute(() => { window.location.reload() })
     await browser.pause(2500)
 
-    const card = await browser.$('*=years ago today')
+    const card = await browser.$('[data-testid="opening-moment-card"]')
     await card.waitForExist({ timeout: 5000 })
     log('Opening Moment card visible')
   })

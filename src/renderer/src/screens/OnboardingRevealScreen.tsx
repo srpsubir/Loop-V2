@@ -32,31 +32,30 @@ export function OnboardingRevealScreen({ onContinue }: Props) {
   const [pressed, setPressed] = useState(false)
 
   useEffect(() => {
-    window.loop.state.get().then((state) => {
-      const contactStates = state.contacts ?? {}
-      const allContacts = Object.values(state.contacts ?? {}) as Contact[]
+    Promise.all([window.loop.contacts.list(), window.loop.state.get()])
+      .then(([contacts, state]) => {
+        const contactStateMap = state.contacts ?? {}
+        const overdue: InsightRow[] = []
 
-      // Find contacts overdue by 6+ weeks, sorted most-overdue first
-      const overdue: InsightRow[] = []
-      for (const contact of allContacts) {
-        if (!('name' in contact)) continue
-        const cs = (state as any).contactStates?.[contact.id]
-        const days = daysSince(cs?.lastContactDate ?? null)
-        if (days === null || days < 42) continue
+        for (const contact of contacts) {
+          const cs = contactStateMap[contact.id]
+          const days = daysSince(cs?.lastContactDate ?? null)
+          if (days === null || days < 42) continue
 
-        let insight: string
-        if (days >= 90) {
-          insight = `It's been over ${Math.floor(days / 30)} months since you last spoke.`
-        } else {
-          insight = `It's been ${days} days since you last spoke.`
+          let insight: string
+          if (days >= 90) {
+            insight = `It's been over ${Math.floor(days / 30)} months since you last spoke.`
+          } else {
+            insight = `It's been ${days} days since you last spoke.`
+          }
+          overdue.push({ contact, days, insight })
         }
-        overdue.push({ contact, days, insight })
-      }
 
-      overdue.sort((a, b) => b.days - a.days)
-      setRows(overdue.slice(0, 3))
-      setLoading(false)
-    }).catch(() => setLoading(false))
+        overdue.sort((a, b) => b.days - a.days)
+        setRows(overdue.slice(0, 3))
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
   }, [])
 
   const count = rows.length

@@ -231,7 +231,7 @@ function OpeningMomentCard({ memory, chapters }: { memory: OnThisDayMemory; chap
   )?.name ?? null
 
   return (
-    <div style={{
+    <div data-testid="opening-moment-card" style={{
       margin: '20px 44px 0',
       padding: '16px 24px',
       background: 'var(--surface)',
