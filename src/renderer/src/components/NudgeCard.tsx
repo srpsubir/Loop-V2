@@ -18,9 +18,10 @@ export function NudgeCard({ contactName, contactInitials, nudgeText, onMessage, 
       alignItems: 'flex-start',
       gap: 12,
       padding: 16,
-      background: 'var(--surface)',
+      background: '#FFFFFF',
       borderRadius: 'var(--radius-md)',
-      boxShadow: 'var(--shadow-sm)',
+      boxShadow: '0 1px 3px rgba(26,16,12,0.07), 0 4px 14px rgba(26,16,12,0.07)',
+      borderLeft: '4px solid #B8624A',
     }}>
       {/* Avatar */}
       <div style={{

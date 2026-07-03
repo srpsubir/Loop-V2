@@ -53,6 +53,7 @@ export function ContactTierIndicator({
         justifyContent: 'center',
         overflow: 'hidden',
         flexShrink: 0,
+        boxShadow: isClose && !fading ? '0 0 0 2px #F4E7E2, 0 0 0 4px #B8624A' : undefined,
       }}>
         {src ? (
           <img src={src} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />

@@ -21,66 +21,10 @@ interface YourLoopsScreenProps {
 type AtomState = 'active' | 'fading' | 'dead-thread' | 'birthday-live' | 'birthday-fading'
 
 interface ChapterAtom {
-  chapter: { id: string; name: string }
+  chapter: Chapter
   atomState: AtomState
   crewColors: string[]
-}
-
-// ─── Atom state visual config ─────────────────────────────────────────────────
-
-const CFG: Record<AtomState, {
-  nucleusBg: string
-  nucleusText: string
-  ringColor: string
-  electronBg: string
-  orbitMs: number
-  paused: boolean
-  badge?: string
-}> = {
-  active: {
-    nucleusBg:   'var(--accent-faint)',
-    nucleusText: 'var(--accent)',
-    ringColor:   'rgba(184,98,74,0.20)',
-    electronBg:  'var(--people)',
-    orbitMs:     10000,
-    paused:      false,
-  },
-  fading: {
-    nucleusBg:   'var(--surface)',
-    nucleusText: 'var(--text-muted)',
-    ringColor:   'var(--border-light)',
-    electronBg:  'var(--border)',
-    orbitMs:     22000,
-    paused:      false,
-    badge:       'fading',
-  },
-  'dead-thread': {
-    nucleusBg:   'var(--surface)',
-    nucleusText: 'var(--text-secondary)',
-    ringColor:   'var(--border)',
-    electronBg:  'var(--border)',
-    orbitMs:     10000,
-    paused:      true,
-    badge:       'quiet',
-  },
-  'birthday-live': {
-    nucleusBg:   '#FDF3DF',
-    nucleusText: 'var(--accent)',
-    ringColor:   'rgba(184,98,74,0.35)',
-    electronBg:  'var(--accent)',
-    orbitMs:     5000,
-    paused:      false,
-    badge:       'birthday',
-  },
-  'birthday-fading': {
-    nucleusBg:   'var(--people-faint)',
-    nucleusText: 'var(--people)',
-    ringColor:   'var(--people)',
-    electronBg:  'var(--people)',
-    orbitMs:     16000,
-    paused:      false,
-    badge:       'birthday',
-  },
+  crewInitials: string[]
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -179,92 +123,28 @@ function useYourLoopsData() {
   return { state, contacts, loading }
 }
 
-// ─── Atom visual ─────────────────────────────────────────────────────────────
+// ─── Chapter card (MAV-197) ───────────────────────────────────────────────────
 
-const ATOM_SIZE = 176
-const NUCLEUS_SIZE = 84
-const ORBIT_R = 64
-const ELECTRON_SIZE = 20
+const CARD_GRADIENTS = [
+  'linear-gradient(160deg, #8A5A4A 0%, #B8624A 60%, #C4876E 100%)',
+  'linear-gradient(160deg, #3A5A7A 0%, #5A7A9A 60%, #8AAABF 100%)',
+  'linear-gradient(160deg, #4A6A4A 0%, #6A8A6A 60%, #90A890 100%)',
+  'linear-gradient(160deg, #5A4A7A 0%, #7A6A9A 60%, #A098B8 100%)',
+  'linear-gradient(160deg, #7A5A3A 0%, #9A7A5A 60%, #B89A78 100%)',
+]
 
-function AtomVisual({ atom }: { atom: ChapterAtom }) {
-  const cfg = CFG[atom.atomState]
-  const electrons = atom.crewColors.slice(0, 4)
-
-  const nucleusShadow = atom.atomState === 'birthday-live'
-    ? '0 0 0 4px rgba(184,98,74,0.12), 0 4px 12px rgba(42,31,27,0.10)'
-    : 'var(--shadow-md)'
-
-  return (
-    <div style={{ position: 'relative', width: ATOM_SIZE, height: ATOM_SIZE, flexShrink: 0 }}>
-      {/* Orbit ring */}
-      <div style={{
-        position: 'absolute',
-        inset: 0,
-        borderRadius: '50%',
-        border: `1.5px solid ${cfg.ringColor}`,
-        boxSizing: 'border-box',
-      }} />
-
-      {/* Static contact dots on orbit ring */}
-      {electrons.map((color, i) => {
-        const angleDeg = i * (360 / electrons.length)
-        const x = Math.round(ATOM_SIZE / 2 + ORBIT_R * Math.sin((angleDeg * Math.PI) / 180) - ELECTRON_SIZE / 2)
-        const y = Math.round(ATOM_SIZE / 2 - ORBIT_R * Math.cos((angleDeg * Math.PI) / 180) - ELECTRON_SIZE / 2)
-        return (
-          <div
-            key={i}
-            style={{
-              position: 'absolute',
-              left: x,
-              top: y,
-              width: ELECTRON_SIZE,
-              height: ELECTRON_SIZE,
-              borderRadius: '50%',
-              background: color,
-              boxShadow: 'var(--shadow-sm)',
-            }}
-          />
-        )
-      })}
-
-      {/* Nucleus */}
-      <div style={{
-        position: 'absolute',
-        top: '50%',
-        left: '50%',
-        width: NUCLEUS_SIZE,
-        height: NUCLEUS_SIZE,
-        marginTop: -(NUCLEUS_SIZE / 2),
-        marginLeft: -(NUCLEUS_SIZE / 2),
-        borderRadius: '50%',
-        background: cfg.nucleusBg,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        boxShadow: nucleusShadow,
-      }}>
-        <span style={{
-          fontFamily: 'var(--font-serif)',
-          fontSize: 30,
-          fontWeight: 600,
-          color: cfg.nucleusText,
-          letterSpacing: '-0.01em',
-          userSelect: 'none',
-          lineHeight: 1,
-        }}>
-          {atom.chapter.name[0]}
-        </span>
-      </div>
-    </div>
-  )
+function gradientFor(name: string): string {
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0
+  return CARD_GRADIENTS[h % CARD_GRADIENTS.length]
 }
 
-// ─── Atom card ────────────────────────────────────────────────────────────────
-
-function AtomCard({ atom, glow, onClick }: { atom: ChapterAtom; glow: boolean; onClick: () => void }) {
+function ChapterCard({ atom, glow, onClick }: { atom: ChapterAtom; glow: boolean; onClick: () => void }) {
   const [hov, setHov] = useState(false)
-  const [pressed, setPressed] = useState(false)
-  const cfg = CFG[atom.atomState]
+  const isFading = atom.atomState === 'fading' || atom.atomState === 'dead-thread'
+  const era = atom.chapter.startYear
+    ? `${atom.chapter.startYear}${atom.chapter.endYear ? ` – ${atom.chapter.endYear}` : ' – present'}`
+    : undefined
 
   return (
     <div
@@ -273,55 +153,64 @@ function AtomCard({ atom, glow, onClick }: { atom: ChapterAtom; glow: boolean; o
       onClick={onClick}
       onKeyDown={(e) => e.key === 'Enter' && onClick()}
       onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => { setHov(false); setPressed(false) }}
-      onMouseDown={() => setPressed(true)}
-      onMouseUp={() => setPressed(false)}
+      onMouseLeave={() => setHov(false)}
       data-testid="chapter-atom"
       data-chapter-id={atom.chapter.id}
       data-atom-state={atom.atomState}
       style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 12,
-        cursor: 'pointer',
-        padding: '16px 20px 18px',
-        borderRadius: 'var(--radius-lg)',
-        background: hov ? 'var(--surface)' : 'transparent',
-        transform: pressed ? 'scale(0.97)' : hov ? 'scale(1.02)' : 'scale(1)',
-        transition: 'background var(--duration-fast) var(--ease-out), transform 120ms var(--ease-out)',
-        outline: 'none',
         flexShrink: 0,
-        minWidth: 200,
-        animationName: glow ? 'yls-reconnect' : 'none',
-        animationDuration: '2.2s',
-        animationTimingFunction: 'ease-out',
-        animationFillMode: 'both',
+        width: 160,
+        height: 190,
+        borderRadius: 14,
+        overflow: 'hidden',
+        position: 'relative',
+        cursor: 'pointer',
+        outline: 'none',
+        filter: isFading ? 'saturate(0.35) brightness(0.88)' : undefined,
+        opacity: isFading ? 0.82 : 1,
+        transform: hov ? 'scale(1.03)' : 'scale(1)',
+        boxShadow: glow
+          ? '0 0 0 3px rgba(184,98,74,0.5), 0 6px 20px rgba(26,16,12,0.12)'
+          : '0 1px 4px rgba(26,16,12,0.08), 0 6px 20px rgba(26,16,12,0.08)',
+        transition: 'transform 120ms ease, box-shadow 120ms ease, opacity 200ms ease',
       } as React.CSSProperties}
     >
-      <AtomVisual atom={atom} />
-      <div style={{ textAlign: 'center' }}>
+      <div style={{ position: 'absolute', inset: 0, background: gradientFor(atom.chapter.name) }} />
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(26,16,12,0) 30%, rgba(26,16,12,0.65) 100%)' }} />
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 12 }}>
+        <div style={{ display: 'flex', marginBottom: 8 }}>
+          {atom.crewColors.slice(0, 4).map((color, i) => (
+            <div key={i} style={{
+              width: 24, height: 24, borderRadius: '50%',
+              background: color,
+              border: '1.5px solid rgba(255,255,255,0.65)',
+              marginRight: -7,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 10, fontWeight: 500, color: 'white',
+              fontFamily: 'var(--font-sans)',
+              userSelect: 'none',
+            }}>
+              {atom.crewInitials[i] ?? '?'}
+            </div>
+          ))}
+        </div>
         <div data-testid="chapter-name" style={{
-          fontFamily: 'var(--font-serif)',
-          fontSize: 15,
+          fontFamily: 'var(--font-sans)',
+          fontSize: 13,
           fontWeight: 600,
-          color: 'var(--text-primary)',
+          color: '#FFFFFF',
+          lineHeight: 1.2,
           letterSpacing: '-0.01em',
-          lineHeight: 1.3,
+          textShadow: '0 1px 3px rgba(0,0,0,0.3)',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
         }}>
           {atom.chapter.name}
         </div>
-        {cfg.badge && (
-          <div style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 10,
-            letterSpacing: '.1em',
-            textTransform: 'uppercase',
-            color: cfg.nucleusText,
-            marginTop: 4,
-            fontWeight: 700,
-          }}>
-            {cfg.badge}
+        {era && (
+          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, color: 'rgba(255,255,255,0.65)', marginTop: 2 }}>
+            {era}
           </div>
         )}
       </div>
@@ -406,17 +295,6 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
   const echoCardRef = useRef<HTMLDivElement>(null)
   const [hiddenDeadThreadIds, setHiddenDeadThreadIds] = useState<Set<string>>(new Set())
 
-  useEffect(() => {
-    if (document.getElementById('yls-atom-styles')) return
-    const s = document.createElement('style')
-    s.id = 'yls-atom-styles'
-    s.textContent = [
-      '@keyframes yls-orbit { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }',
-      '@keyframes yls-reconnect { 0%,100% { box-shadow: none; } 40% { box-shadow: 0 0 0 8px rgba(184,98,74,0.22), 0 0 24px rgba(184,98,74,0.18); } }',
-    ].join('\n')
-    document.head.appendChild(s)
-  }, [])
-
   // Reconnection dopamine pulse
   useEffect(() => {
     if (typeof window === 'undefined' || !window.loop?.onReconnection) return
@@ -438,10 +316,12 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
     if (!state) return []
     return state.chapters.map((chapter) => {
       const chapterContacts = contacts.filter((c) => c.chapterIds.includes(chapter.id))
+      const crew = chapterContacts.slice(0, 4)
       return {
         chapter,
         atomState: deriveAtomState(chapterContacts, state.contacts),
-        crewColors: chapterContacts.slice(0, 4).map((c) => tintFor(c.name)),
+        crewColors: crew.map((c) => tintFor(c.name)),
+        crewInitials: crew.map((c) => c.name.trim().split(/\s+/)[0]?.[0]?.toUpperCase() ?? '?'),
       }
     })
   }, [state, contacts])
@@ -680,14 +560,27 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
         padding: '28px 44px 0',
         flexShrink: 0,
       }}>
-        <div style={{
-          fontFamily: 'var(--font-serif)',
-          fontSize: 26,
-          fontWeight: 600,
-          color: 'var(--text-primary)',
-          letterSpacing: '-0.02em',
-        }}>
-          Your Loops
+        <div>
+          <div style={{
+            fontFamily: 'var(--font-sans)',
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: '.08em',
+            textTransform: 'uppercase',
+            color: 'var(--text-muted)',
+            marginBottom: 4,
+          }}>
+            {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
+          </div>
+          <div style={{
+            fontFamily: 'var(--font-serif)',
+            fontSize: 26,
+            fontWeight: 600,
+            color: 'var(--text-primary)',
+            letterSpacing: '-0.02em',
+          }}>
+            {(() => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening' })()}
+          </div>
         </div>
         <IconButton
           icon={<Settings size={16} strokeWidth={1.8} />}
@@ -702,7 +595,7 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
           <NudgeCard
             contactName={nudgeContact.name}
             contactInitials={nudgeContact.name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
-            nudgeText={`You've been quiet with ${nudgeContact.name.split(' ')[0]}. Worth a message.`}
+            nudgeText={`${nudgeContact.name.split(' ')[0]} has been quiet in your life lately.`}
             onMessage={handleNudgeMessage}
             onDismiss={handleNudgeDismiss}
           />
@@ -814,16 +707,18 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
       <div style={{ padding: '16px 44px 0', flexShrink: 0 }}>
         {closeContacts.length > 0 ? (
           <>
-            <div style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: '.08em',
-              textTransform: 'uppercase',
-              color: '#6B5C52',
-              marginBottom: 12,
-            }}>
-              Stay close
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#B8624A', flexShrink: 0 }} />
+              <div style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: '.08em',
+                textTransform: 'uppercase',
+                color: '#9C7A73',
+              }}>
+                Stay close
+              </div>
             </div>
             <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 4 }}>
               {closeContacts.map((c) => {
@@ -857,24 +752,33 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
         )}
       </div>
 
-      {/* Horizontal atom timeline — MAV-196: alignItems flex-start so atoms hug top, not float mid-section */}
-      <div style={{
-        flex: 1,
-        overflowX: 'auto',
-        overflowY: 'hidden',
-        display: 'flex',
-        alignItems: 'flex-start',
-      }}>
-        {chapterAtoms.length > 0 ? (
+      {/* Zone divider — People / Chapter layers */}
+      <div style={{ padding: '20px 44px 0', flexShrink: 0 }}>
+        <hr style={{ border: 'none', borderTop: '1px solid rgba(26,16,12,0.09)' }} />
+      </div>
+
+      {/* Chapter cards — MAV-197 */}
+      <div style={{ padding: '16px 44px 0', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 14 }}>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(26,16,12,0.25)', flexShrink: 0 }} />
           <div style={{
-            display: 'flex',
-            gap: 8,
-            padding: '16px 44px 32px',
-            alignItems: 'center',
-            flexShrink: 0,
+            fontFamily: 'var(--font-sans)',
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: '.08em',
+            textTransform: 'uppercase',
+            color: '#9C7A73',
           }}>
+            Chapters
+          </div>
+        </div>
+      </div>
+
+      <div style={{ flex: 1, overflowX: 'auto', overflowY: 'hidden', display: 'flex', alignItems: 'flex-start' }}>
+        {chapterAtoms.length > 0 ? (
+          <div style={{ display: 'flex', gap: 12, padding: '0 44px 32px', alignItems: 'flex-start', flexShrink: 0 }}>
             {chapterAtoms.map((atom) => (
-              <AtomCard
+              <ChapterCard
                 key={atom.chapter.id}
                 atom={atom}
                 glow={glowChapterId === atom.chapter.id}
@@ -883,14 +787,7 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
             ))}
           </div>
         ) : (
-          <div style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-          }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
             <div style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--text-secondary)', fontStyle: 'italic' }}>
               {state?.whatsappConnected ? 'Your chapters are on their way.' : 'No chapters yet.'}
             </div>

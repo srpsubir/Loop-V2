@@ -17,8 +17,8 @@
 
 :root {
   /* Parchment surfaces */
-  --parchment-bg:       #F9F5EE;
-  --parchment-surface:  #EFE6D6;
+  --parchment-bg:       #F4E7E2;
+  --parchment-surface:  #EDD9D2;
   --parchment-raised:   #E8DBCA;
 
   /* Terracotta — primary accent */
@@ -35,7 +35,7 @@
   --sage-faint:         #EAF2EB;
 
   /* Ink — never pure black */
-  --ink:                #2A1F1B;
+  --ink:                #1A100C;
   --ink-mid:            #6B5447;
   --ink-muted:          #7A6056;
 
