@@ -14,6 +14,9 @@ import { ChapterNamingScreen } from './screens/ChapterNamingScreen'
 import { EmailCaptureScreen } from './screens/EmailCaptureScreen'
 import { StayCloseScreen } from './screens/StayCloseScreen'
 import { PrivacyNoticeScreen } from './screens/PrivacyNoticeScreen'
+import { OnboardingFeltMomentScreen } from './screens/OnboardingFeltMomentScreen'
+import { OnboardingNormaliseScreen } from './screens/OnboardingNormaliseScreen'
+import { OnboardingRevealScreen } from './screens/OnboardingRevealScreen'
 import type { ChapterCandidate } from '@shared/types'
 import { ConnectionStateProvider } from './ConnectionStateContext'
 
@@ -21,6 +24,9 @@ import { ConnectionStateProvider } from './ConnectionStateContext'
 
 type Nav =
   | { screen: 'welcome' }
+  | { screen: 'onboarding-felt-moment' }
+  | { screen: 'onboarding-normalise' }
+  | { screen: 'onboarding-reveal' }
   | { screen: 'privacy-notice' }
   | { screen: 'whatsapp-connect' }
   | { screen: 'chapter-inference' }
@@ -431,7 +437,7 @@ function WhatsAppConnectScreen({ onConnected }: { onConnected: () => void }) {
 // ─── App root ─────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [nav, setNav] = useState<Nav>({ screen: 'welcome' })
+  const [nav, setNav] = useState<Nav>({ screen: 'onboarding-felt-moment' })
 
   useEffect(() => {
     const init = async () => {
@@ -503,6 +509,28 @@ export default function App() {
   }, [])
 
   switch (nav.screen) {
+    case 'onboarding-felt-moment':
+      return <OnboardingFeltMomentScreen onContinue={() => setNav({ screen: 'onboarding-normalise' })} />
+
+    case 'onboarding-normalise':
+      return (
+        <OnboardingNormaliseScreen
+          onContinue={async () => {
+            try {
+              const state = await window.loop.state.get()
+              if (!state.privacyAcceptedAt) {
+                setNav({ screen: 'privacy-notice' })
+                return
+              }
+            } catch { /* main not ready yet — show notice to be safe */ }
+            setNav({ screen: 'whatsapp-connect' })
+          }}
+        />
+      )
+
+    case 'onboarding-reveal':
+      return <OnboardingRevealScreen onContinue={goEmailCapture} />
+
     case 'welcome':
       return (
         <WelcomeScreen
@@ -581,7 +609,7 @@ export default function App() {
                 }
               }
             } catch { /* pass */ }
-            goEmailCapture()
+            setNav({ screen: 'onboarding-reveal' })
           }}
           onSkip={goSkip}
         />
@@ -595,7 +623,7 @@ export default function App() {
         if (index + 1 < candidates.length) {
           setNav({ screen: 'chapter-naming', candidates, index: index + 1 })
         } else {
-          goEmailCapture()
+          setNav({ screen: 'onboarding-reveal' })
         }
       }
       return (
