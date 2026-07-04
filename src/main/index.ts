@@ -86,7 +86,7 @@ async function createWindow(): Promise<void> {
     minHeight: 640,
     show: false,
     titleBarStyle: 'hiddenInset',
-    backgroundColor: '#F4E7E2',
+    backgroundColor: '#00000000',
     title: 'Loop',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),

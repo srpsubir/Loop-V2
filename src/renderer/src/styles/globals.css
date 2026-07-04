@@ -65,6 +65,73 @@
   --selection-bg:       rgba(184, 98, 74, 0.18);
 }
 
+/* ── Dark mode ──────────────────────────────────────────────────────────────── */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --parchment-bg:      #1C1008;
+    --parchment-surface: #251610;
+    --parchment-raised:  #2E1C13;
+    --terracotta:        #C8724E;
+    --terracotta-light:  #D48A6A;
+    --terracotta-faint:  #2E1E14;
+    --rose:              #C4A090;
+    --rose-faint:        #251610;
+    --sage:              #7AAB80;
+    --sage-faint:        #1A2E1C;
+    --ink:               #F2E8DF;
+    --ink-mid:           #B89C8E;
+    --ink-muted:         #8A6E62;
+    --line:              #3A2218;
+    --line-light:        #2E1C13;
+    --accent-hover:      #B86040;
+    --focus-ring:        0 0 0 3px rgba(200, 114, 78, 0.32);
+    --selection-bg:      rgba(200, 114, 78, 0.22);
+  }
+}
+
+:root[data-theme="dark"] {
+  --parchment-bg:      #1C1008;
+  --parchment-surface: #251610;
+  --parchment-raised:  #2E1C13;
+  --terracotta:        #C8724E;
+  --terracotta-light:  #D48A6A;
+  --terracotta-faint:  #2E1E14;
+  --rose:              #C4A090;
+  --rose-faint:        #251610;
+  --sage:              #7AAB80;
+  --sage-faint:        #1A2E1C;
+  --ink:               #F2E8DF;
+  --ink-mid:           #B89C8E;
+  --ink-muted:         #8A6E62;
+  --line:              #3A2218;
+  --line-light:        #2E1C13;
+  --accent-hover:      #B86040;
+  --focus-ring:        0 0 0 3px rgba(200, 114, 78, 0.32);
+  --selection-bg:      rgba(200, 114, 78, 0.22);
+}
+
+:root[data-theme="light"] {
+  --parchment-bg:      #F4E7E2;
+  --parchment-surface: #EDD9D2;
+  --parchment-raised:  #E8DBCA;
+  --terracotta:        #B8624A;
+  --terracotta-light:  #D4856E;
+  --terracotta-faint:  #F5EAD8;
+  --rose:              #C49A8A;
+  --rose-faint:        #F7EDE8;
+  --sage:              #6A9470;
+  --sage-faint:        #EAF2EB;
+  --ink:               #1A100C;
+  --ink-mid:           #6B5447;
+  --ink-muted:         #7A6056;
+  --line:              #DDD0C0;
+  --line-light:        #EDE3D5;
+  --accent-hover:      #A6543E;
+  --focus-ring:        0 0 0 3px rgba(184, 98, 74, 0.28);
+  --selection-bg:      rgba(184, 98, 74, 0.18);
+}
+
 ::selection { background: var(--selection-bg); color: var(--text-primary); }
 
 /* ── Typography tokens ──────────────────────────────────────────────────────── */

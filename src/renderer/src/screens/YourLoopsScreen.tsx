@@ -162,7 +162,7 @@ function ChapterCard({ atom, glow, onClick }: { atom: ChapterAtom; glow: boolean
         flexShrink: 0,
         width: 160,
         height: 190,
-        borderRadius: 14,
+        borderRadius: 'var(--radius-md)',
         overflow: 'hidden',
         position: 'relative',
         cursor: 'pointer',
@@ -210,7 +210,7 @@ function ChapterCard({ atom, glow, onClick }: { atom: ChapterAtom; glow: boolean
           {atom.chapter.name}
         </div>
         {era && (
-          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, color: 'rgba(255,255,255,0.65)', marginTop: 2 }}>
+          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'rgba(255,255,255,0.65)', marginTop: 2 }}>
             {era}
           </div>
         )}
@@ -728,7 +728,7 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
       <div style={{ padding: '16px 44px 0', flexShrink: 0 }}>
         {closeContacts.length > 0 ? (
           <>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#B8624A', flexShrink: 0 }} />
               <div style={{
                 fontFamily: 'var(--font-sans)',
@@ -780,7 +780,7 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
 
       {/* Chapter cards — MAV-197 */}
       <div style={{ padding: '16px 44px 0', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(26,16,12,0.25)', flexShrink: 0 }} />
           <div style={{
             fontFamily: 'var(--font-sans)',

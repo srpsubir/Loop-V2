@@ -190,7 +190,7 @@ export function PrivacyNoticeScreen({ onAccept }: PrivacyNoticeScreenProps) {
         <p
           style={{
             fontFamily: 'var(--font-sans)',
-            fontSize: 11.5,
+            fontSize: 12,
             color: 'var(--text-muted)',
             textAlign: 'center',
             marginTop: 12,

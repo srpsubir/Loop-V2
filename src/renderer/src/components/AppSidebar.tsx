@@ -33,7 +33,8 @@ export function AppSidebar({ currentScreen, onNavigate }: Props) {
       style={{
         width: 200,
         height: '100%',
-        background: 'var(--surface)',
+        background: 'rgba(237, 217, 210, 0.72)',
+        WebkitBackdropFilter: 'blur(20px) saturate(1.8)',
         display: 'flex',
         flexDirection: 'column',
         flexShrink: 0,
@@ -93,7 +94,7 @@ export function AppSidebar({ currentScreen, onNavigate }: Props) {
                 fontWeight: isActive ? 500 : 400,
                 color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
                 textAlign: 'left',
-                borderRadius: 6,
+                borderRadius: 8,
                 transition: 'background 120ms ease',
                 boxSizing: 'border-box',
               } as React.CSSProperties}

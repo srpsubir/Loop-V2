@@ -204,7 +204,7 @@ function ChapterInferenceView({ chapters, onConfirm, onSkip }: {
       </div>
 
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 10, padding: '16px 40px 28px', background: 'linear-gradient(to top, var(--bg) 70%, transparent)' }}>
-        <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', gap: 14, alignItems: 'center' }}>
+        <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', gap: 16, alignItems: 'center' }}>
           <Btn variant="primary" disabled={count === 0} onClick={() => onConfirm([...confirmed])}>
             {count === 0 ? 'These are my chapters' : `These are my chapters (${count})`}
           </Btn>

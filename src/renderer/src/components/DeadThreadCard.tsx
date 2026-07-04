@@ -28,7 +28,7 @@ export function DeadThreadCard({ contact, weeksSince, onTryAgain, onLetItRest }:
         boxSizing: 'border-box',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
         <div
           aria-hidden="true"
           style={{

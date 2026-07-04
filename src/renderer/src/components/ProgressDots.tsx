@@ -7,7 +7,7 @@ interface ProgressDotsProps {
 
 export function ProgressDots({ total, current }: ProgressDotsProps): React.JSX.Element {
   return (
-    <div style={{ display: 'flex', gap: 7, alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center' }}>
       {Array.from({ length: total }, (_, i) => (
         <span
           key={i}

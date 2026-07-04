@@ -58,7 +58,7 @@ export function OnYourMindSection({ contacts, onNavigate }: OnYourMindSectionPro
               boxShadow: '0 1px 4px rgba(26,16,12,0.07)',
               display: 'flex',
               alignItems: 'center',
-              gap: 14,
+              gap: 16,
             }}
           >
             <div

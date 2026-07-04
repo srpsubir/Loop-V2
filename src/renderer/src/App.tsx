@@ -171,7 +171,7 @@ function WelcomeScreen({ onConnect }: { onConnect: () => void }) {
               <span
                 style={{
                   fontFamily: 'var(--font-sans)',
-                  fontSize: 12.5,
+                  fontSize: 13,
                   fontWeight: 300,
                   color: '#A38F85',
                   textAlign: 'center',
@@ -188,7 +188,7 @@ function WelcomeScreen({ onConnect }: { onConnect: () => void }) {
         <p
           style={{
             fontFamily: 'var(--font-sans)',
-            fontSize: 11.5,
+            fontSize: 12,
             color: '#BBA99E',
             textAlign: 'center',
             marginBottom: 36,
@@ -232,7 +232,7 @@ function WelcomeScreen({ onConnect }: { onConnect: () => void }) {
                 <CheckCircle size={26} strokeWidth={1.8} color="var(--accent)" />
               </div>
               <p style={{ fontFamily: 'var(--font-serif)', fontSize: 22, fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>You're in</p>
-              <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13.5, color: 'var(--text-muted)', margin: 0 }}>Setting up your space…</p>
+              <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)', margin: 0 }}>Setting up your space…</p>
             </div>
           ) : (
             <>
@@ -425,7 +425,7 @@ function WhatsAppConnectScreen({ onConnected }: { onConnected: () => void }) {
 
       <p style={{
         fontFamily: 'var(--font-sans)',
-        fontSize: 11.5,
+        fontSize: 12,
         color: '#BBA99E',
         textAlign: 'center',
         marginTop: 20,

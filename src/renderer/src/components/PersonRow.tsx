@@ -34,7 +34,7 @@ export function PersonRow({
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 14,
+        gap: 16,
         padding: '10px 12px',
         borderRadius: 'var(--radius-md)',
         cursor: onClick ? 'pointer' : 'default',

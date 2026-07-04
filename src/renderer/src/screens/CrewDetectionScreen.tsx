@@ -208,7 +208,7 @@ function AvatarCell({ member, onToggle }: { member: CrewMember; onToggle: () => 
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       style={{
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
         background: hov ? 'var(--surface)' : 'transparent',
         border: 'none', cursor: 'pointer',
         padding: '10px 8px', borderRadius: 'var(--radius-md)',

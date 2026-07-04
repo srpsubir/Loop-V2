@@ -134,7 +134,7 @@ export function OnboardingRevealScreen({ onContinue }: Props) {
               <div key={row.contact.id} style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 14,
+                gap: 16,
                 background: '#FFFFFF',
                 borderRadius: 12,
                 borderLeft: '4px solid #B8624A',

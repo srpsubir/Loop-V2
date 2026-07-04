@@ -96,7 +96,7 @@ function AvatarEl({ name, size = 46, ring = 'none' }: { name: string; size?: num
 
 function PersonRow({ name, note, ring, trailing }: { name: string; note: string; ring: 'none' | 'sage'; trailing?: React.ReactNode }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 8px 10px 12px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '10px 8px 10px 12px' }}>
       <AvatarEl name={name} size={46} ring={ring} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.25 }}>{name}</div>
@@ -219,7 +219,7 @@ function Section({ label, children, footnote }: { label: string; children?: Reac
     <section>
       <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 10px 6px' }}>{label}</div>
       <PaperCard padding={6}>{children}</PaperCard>
-      {footnote && <p style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.55, color: 'var(--text-muted)', margin: '10px 6px 0' }}>{footnote}</p>}
+      {footnote && <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.55, color: 'var(--text-muted)', margin: '10px 6px 0' }}>{footnote}</p>}
     </section>
   )
 }
@@ -346,14 +346,14 @@ export function SettingsScreen({ onBack, onConnect }: SettingsScreenProps) {
       <div style={{ maxWidth: 620, margin: '0 auto', padding: '10px 24px 80px' }}>
         <header style={{ margin: '18px 6px 30px' }}>
           <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 32, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.01em', margin: 0 }}>Settings</h1>
-          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14.5, lineHeight: 1.55, color: 'var(--text-secondary)', margin: '8px 0 0' }}>
+          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 15, lineHeight: 1.55, color: 'var(--text-secondary)', margin: '8px 0 0' }}>
             How Loop listens, and who it listens for.
           </p>
         </header>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
           <Section label="WhatsApp">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '12px 14px' }}>
               <div style={{ width: 42, height: 42, borderRadius: 'var(--radius-full)', flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', background: connected ? 'var(--positive-faint)' : 'var(--surface)', color: connected ? 'var(--positive)' : 'var(--text-muted)', transition: 'all var(--duration-base) var(--ease-out)' }}>
                 <MessageCircle size={20} strokeWidth={2} />
               </div>
@@ -387,9 +387,9 @@ export function SettingsScreen({ onBack, onConnect }: SettingsScreenProps) {
                   </p>
                   <div style={{ borderTop: '1px solid var(--border-light)' }}>
                     {inviteCodes.map((c, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '11px 4px', borderBottom: '1px solid var(--border-light)' }}>
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '11px 4px', borderBottom: '1px solid var(--border-light)' }}>
                         <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontFamily: MONO, fontSize: 14.5, fontWeight: 500, letterSpacing: '.03em', color: c.usedAt ? 'var(--text-muted)' : 'var(--text-primary)' }}>
+                          <span style={{ fontFamily: MONO, fontSize: 15, fontWeight: 500, letterSpacing: '.03em', color: c.usedAt ? 'var(--text-muted)' : 'var(--text-primary)' }}>
                             {c.code}
                           </span>
                           {!c.usedAt && (
@@ -398,7 +398,7 @@ export function SettingsScreen({ onBack, onConnect }: SettingsScreenProps) {
                           )}
                         </div>
                         <span style={{
-                          fontFamily: 'var(--font-sans)', fontSize: 11.5, fontWeight: 500, padding: '3px 10px',
+                          fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500, padding: '3px 10px',
                           borderRadius: 'var(--radius-full)',
                           background: c.usedAt ? 'var(--surface)' : 'var(--terracotta-faint)',
                           color: c.usedAt ? 'var(--text-muted)' : 'var(--accent)',
