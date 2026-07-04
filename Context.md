@@ -1,155 +1,74 @@
-# Loop — Session Context
+# Loop Session Context
+_Updated: 2026-07-04_
 
-_Last updated: 2026-07-01_
-
-## Current branch state
-
-`main` — in sync with `origin/main`. Latest commit: `773272d` — fix(ipc-tests): convert browser.execute(async) to executeAsync to fix classic-mode race.
-
-No uncommitted changes.
-
----
-
-## What shipped (committed + pushed to origin/main)
-
-| Item | Commit | Status |
-|---|---|---|
-| Phase 1 stability fixes | multiple | DONE |
-| Navigation fix (onboardingComplete) | `c1d9904` | DONE |
-| H1/H2/H3 + MAV-172 circuit breaker | `aee2ab7` | DONE |
-| MAV-173: CI workflow | `058189c` | DONE |
-| MAV-171: WA connection test suite | `8e1e114` | DONE |
-| Auto-update (electron-updater) | `c709870` | DONE |
-| UX end-to-end flow fixes | `09d87fd` | DONE |
-| MAV-75 Warp/Oz build + revert | `3f89401` / `a66ee1c` | REVERTED |
-| MAV-75 correct rebuild | `fb5ff84` | DONE |
-| MAV-178: data:deleteAll gate | `c4e909f` | DONE |
-| MAV-179 + MAV-180: privacy notice + LLM consent | `32f748f` | DONE |
-| MAV-184: chapter removal UI | `c228600` | DONE |
-| Design quality fixes (contrast, spacing, shadows) | `176faa3` | DONE |
-| Option A static orbit dots + PrivacyNoticeScreen spacing | `13cf73d` | DONE |
-| JTBD framing + Context.md | `69922d0` | DONE |
-| E2E privacyAcceptedAt gate + vitest.e2e.config.ts | `14ebde7` | DONE |
-| IPC executeAsync race fix (Warp) | `773272d` | DONE |
-
----
-
-## What's pending
-
-### MAV-75 — ConnectionStatusBadge (correct spec)
-Design locked. Still pending implementation:
-- Top slim bar, ~48px, full width, inline not fixed
-- Dot only for color: amber (#f59e0b) reconnecting, soft red (#ef4444) others
-- Never dismissible
-- Auto-retry on window focus after `failed` (5-min gate)
-- New files: `ConnectionStateContext.tsx`, `ConnectionStatusBadge.tsx`
-- Update: `App.tsx` (wrap provider), `YourLoopsScreen.tsx` (render badge)
-
-### IPC tests (wdio) — one fix remaining
-- Race condition (executeAsync) fixed by Warp — confirmed working (state injection now correct, DOM probe shows `bodyIncludesName: true`)
-- Remaining failure: `*=text` selector in wdio Classic mode only matches `<a>` elements, not divs. Fix applied: `data-testid="chapter-name"` added to chapter name div in `YourLoopsScreen.tsx`; test updated to use attribute selector. Not yet re-run to confirm green.
-- 4 other wdio specs still `.disabled` — to be re-enabled once ui-navigation is fully green.
-
-### SLM / Your Story (MAV-153)
-`node-llama-cpp` in `package.json` but zero imports anywhere. No `inference.ts`. `resolveStory()` in `src/main/scanner.ts:211` always falls through to `generateStory()` (pure string template). V2 priority, intentionally unstarted.
-
-### QuietDayCard P0 bug (from DESIGN_REVIEW.md)
-`QuietDayCard` renders unconditionally on YourLoopsScreen. When `chapters = []`, it says "Your people are close." — a false statement. Needs a `chapters.length > 0` guard before rendering QuietDayCard.
-
-### DMG
-`npm run dist` — gated on all tests green + features shipped.
-
----
-
-## Features implemented in code (not pending)
-
-These exist in code and are NOT open design topics — they were built:
-
-| Feature | Files |
-|---|---|
-| Nostalgia / quiet-day (JTBD 1) | `QuietDayCard.tsx`, `OnThisDay.tsx`, `OpeningMomentCard` in YourLoopsScreen |
-| Close tier / fading nudge (JTBD 2) | `ContactTierIndicator.tsx`, `StayCloseScreen.tsx`, `NudgeCard.tsx`, 30-day intervalDays in scanner |
-| Dead thread detection | `DeadThreadCard.tsx`, `detectDeadThread()` in scanner |
-| Story screen (renamed from Brief) | `StoryScreen.tsx` |
-
-Open questions for these features are UX placement/polish decisions in the new atom architecture (see PRODUCT_CONVERSATIONS.md Topics 3, 4, 11, 12).
-
----
+## Current git state
+- Branch: main
+- Latest commits (newest first):
+  - `b9094f5` fix(wdio): green wdio suite — data-testid selectors + scan loading state fix
+  - `94454a4` fix: TDZ crash — echoCrewInitials referenced echoChapter before declaration
+  - `39b8e2d` feat: Their world CTA renames + T3 dead thread card + T4b dual CTA routing
+  - `02470fb` feat: Phase 6 – nostalgia card, people view, dead thread card, on your mind section
+  - `428495c` feat: Phase 7+8 – AppShell with sidebar nav + titlebar search
+- Uncommitted changes (in progress):
+  - `src/main/analytics.ts` — Sentry + PostHog replaced with no-op stubs
+  - `src/renderer/src/main.tsx` — Sentry.init removed
+  - `src/renderer/src/components/ErrorBoundary.tsx` — Sentry removed, tokens applied, copy fixed
+  - `src/main/ipc.ts` — shell:openExternal https:// validation (IN PROGRESS, not yet written)
 
 ## Test status
+- Unit (vitest): 144 tests, 10 files — ALL PASSING (last run)
+- wdio (IPC navigation): 13 tests — ALL PASSING (committed b9094f5)
+- Playwright (e2e): not run this session
 
-| Layer | Command | Status |
-|---|---|---|
-| Unit (vitest) | `npm run test` | ✅ 144 passing |
-| E2E (Playwright) | `npm run test:e2e` | ⚠️ Fix applied (privacyAcceptedAt), not yet re-run |
-| IPC (wdio) | `npm run test:ipc` | ⚠️ Fix in progress (data-testid selector), not yet re-run |
+## What's shipped (committed)
+- Phase 6: QuietDayCard, DeadThreadCard (T3 copy), OnYourMindSection (T4b dual CTAs), PeopleScreen
+- Phase 7+8: AppShell (200px sidebar), TitlebarSearch (pill search)
+- D-II palette tokens (in globals.css)
+- "Their world" naming throughout all CTAs
+- TDZ bug fix (echoChapter declaration order)
+- wdio: scan loading gate + data-testid selectors
 
-**DMG:** `npm run dist` — unblocked once all tests green.
+## Security fixes — committed `5f83241`
+1. **Sentry + PostHog removed** — `analytics.ts` is a no-op stub; `ErrorBoundary.tsx` + `main.tsx` stripped
+2. **shell:openExternal validation** — https:// scheme guard in ipc.ts — DONE
+3. **Backup before deleteAll** — not yet implemented
+4. **Baileys pin** — not yet done
 
----
+## IPC dead-wiring audit results
+- `calendar:addEvent` — in preload, no main handler, no renderer caller. DEAD STUB.
+  → Linear ticket needed: Calendar integration conversation (what do we actually want here?)
+- `model:status` — in preload, no main handler, no renderer caller. DEAD STUB.
+  → Linear ticket needed: On-device SLM/LLM integration planning
+- All other 40+ IPC channels: cleanly wired
 
-## Product vision (locked 2026-07-02)
+## MAV-193 scan loading — what happened in wdio
+The wdio test injected `onboardingComplete: true` + chapters but did NOT set `whatsappConnected` or
+`chapterDetectionComplete`. The user's real `state.json` (from actual WhatsApp usage) had
+`whatsappConnected: true` persisted. On test reload, YourLoopsScreen hit this gate:
+  `if (state?.whatsappConnected && !state.chapterDetectionComplete)`
+...and showed "Loop is reading your conversations" instead of the chapter atoms.
+Fix: test now explicitly injects `whatsappConnected: false` + `chapterDetectionComplete: true`
+to override any persisted real-session state.
 
-Loop is a **dual-layer relationship companion**. Two co-equal layers, same underlying data:
+## Design audit — prioritised fixes
+1. Token enforcement — replace 22 hardcoded hex values with var(--*) (unblocks dark mode + all fixes below)
+2. Reduce font sizes from 28 to 7 on the token scale (remove fractional sizes: 10.5, 11.5, 12.5 etc.)
+3. Dark mode — add @media prefers-color-scheme dark palette + dynamic backgroundColor in BrowserWindow
+4. 4pt/8pt spacing grid — fix off-grid values (gap:7, gap:14, padding:13px etc.)
+5. Concentric radius — ChapterCard borderRadius:14 → var(--radius-md) 12px; sidebar nav item 6→8px
+6. Screen transitions — AnimatePresence spring (framer-motion); echoCardIn 460ms → 320ms
+7. ErrorBoundary copy + tokens — DONE in this session (no-op Sentry, token styles applied)
+8. ConnectionStatusBadge — replace semantic red/amber with warm terra-scale colours
+9. AppSidebar/PeopleScreen local SERIF/SANS font constants → var(--font-serif)/var(--font-sans)
+10. macOS vibrancy — sidebar vibrancy:'sidebar' in BrowserWindow
 
-- **People layer** (relationship intelligence): Close contacts, chapter-agnostic, sorted by urgency. Answers "who do I want to stay close to right now?" Built via Stay Close strip on YourLoopsScreen + relationship strength score.
-- **Chapter layer** (identity + memory): Orbit atoms, era-scoped, nostalgic. Answers "who was I during that period, and who was there with me?" Already built.
+## Linear tickets created this session
+- **MAV-203** — calendar:addEvent IPC — plan what calendar integration should actually be (Backlog, Medium)
+- **MAV-204** — model:status IPC — on-device SLM/LLM integration planning (Backlog, High)
 
-Neither layer subordinates the other. Do not re-open this debate. See PRODUCT_CONVERSATIONS.md Vision section and Linear epic for full context.
-
-**V1 roadmap (approved):**
-- Sprint 1: Stay Close strip (A1), tier upgrade in StoryScreen (A4), empty state (A5)
-- Sprint 2: DM scan pass (C2), relationship strength score (C1), StayCloseScreen redesign (A3), urgency signals (A6)
-- Sprint 3: Multi-chapter detection (B6), cross-chapter visual signals (B4/B5)
-
----
-
-## Architecture decisions (settled)
-
-- Chapter = period of life, not a WhatsApp group
-- Bipartite projection → Louvain clustering → TF-IDF naming (ALL IMPLEMENTED in whatsapp.ts + chapters.ts)
-- Single WA fetch: `buildContactClusters()` returns `{ clusters, groups }`
-- Fallback gate: < 3 clusters → `scoreGroups()`
-- Fading orbit = chapter-level
-- `isFading` on contact = visual opacity 0.55 in ChapterDetail
-- `isNudgeEligible`: close tier + whatsappId + fading + !suppressNudge + 7-day cooldown
-- State lives in `~/Documents/Loop/state.json` — only via `store.ts`
-- IPC handlers in `src/main/ipc.ts` — one place only
-
----
-
-## Dev runtime rules
-
-**Kill before launch — always one instance:**
-```bash
-ps aux | grep "node_modules/electron" | grep -v grep | awk '{print $2}' | xargs kill 2>/dev/null
-sleep 2 && npm run preview &>/tmp/loop-preview.log &
-```
-
-**State.json reset for detection testing:**
-```bash
-node -e "
-const fs=require('fs'),p=require('path').join(process.env.HOME,'Documents/Loop/state.json');
-const s=JSON.parse(fs.readFileSync(p,'utf8'));
-s.onboardingComplete=true; s.chapterDetectionComplete=false; s.chapters=[];
-fs.writeFileSync(p,JSON.stringify(s,null,2)); console.log('reset done');
-"
-```
-
----
-
-## Seed data (dev)
-
-4 chapters in state.json:
-- Casa Mañana (active): tomas-k, mia-j, nb-niamh
-- Yoga Sceptics (fading): dw-david, cw-clara [clara = nudge eligible]
-- Zalando Crew (birthday): bn-ben, rh-rahul, sl-sara [sara bday July 2]
-- Edinburgh MSc (echo + birthday): kc-kieran, am-ana, pk-priya [kieran bday July 1, echo = 8 years ago]
-
----
-
-## Monetisation + distribution (settled)
-
-- Lemon Squeezy (merchant of record, license key)
-- MailerLite for pre-launch waitlist only
-- DMG: `npm run dist` — unblocked
+## Pending / in-flight work
+1. D-II token enforcement (design fix #1) — awaiting decision to proceed
+5. Beat 3 interactive — no decision yet
+6. MAV-202 manifesto in settings/about
+7. Push to remote: `! git push origin main` (user must run, PAT constraint)
+8. DMG: `npm run dist` — gated on all tests green + D-II done + manifesto done
