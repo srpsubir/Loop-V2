@@ -4,16 +4,11 @@ _Updated: 2026-07-04_
 ## Current git state
 - Branch: main
 - Latest commits (newest first):
+  - `f371f69` chore: update Context.md — backlog complete
+  - `e6fea43` feat: D-II token enforcement, deleteAll backup, Baileys pin, manifesto
+  - `5f83241` security: remove Sentry/PostHog + validate shell:openExternal
+  - `7bfcae4` chore: update Context.md
   - `b9094f5` fix(wdio): green wdio suite — data-testid selectors + scan loading state fix
-  - `94454a4` fix: TDZ crash — echoCrewInitials referenced echoChapter before declaration
-  - `39b8e2d` feat: Their world CTA renames + T3 dead thread card + T4b dual CTA routing
-  - `02470fb` feat: Phase 6 – nostalgia card, people view, dead thread card, on your mind section
-  - `428495c` feat: Phase 7+8 – AppShell with sidebar nav + titlebar search
-- Uncommitted changes (in progress):
-  - `src/main/analytics.ts` — Sentry + PostHog replaced with no-op stubs
-  - `src/renderer/src/main.tsx` — Sentry.init removed
-  - `src/renderer/src/components/ErrorBoundary.tsx` — Sentry removed, tokens applied, copy fixed
-  - `src/main/ipc.ts` — shell:openExternal https:// validation (IN PROGRESS, not yet written)
 
 ## Test status
 - Unit (vitest): 144 tests, 10 files — ALL PASSING (last run)
@@ -21,50 +16,72 @@ _Updated: 2026-07-04_
 - Playwright (e2e): not run this session
 
 ## What's shipped (committed)
-- Phase 6: QuietDayCard, DeadThreadCard (T3 copy), OnYourMindSection (T4b dual CTAs), PeopleScreen
-- Phase 7+8: AppShell (200px sidebar), TitlebarSearch (pill search)
-- D-II palette tokens (in globals.css)
-- "Their world" naming throughout all CTAs
-- TDZ bug fix (echoChapter declaration order)
-- wdio: scan loading gate + data-testid selectors
+- Phase 6+7+8: AppShell, sidebar nav, TitlebarSearch, QuietDayCard, DeadThreadCard, OnYourMindSection, PeopleScreen
+- D-II token enforcement (22 hardcoded hex → CSS vars, all components)
+- Dark mode (@media prefers-color-scheme + data-theme, transparent BG)
+- Font scale, spacing grid, concentric radius, vibrancy fixes
+- Security: Sentry/PostHog removed, shell:openExternal https:// guard, deleteAll backup
+- Baileys pinned to 7.0.0-rc11 (no ^)
+- MAV-202 manifesto in Settings/About screen
+- Product-vision.md: Beat 3 declaration framing struck, contact picker confirmed
 
-## Security fixes — ALL DONE
+## Security — ALL DONE
 - `5f83241` Sentry + PostHog removed; shell:openExternal https:// guard
-- `e6fea43` Backup before deleteAll; Baileys pinned to 7.0.0-rc11 (no ^)
+- `e6fea43` Backup before deleteAll; Baileys pinned
 
-## IPC dead-wiring audit results
-- `calendar:addEvent` — in preload, no main handler, no renderer caller. DEAD STUB.
-  → Linear ticket needed: Calendar integration conversation (what do we actually want here?)
-- `model:status` — in preload, no main handler, no renderer caller. DEAD STUB.
-  → Linear ticket needed: On-device SLM/LLM integration planning
-- All other 40+ IPC channels: cleanly wired
+## Design audit — ALL DONE
+All 10 design fixes shipped across `e6fea43` and `c95da16`. Screen transitions skipped (framer-motion not installed).
 
-## MAV-193 scan loading — what happened in wdio
-The wdio test injected `onboardingComplete: true` + chapters but did NOT set `whatsappConnected` or
-`chapterDetectionComplete`. The user's real `state.json` (from actual WhatsApp usage) had
-`whatsappConnected: true` persisted. On test reload, YourLoopsScreen hit this gate:
-  `if (state?.whatsappConnected && !state.chapterDetectionComplete)`
-...and showed "Loop is reading your conversations" instead of the chapter atoms.
-Fix: test now explicitly injects `whatsappConnected: false` + `chapterDetectionComplete: true`
-to override any persisted real-session state.
+## Research outputs (written to Loop folder)
+- `signals-audit.md` — full C1/ranking gap analysis
+- `story-audit.md` — generateStory() teardown, 8 reasonToReachOut variants, draftMessage templates
+- `MAV-203-analysis.md` — calendar/freemium analysis
+- `MAV-204-analysis.md` — SLM/LLM/Baileys coverage analysis
+- `design-research.md` — Mobbin searches pending (re-auth needed)
 
-## Design audit — ALL DONE (`e6fea43`, `c95da16`)
-1. Token enforcement — DONE e6fea43
-2. Font scale — DONE c95da16 (fractional sizes collapsed)
-3. Dark mode — DONE c95da16 (@media dark + data-theme blocks, transparent BG)
-4. 4pt/8pt spacing grid — DONE c95da16
-5. Concentric radius — DONE c95da16
-6. Screen transitions — SKIPPED (framer-motion not in project)
-7. ErrorBoundary copy + tokens — DONE 5f83241
-8. ConnectionStatusBadge warm colours — DONE e6fea43
-9. Font constants → CSS vars — DONE e6fea43
-10. macOS vibrancy — DONE c95da16 (WebkitBackdropFilter on sidebar)
+## Architecture decisions (locked)
+- No bundled language model. 700MB is a non-starter.
+- Long-term generative path: Apple Intelligence (iOS 18+ / macOS Sequoia+), zero app size overhead.
+- Group chat mood inference: not feasible (Baileys syncFullHistory: false, group content not fetched). Replaced by MAV-206 crew picker.
+- Ex/unwanted contact filtering: rules on behavioral signals (dismissCount), no model.
+- Calendar integration: replaced by snooze (MAV-205). Calendar export opt-in later if ever.
+- Freemium: one-time purchase, parked until post-DMG (MAV-208).
 
-## Linear tickets created this session
-- **MAV-203** — calendar:addEvent IPC — plan what calendar integration should actually be (Backlog, Medium)
-- **MAV-204** — model:status IPC — on-device SLM/LLM integration planning (Backlog, High)
+## Full Linear backlog
 
-## Pending / in-flight work
-1. Beat 3 interactive — no decision yet
+### Signals & ranking
+- **MAV-209** — Wire relationshipStrength (C1) into contacts strip + nudge sort (High) ← 2 lines, ship now
+- **MAV-210** — Progressive nudge suppression — dismissCount + autosuppressed (High)
+- **MAV-211** — Birthday occasion overrides nudge sort priority (High)
+- **MAV-212** — lastReachOutAt gate — suppress re-nudge after recent reach-out (Medium)
+- **MAV-213** — reconnectedAt ranking boost (Medium)
+
+### Story / Their world
+- **MAV-207** — generateStory() template improvements — richer "Their world" without a model (Medium)
+- **MAV-214** — draftMessage field on Story — suggested opening message (Medium)
+
+### Core features
+- **MAV-205** — Snooze nudge — "remind me in X days" on ContactState (High)
+- **MAV-206** — Chapter crew picker — manual warm signal after chapter detection (High) ← blocked on Mobbin
+- **MAV-215** — Beat 3 screen — contact picker onboarding (High) ← blocked on Mobbin
+
+### IPC / planning
+- **MAV-203** — calendar:addEvent planning (superseded by MAV-205 snooze + MAV-208 billing)
+- **MAV-204** — model:status planning (superseded by MAV-207 templates + Apple Intelligence path)
+
+### Parked
+- **MAV-208** — Freemium / billing epic (park pre-DMG, Low)
+
+## Pending / in-flight
+1. Mobbin re-auth → design research for MAV-206, MAV-215 (Beat 3)
 2. Push to remote: `! git push origin main` (user must run, PAT constraint)
 3. DMG: `npm run dist` — gated on all tests green (unit + wdio + e2e)
+
+## Next buildable (no design needed, code only)
+1. MAV-209 — wire relationshipStrength (2 lines)
+2. MAV-211 — birthday nudge override
+3. MAV-212 — lastReachOutAt re-nudge gate
+4. MAV-210 — dismissCount + progressive suppression
+5. MAV-213 — reconnectedAt boost
+6. MAV-205 — snoozedUntil on ContactState
+7. MAV-207 + MAV-214 — story templates + draftMessage
