@@ -266,6 +266,30 @@ function isoWeek(ts: number): string {
   return `${d.getFullYear()}-W${String(week).padStart(2, '0')}`
 }
 
+// ─── Nudge eligibility ────────────────────────────────────────────────────────
+
+export function isNudgeEligible(contact: Contact, cs: ContactState): boolean {
+  if (contact.tier !== 'close' || !contact.whatsappId) return false
+  // Hard suppression gates
+  if (cs.autosuppressed) return false
+  // Snooze gate
+  if (cs.snoozedUntil && new Date(cs.snoozedUntil) > new Date()) return false
+  // Recent reach-out gate (MAV-212): skip if reached out within 7 days
+  if (cs.lastReachOutAt) {
+    const daysSinceReachOut = (Date.now() - new Date(cs.lastReachOutAt).getTime()) / 86400000
+    if (daysSinceReachOut < 7) return false
+  }
+  // Escalating dismiss cooldown (MAV-210): 0-2 dismissals → 7 days, 3-4 → 30 days, 5+ → suppressed
+  const dismissCount = cs.nudgeDismissCount ?? 0
+  if (dismissCount >= 5) return false
+  if (cs.nudgeDismissedAt) {
+    const daysSinceDismiss = (Date.now() - new Date(cs.nudgeDismissedAt).getTime()) / 86400000
+    const cooldownDays = dismissCount >= 3 ? 30 : 7
+    if (daysSinceDismiss < cooldownDays) return false
+  }
+  return true
+}
+
 // ─── Scanner singleton ────────────────────────────────────────────────────────
 
 class Scanner {
@@ -412,10 +436,14 @@ class Scanner {
           story,
           nextOccasion,
           storyOpenedAt: reachOutDate ? null : (prevState?.storyOpenedAt ?? null),
-          reachOutCount:   justReconnected ? 0 : (prevState?.reachOutCount ?? 0),
-          lastReachOutAt:  justReconnected ? null : (prevState?.lastReachOutAt ?? null),
-          reconnectedAt:   justReconnected ? now : (prevState?.reconnectedAt ?? null),
-          suppressNudge:   justReconnected ? false : (prevState?.suppressNudge ?? false),
+          reachOutCount:      justReconnected ? 0 : (prevState?.reachOutCount ?? 0),
+          lastReachOutAt:     justReconnected ? null : (prevState?.lastReachOutAt ?? null),
+          reconnectedAt:      justReconnected ? now : (prevState?.reconnectedAt ?? null),
+          suppressNudge:      justReconnected ? false : (prevState?.suppressNudge ?? false),
+          nudgeDismissedAt:   prevState?.nudgeDismissedAt ?? null,
+          nudgeDismissCount:  prevState?.nudgeDismissCount ?? 0,
+          autosuppressed:     prevState?.autosuppressed ?? false,
+          snoozedUntil:       prevState?.snoozedUntil,
           messageStrength,
           reciprocityRatio: reciprocityScore,
           temporalConsistency: temporalScore,

@@ -255,11 +255,43 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
     return cs.story ?? null
   })
 
+  // ── Nudge snooze (MAV-205) ────────────────────────────────────────────────
+
+  ipcMain.handle('nudge:snooze', async (_e, { contactId, days }: { contactId: string; days: number }): Promise<void> => {
+    const state = await readState()
+    const cs = state.contacts[contactId]
+    if (!cs) return
+    const snoozedUntil = new Date(Date.now() + days * 86400000).toISOString()
+    await patchState({
+      contacts: {
+        ...state.contacts,
+        [contactId]: { ...cs, snoozedUntil },
+      },
+    })
+    getWindow()?.webContents.send('state:changed')
+  })
+
   // ── Shell ─────────────────────────────────────────────────────────────────
 
-  ipcMain.handle('shell:openWhatsApp', async (_e, whatsappId: string) => {
+  ipcMain.handle('shell:openWhatsApp', async (_e, whatsappId: string, contactId?: string) => {
     const phone = whatsappId.replace(/@.*$/, '').replace(/[^0-9]/g, '')
     track('suggestion_acted_on', { action: 'open_whatsapp' })
+    // MAV-212: record reach-out timestamp so the contact is gated from nudges for 7 days
+    if (contactId) {
+      try {
+        const state = await readState()
+        const cs = state.contacts[contactId]
+        if (cs) {
+          await patchState({
+            contacts: {
+              ...state.contacts,
+              [contactId]: { ...cs, lastReachOutAt: new Date().toISOString() },
+            },
+          })
+          getWindow()?.webContents.send('state:changed')
+        }
+      } catch { /* non-fatal — open WhatsApp regardless */ }
+    }
     await shell.openExternal(`https://wa.me/${phone}`)
   })
 

@@ -48,10 +48,22 @@ function isMemberFading(contact: Contact, cs: ContactState): boolean {
 function isNudgeEligible(contact: Contact, cs: ContactState): boolean {
   if (contact.tier !== 'close' || !contact.whatsappId) return false
   if (cs.suppressNudge) return false
+  if (cs.autosuppressed) return false
   if (!isMemberFading(contact, cs)) return false
+  // Snooze gate (MAV-205)
+  if (cs.snoozedUntil && new Date(cs.snoozedUntil) > new Date()) return false
+  // Recent reach-out gate (MAV-212): skip if reached out within 7 days
+  if (cs.lastReachOutAt) {
+    const daysSinceReachOut = (Date.now() - new Date(cs.lastReachOutAt).getTime()) / 86400000
+    if (daysSinceReachOut < 7) return false
+  }
+  // Escalating dismiss cooldown (MAV-210): 0-2 dismissals → 7 days, 3-4 → 30 days, 5+ → suppressed
+  const dismissCount = cs.nudgeDismissCount ?? 0
+  if (dismissCount >= 5) return false
   if (cs.nudgeDismissedAt) {
     const daysSinceDismiss = (Date.now() - new Date(cs.nudgeDismissedAt).getTime()) / 86400000
-    if (daysSinceDismiss < 7) return false
+    const cooldownDays = dismissCount >= 3 ? 30 : 7
+    if (daysSinceDismiss < cooldownDays) return false
   }
   return true
 }
@@ -329,8 +341,6 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
 
   const closeContacts = useMemo(() => {
     if (!state) return []
-    const strengthMultiplier = (s: 'high' | 'medium' | 'low' | undefined) =>
-      s === 'high' ? 1.5 : s === 'low' ? 0.7 : 1.0
     return contacts
       .filter((c) => c.tier === 'close')
       .sort((a, b) => {
@@ -340,8 +350,9 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
           ? (Date.now() - new Date(csA.lastContactDate).getTime()) / 86400000 : 0
         const daysB = csB?.lastContactDate
           ? (Date.now() - new Date(csB.lastContactDate).getTime()) / 86400000 : 0
-        const scoreA = daysA * strengthMultiplier(csA?.messageStrength)
-        const scoreB = daysB * strengthMultiplier(csB?.messageStrength)
+        // MAV-209: weight by relationshipStrength (0-1); fall back to 0.5 if not yet scanned
+        const scoreA = daysA * (csA?.relationshipStrength ?? 0.5)
+        const scoreB = daysB * (csB?.relationshipStrength ?? 0.5)
         return scoreB - scoreA
       })
   }, [contacts, state])
@@ -354,13 +365,37 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
       return cs && isNudgeEligible(c, cs)
     })
     eligible.sort((a, b) => {
-      const dA = state.contacts[a.id]?.lastContactDate
-        ? Date.now() - new Date(state.contacts[a.id].lastContactDate!).getTime()
+      const csA = state.contacts[a.id]
+      const csB = state.contacts[b.id]
+
+      // MAV-211: birthday within 7 days jumps to the top regardless of other scores
+      const birthdayBoostA = csA?.nextOccasion?.type === 'birthday' &&
+        (new Date(csA.nextOccasion.date).getTime() - Date.now()) / 86400000 <= 7 ? 1 : 0
+      const birthdayBoostB = csB?.nextOccasion?.type === 'birthday' &&
+        (new Date(csB.nextOccasion.date).getTime() - Date.now()) / 86400000 <= 7 ? 1 : 0
+      if (birthdayBoostA !== birthdayBoostB) return birthdayBoostB - birthdayBoostA
+
+      // MAV-209: base score = days overdue weighted by relationshipStrength
+      const daysA = csA?.lastContactDate
+        ? (Date.now() - new Date(csA.lastContactDate).getTime()) / 86400000
         : Infinity
-      const dB = state.contacts[b.id]?.lastContactDate
-        ? Date.now() - new Date(state.contacts[b.id].lastContactDate!).getTime()
+      const daysB = csB?.lastContactDate
+        ? (Date.now() - new Date(csB.lastContactDate).getTime()) / 86400000
         : Infinity
-      return dB - dA
+      let scoreA = isFinite(daysA) ? daysA * (csA?.relationshipStrength ?? 0.5) : 1e9
+      let scoreB = isFinite(daysB) ? daysB * (csB?.relationshipStrength ?? 0.5) : 1e9
+
+      // MAV-213: reconnectedAt within 14 days → boost by 1.3x to sustain momentum
+      if (csA?.reconnectedAt) {
+        const daysSinceReconnect = (Date.now() - new Date(csA.reconnectedAt).getTime()) / 86400000
+        if (daysSinceReconnect <= 14) scoreA *= 1.3
+      }
+      if (csB?.reconnectedAt) {
+        const daysSinceReconnect = (Date.now() - new Date(csB.reconnectedAt).getTime()) / 86400000
+        if (daysSinceReconnect <= 14) scoreB *= 1.3
+      }
+
+      return scoreB - scoreA
     })
     return eligible[0] ?? null
   }, [contacts, state])
@@ -382,10 +417,18 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
     if (!nudgeContact || !state) return
     const cs = state.contacts[nudgeContact.id]
     if (!cs) return
+    // MAV-210: increment dismiss count; autosuppress at >= 5
+    const nudgeDismissCount = (cs.nudgeDismissCount ?? 0) + 1
+    const autosuppressed = nudgeDismissCount >= 5
     await window.loop.state.patch({
       contacts: {
         ...state.contacts,
-        [nudgeContact.id]: { ...cs, nudgeDismissedAt: new Date().toISOString() },
+        [nudgeContact.id]: {
+          ...cs,
+          nudgeDismissedAt: new Date().toISOString(),
+          nudgeDismissCount,
+          autosuppressed,
+        },
       },
     }).catch(() => {})
   }, [nudgeContact, state])
