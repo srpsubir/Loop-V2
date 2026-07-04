@@ -363,7 +363,7 @@ function PickerStep({
         {/* Footer */}
         <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border-light)', flexShrink: 0 }}>
           <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: 10 }}>
-            You can always add more from their story.
+            You can always add more from their world.
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <button onClick={onBack} style={{

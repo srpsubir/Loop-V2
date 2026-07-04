@@ -182,7 +182,7 @@ export function PeopleScreen({ onNavigate }: PeopleScreenProps) {
                     WebkitAppRegion: 'no-drag',
                   } as React.CSSProperties}
                 >
-                  Open Story
+                  Their world
                 </button>
               </div>
             )

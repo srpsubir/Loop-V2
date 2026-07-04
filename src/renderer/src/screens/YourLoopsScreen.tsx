@@ -767,7 +767,7 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
               The people who matter most, all in one place.
             </div>
             <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: '#9B8B82', marginTop: 3 }}>
-              Mark someone as Close from their story.
+              Mark someone as Close from their world.
             </div>
           </div>
         )}

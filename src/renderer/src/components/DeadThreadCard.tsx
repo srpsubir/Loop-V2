@@ -52,16 +52,6 @@ export function DeadThreadCard({ contact, weeksSince, onTryAgain, onLetItRest }:
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
-            fontFamily: SANS,
-            fontSize: 11,
-            textTransform: 'uppercase' as const,
-            letterSpacing: '0.08em',
-            color: '#7A6056',
-            marginBottom: 2,
-          }}>
-            No reply yet
-          </div>
-          <div style={{
             fontFamily: SERIF,
             fontSize: 15,
             fontWeight: 600,
@@ -80,7 +70,7 @@ export function DeadThreadCard({ contact, weeksSince, onTryAgain, onLetItRest }:
         margin: '10px 0 0 0',
         lineHeight: 1.5,
       }}>
-        You and {firstName} said you'd catch up. It has been {weeksSince} weeks.
+        You mentioned catching up with {firstName}. It has been {weeksSince} weeks.
       </p>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14 }}>

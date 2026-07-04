@@ -116,26 +116,48 @@ export function OnYourMindSection({ contacts, onNavigate }: OnYourMindSectionPro
               )}
             </div>
 
-            <button
-              type="button"
-              onClick={() => onNavigate('story', { contactId: contact.id, chapterId: contact.chapterIds[0] ?? '' })}
-              style={{
-                background: '#B8624A',
-                color: '#FFFFFF',
-                border: 'none',
-                borderRadius: 999,
-                padding: '7px 14px',
-                fontFamily: SANS,
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: 'pointer',
-                flexShrink: 0,
-                whiteSpace: 'nowrap',
-                WebkitAppRegion: 'no-drag',
-              } as React.CSSProperties}
-            >
-              Open Story
-            </button>
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+              <button
+                type="button"
+                onClick={() => onNavigate('story', { contactId: contact.id, chapterId: contact.chapterIds[0] ?? '' })}
+                style={{
+                  background: 'none',
+                  color: '#B8624A',
+                  border: '1.5px solid #B8624A',
+                  borderRadius: 999,
+                  padding: '6px 13px',
+                  fontFamily: SANS,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  WebkitAppRegion: 'no-drag',
+                } as React.CSSProperties}
+              >
+                Their world
+              </button>
+              {contact.whatsappId && (
+                <button
+                  type="button"
+                  onClick={() => window.loop.shell.openWhatsApp(contact.whatsappId!).catch(() => {})}
+                  style={{
+                    background: '#B8624A',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    borderRadius: 999,
+                    padding: '6px 13px',
+                    fontFamily: SANS,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    WebkitAppRegion: 'no-drag',
+                  } as React.CSSProperties}
+                >
+                  Message
+                </button>
+              )}
+            </div>
           </div>
         )
       })}
