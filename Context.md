@@ -48,17 +48,17 @@ The wdio test injected `onboardingComplete: true` + chapters but did NOT set `wh
 Fix: test now explicitly injects `whatsappConnected: false` + `chapterDetectionComplete: true`
 to override any persisted real-session state.
 
-## Design audit — prioritised fixes
-1. Token enforcement — replace 22 hardcoded hex values with var(--*) (unblocks dark mode + all fixes below)
-2. Reduce font sizes from 28 to 7 on the token scale (remove fractional sizes: 10.5, 11.5, 12.5 etc.)
-3. Dark mode — add @media prefers-color-scheme dark palette + dynamic backgroundColor in BrowserWindow
-4. 4pt/8pt spacing grid — fix off-grid values (gap:7, gap:14, padding:13px etc.)
-5. Concentric radius — ChapterCard borderRadius:14 → var(--radius-md) 12px; sidebar nav item 6→8px
-6. Screen transitions — AnimatePresence spring (framer-motion); echoCardIn 460ms → 320ms
-7. ErrorBoundary copy + tokens — DONE in this session (no-op Sentry, token styles applied)
-8. ConnectionStatusBadge — replace semantic red/amber with warm terra-scale colours
-9. AppSidebar/PeopleScreen local SERIF/SANS font constants → var(--font-serif)/var(--font-sans)
-10. macOS vibrancy — sidebar vibrancy:'sidebar' in BrowserWindow
+## Design audit — ALL DONE (`e6fea43`, `c95da16`)
+1. Token enforcement — DONE e6fea43
+2. Font scale — DONE c95da16 (fractional sizes collapsed)
+3. Dark mode — DONE c95da16 (@media dark + data-theme blocks, transparent BG)
+4. 4pt/8pt spacing grid — DONE c95da16
+5. Concentric radius — DONE c95da16
+6. Screen transitions — SKIPPED (framer-motion not in project)
+7. ErrorBoundary copy + tokens — DONE 5f83241
+8. ConnectionStatusBadge warm colours — DONE e6fea43
+9. Font constants → CSS vars — DONE e6fea43
+10. macOS vibrancy — DONE c95da16 (WebkitBackdropFilter on sidebar)
 
 ## Linear tickets created this session
 - **MAV-203** — calendar:addEvent IPC — plan what calendar integration should actually be (Backlog, Medium)
