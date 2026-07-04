@@ -440,6 +440,11 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
     return Math.max(1, Math.floor((Date.now() - new Date(cs.lastContactDate).getTime()) / (7 * 86400000)))
   }, [deadThreadContact, state])
 
+  // Echo: first chapter with an unseen anniversary
+  const echoChapter = state?.chapters.find((ch) =>
+    ch.echoAnniversary && !ch.echoAnniversary.seenAt?.startsWith(String(new Date().getFullYear()))
+  ) ?? null
+
   const echoCrewInitials = useMemo(() => {
     if (!echoChapter) return []
     return contacts
@@ -453,11 +458,6 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
     (a) => a.atomState === 'fading' || a.atomState === 'birthday-live' || a.atomState === 'dead-thread'
   )
   const showOpeningMoment = !hasSignals && !!state?.onThisDayMemory && chapterAtoms.length > 0
-
-  // Echo: first chapter with an unseen anniversary
-  const echoChapter = state?.chapters.find((ch) =>
-    ch.echoAnniversary && !ch.echoAnniversary.seenAt?.startsWith(String(new Date().getFullYear()))
-  ) ?? null
 
   const handleSeeEcho = useCallback(async (chapter: Chapter) => {
     setEchoChapterId(chapter.id)
