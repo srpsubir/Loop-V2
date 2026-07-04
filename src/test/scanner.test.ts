@@ -57,7 +57,7 @@ describe('computeNextOccasion — birthday', () => {
     const today = new Date()
     const contact = { ...baseContact, birthday: { month: today.getMonth() + 1, day: today.getDate() } }
     const result = computeNextOccasion(contact, null)
-    expect(result?.label).toBe('Birthday today!')
+    expect(result?.label).toBe("It's Test's birthday today. Even a short message counts.")
   })
 })
 
@@ -129,18 +129,18 @@ describe('computeNextOccasion — birthday 7-day atom window', () => {
     expect(result).toBeNull()
   })
 
-  it('birthday label is "Birthday today!" when daysUntil === 0', () => {
+  it('birthday label is correct when daysUntil === 0', () => {
     const today = new Date()
     const contact = { ...baseContact, birthday: { month: today.getMonth() + 1, day: today.getDate() } }
     const result = computeNextOccasion(contact, null)
-    expect(result?.label).toBe('Birthday today!')
+    expect(result?.label).toBe("It's Test's birthday today. Even a short message counts.")
   })
 
-  it('birthday label is "Birthday tomorrow" when daysUntil === 1', () => {
+  it('birthday label is correct when daysUntil === 1', () => {
     const d = new Date(Date.now() + 86400000)
     const contact = { ...baseContact, birthday: { month: d.getMonth() + 1, day: d.getDate() } }
     const result = computeNextOccasion(contact, null)
-    expect(result?.label).toBe('Birthday tomorrow')
+    expect(result?.label).toBe("Test's birthday is tomorrow. Good time to reach out.")
   })
 
   it('rolls over to next year for Dec 31 when current date is Jan 1', () => {

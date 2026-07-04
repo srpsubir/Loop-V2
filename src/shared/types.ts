@@ -9,6 +9,7 @@ export interface Chapter {
   active: boolean
   coverPhotoPath?: string       // user-selected photo for chapter card
   confirmed?: boolean           // false = created by inference, not yet named by user
+  crewContactIds?: string[]     // MAV-206: user-confirmed crew for this chapter
   echoAnniversary?: {
     years: number
     triggeredAt: string         // ISO date — when the echo was first detected
@@ -78,7 +79,8 @@ export interface Story {
   generatedAt: string
   heroPhotoPath?: string        // local path from macOS Photos face-match
   contextLines: string[]        // template-generated context lines
-  reasonToReachOut: string      // "Birthday in 3 days" / "7 weeks since you spoke"
+  reasonToReachOut: string      // e.g. "It's [Name]'s birthday today. Even a short message counts."
+  draftMessage?: string         // suggested opening message, template-generated
 }
 
 // ─── Occasion ────────────────────────────────────────────────────────────────
@@ -131,6 +133,7 @@ export interface AppState {
   stayCloseComplete?: boolean             // true once user completes Stay Close onboarding
   inviteCodes?: InviteCode[]              // 3 codes generated on first scan
   privacyAcceptedAt?: string               // ISO timestamp — set when user accepts privacy notice + LLM consent (MAV-179/180)
+  manuallySelected?: string[]             // MAV-215: contact IDs chosen in Beat 3 contact picker
 }
 
 // ─── Screen ──────────────────────────────────────────────────────────────────

@@ -30,6 +30,7 @@ export function computeNextOccasion(
   // Birthday
   if (contact.birthday) {
     const { month, day } = contact.birthday
+    const firstName = contact.name.split(' ')[0]
     const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate())
     let bd = new Date(today.getFullYear(), month - 1, day)
     if (bd < todayMidnight) bd = new Date(today.getFullYear() + 1, month - 1, day)
@@ -42,10 +43,10 @@ export function computeNextOccasion(
           date: bd.toISOString(),
           label:
             daysUntil === 0
-              ? 'Birthday today!'
+              ? `It's ${firstName}'s birthday today. Even a short message counts.`
               : daysUntil === 1
-                ? 'Birthday tomorrow'
-                : `Birthday in ${daysUntil} days`,
+                ? `${firstName}'s birthday is tomorrow. Good time to reach out.`
+                : `${firstName}'s birthday is coming up in ${daysUntil} days.`,
         },
       })
     }
@@ -56,19 +57,19 @@ export function computeNextOccasion(
     const last = new Date(lastContactDate)
     const daysSince = Math.floor((today.getTime() - last.getTime()) / 86400000)
     if (daysSince >= contact.intervalDays) {
+      const weeks = Math.floor(daysSince / 7)
+      const months = Math.floor(daysSince / 30)
       candidates.push({
         urgency: daysSince - contact.intervalDays,
         occasion: {
           type: 'interval',
           date: today.toISOString(),
           label:
-            daysSince === 1
-              ? 'You spoke yesterday — keep the momentum'
-              : daysSince < 7
-                ? `${daysSince} days since you last spoke`
-                : daysSince < 30
-                  ? `${Math.floor(daysSince / 7)} weeks since you last spoke`
-                  : `${Math.floor(daysSince / 30)} months since you last spoke`,
+            daysSince < 7
+              ? 'You two usually talk more often. Worth a quick message.'
+              : daysSince < 30
+                ? `You two used to talk more often. It's been ${weeks} week${weeks === 1 ? '' : 's'}.`
+                : `You haven't spoken in ${months} month${months === 1 ? '' : 's'}. A good time to check in.`,
         },
       })
     }
@@ -111,7 +112,7 @@ export function detectDeadThread(messages: WAMessage[]): Occasion | null {
   return {
     type: 'dead-thread',
     date: new Date(phraseMs).toISOString(),
-    label: 'Commitment made, never followed through',
+    label: 'You two had a plan to meet up. That was a while ago.',
   }
 }
 
@@ -179,6 +180,32 @@ function extractTopics(messages: WAMessage[]): string[] {
     .map(([w]) => w)
 }
 
+function generateDraftMessage(
+  firstName: string,
+  nextOccasion: Occasion | null,
+  messages: WAMessage[]
+): string {
+  if (nextOccasion?.type === 'birthday') {
+    const daysUntil = Math.round((new Date(nextOccasion.date).getTime() - Date.now()) / 86400000)
+    if (daysUntil === 0) return `Happy birthday ${firstName}. Hope it's a great one.`
+    if (daysUntil === 1) return `Thinking of you ahead of your birthday tomorrow, ${firstName}!`
+    return `Hey ${firstName}, been meaning to catch up. How are things going?`
+  }
+  if (nextOccasion?.type === 'interval') {
+    const lastReal = messages.find(isRealMessage)
+    const daysSince = lastReal
+      ? Math.floor((Date.now() - lastReal.timestamp * 1000) / 86400000)
+      : 999
+    if (daysSince < 7) return `Hi ${firstName}! Just checking in. How have you been?`
+    if (daysSince < 30) return `Hey ${firstName}, been a while! How are things going?`
+    return `Hey ${firstName}! It's been too long. How are things?`
+  }
+  if (nextOccasion?.type === 'dead-thread') {
+    return `Hi ${firstName}, I know we've been bad at following through. Let's fix that.`
+  }
+  return `Hey ${firstName}, just dropping in to say hi. How have you been?`
+}
+
 export function generateStory(
   contact: Contact,
   messages: WAMessage[],
@@ -211,7 +238,7 @@ export function generateStory(
     if (days === 0)      line2 = 'You were in touch today.'
     else if (days === 1) line2 = 'You spoke yesterday.'
     else if (days < 7)   line2 = `You last spoke ${days} days ago.`
-    else if (days < 30)  line2 = `It's been ${Math.floor(days / 7)} week${Math.floor(days / 7) === 1 ? '' : 's'} — longer than usual for you two.`
+    else if (days < 30)  line2 = `It's been ${Math.floor(days / 7)} week${Math.floor(days / 7) === 1 ? '' : 's'}. Longer than usual for you two.`
     else if (days < 365) line2 = `It's been ${Math.floor(days / 30)} month${Math.floor(days / 30) === 1 ? '' : 's'}. Worth a message.`
     else                 line2 = `It's been over a year. ${firstName} would probably love to hear from you.`
   } else {
@@ -221,7 +248,8 @@ export function generateStory(
   return {
     generatedAt: new Date().toISOString(),
     contextLines: [line1, line2],
-    reasonToReachOut: nextOccasion?.label ?? `Worth reaching out to ${firstName}.`,
+    reasonToReachOut: nextOccasion?.label ?? `Worth reaching out to ${firstName} today.`,
+    draftMessage: generateDraftMessage(firstName, nextOccasion, messages),
   }
 }
 
