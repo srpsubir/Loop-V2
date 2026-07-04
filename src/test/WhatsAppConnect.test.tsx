@@ -76,7 +76,8 @@ describe('WhatsApp connect screen', () => {
     Object.defineProperty(window, 'loop', { value: mockLoop, writable: true })
   })
 
-  // Renders App and navigates through the two intro screens to the connect screen.
+  // Renders App and navigates through the onboarding screens to the connect screen.
+  // Beat 1 (felt moment) → Beat 2 (normalise) → Beat 3 (contact picker) → Beat 4 (name your people) → WA connect
   // The connect screen auto-starts whatsapp.start() on mount.
   async function renderConnectScreen() {
     const { default: App } = await import('../renderer/src/App')
@@ -84,13 +85,24 @@ describe('WhatsApp connect screen', () => {
     await act(async () => {
       result = render(React.createElement(App))
     })
-    // Navigate through Beat 1 (felt moment), Beat 2 (normalise), Beat 3 (name your people)
+    // Beat 1: felt moment → click Continue
     await act(async () => {
       await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
     })
+    // Beat 2: normalise → click Continue (now leads to Beat 3 contact picker)
     await act(async () => {
       await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
     })
+    // Beat 3: contact picker — select 3 people then click CTA
+    await act(async () => {
+      await userEvent.click(screen.getByRole('button', { name: 'Arjun' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Sofia' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Marcus' }))
+    })
+    await act(async () => {
+      await userEvent.click(screen.getByRole('button', { name: 'These are my people' }))
+    })
+    // Beat 4: name your people → click Continue
     await act(async () => {
       await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
     })

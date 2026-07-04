@@ -18,6 +18,8 @@ import { OnboardingFeltMomentScreen } from './screens/OnboardingFeltMomentScreen
 import { OnboardingNormaliseScreen } from './screens/OnboardingNormaliseScreen'
 import { OnboardingRevealScreen } from './screens/OnboardingRevealScreen'
 import { OnboardingNameYourPeopleScreen } from './screens/OnboardingNameYourPeopleScreen'
+import { OnboardingBeat3Screen } from './screens/OnboardingBeat3Screen'
+import { ChapterCrewPickerScreen } from './screens/ChapterCrewPickerScreen'
 import { PeopleScreen } from './screens/PeopleScreen'
 import { AppSidebar } from './components/AppSidebar'
 import { TitlebarSearch } from './components/TitlebarSearch'
@@ -30,6 +32,7 @@ type Nav =
   | { screen: 'welcome' }
   | { screen: 'onboarding-felt-moment' }
   | { screen: 'onboarding-normalise' }
+  | { screen: 'onboarding-beat3' }
   | { screen: 'onboarding-name-your-people' }
   | { screen: 'onboarding-reveal' }
   | { screen: 'privacy-notice' }
@@ -42,6 +45,7 @@ type Nav =
   | { screen: 'your-loops' }
   | { screen: 'people' }
   | { screen: 'chapter-detail'; chapterId: string }
+  | { screen: 'chapter-crew-picker'; chapterId: string }
   | { screen: 'story'; contactId: string; chapterId: string }
   | { screen: 'settings' }
 
@@ -566,6 +570,13 @@ export default function App() {
     case 'onboarding-normalise':
       return (
         <OnboardingNormaliseScreen
+          onContinue={() => setNav({ screen: 'onboarding-beat3' })}
+        />
+      )
+
+    case 'onboarding-beat3':
+      return (
+        <OnboardingBeat3Screen
           onContinue={() => setNav({ screen: 'onboarding-name-your-people' })}
         />
       )
@@ -749,8 +760,20 @@ export default function App() {
               chapterId={nav.chapterId}
               onBack={goYourLoops}
               onOpenStory={(contactId) => setNav({ screen: 'story', contactId, chapterId: nav.chapterId })}
+              onPickCrew={() => setNav({ screen: 'chapter-crew-picker', chapterId: nav.chapterId })}
             />
           </ConnectionStateProvider>
+        </AppShell>
+      )
+
+    case 'chapter-crew-picker':
+      return (
+        <AppShell nav={nav} onNavigate={setNav}>
+          <ChapterCrewPickerScreen
+            chapterId={nav.chapterId}
+            onSave={() => setNav({ screen: 'chapter-detail', chapterId: nav.chapterId })}
+            onBack={() => setNav({ screen: 'chapter-detail', chapterId: nav.chapterId })}
+          />
         </AppShell>
       )
 

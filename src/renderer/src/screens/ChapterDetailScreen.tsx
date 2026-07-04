@@ -11,6 +11,7 @@ interface ChapterDetailScreenProps {
   chapterId: string
   onBack: () => void
   onOpenStory: (contactId: string) => void
+  onPickCrew?: () => void
 }
 
 interface ChapterData {
@@ -187,7 +188,7 @@ function RemoveChapterDialog({ chapterName, open, onClose, onConfirm }: {
 
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
-export function ChapterDetailScreen({ chapterId, onBack, onOpenStory }: ChapterDetailScreenProps) {
+export function ChapterDetailScreen({ chapterId, onBack, onOpenStory, onPickCrew }: ChapterDetailScreenProps) {
   const [data, setData] = useState<ChapterData>({ chapter: null, contacts: [], appState: null })
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
@@ -506,15 +507,51 @@ export function ChapterDetailScreen({ chapterId, onBack, onOpenStory }: ChapterD
 
         {/* Crew grid */}
         <div style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 11,
-          letterSpacing: '.1em',
-          textTransform: 'uppercase',
-          color: 'var(--text-muted)',
-          fontWeight: 600,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
           marginBottom: 16,
         }}>
-          Crew
+          <div style={{
+            fontFamily: 'var(--font-sans)',
+            fontSize: 11,
+            letterSpacing: '.1em',
+            textTransform: 'uppercase',
+            color: 'var(--text-muted)',
+            fontWeight: 600,
+          }}>
+            Crew
+          </div>
+          {onPickCrew && (
+            <button
+              type="button"
+              onClick={onPickCrew}
+              style={{
+                background: 'none',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-full)',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 12,
+                fontWeight: 500,
+                color: 'var(--text-secondary)',
+                padding: '4px 12px',
+                cursor: 'pointer',
+                transition: 'color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out)',
+              }}
+              onMouseEnter={(e) => {
+                const btn = e.currentTarget as HTMLButtonElement
+                btn.style.color = 'var(--accent)'
+                btn.style.borderColor = 'var(--accent)'
+              }}
+              onMouseLeave={(e) => {
+                const btn = e.currentTarget as HTMLButtonElement
+                btn.style.color = 'var(--text-secondary)'
+                btn.style.borderColor = 'var(--border)'
+              }}
+            >
+              Who was your crew?
+            </button>
+          )}
         </div>
 
         {contacts.length > 0 ? (
