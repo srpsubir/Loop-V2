@@ -7,6 +7,7 @@ import { NudgeCard } from '../components/NudgeCard'
 import { ContactTierIndicator } from '../components/ContactTierIndicator'
 import { QuietDayCard } from '../components/QuietDayCard'
 import { DeadThreadCard } from '../components/DeadThreadCard'
+import { OnYourMindSection } from '../components/OnYourMindSection'
 import type { AppState, Contact, ContactState, OnThisDayMemory, Chapter } from '@shared/types'
 import { toPng } from 'html-to-image'
 
@@ -432,6 +433,21 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
     setHiddenDeadThreadIds((prev) => new Set([...prev, deadThreadContact.id]))
   }, [deadThreadContact, state])
 
+  const deadThreadWeeksSince = useMemo(() => {
+    if (!deadThreadContact || !state) return 6
+    const cs = state.contacts[deadThreadContact.id]
+    if (!cs?.lastContactDate) return 6
+    return Math.max(1, Math.floor((Date.now() - new Date(cs.lastContactDate).getTime()) / (7 * 86400000)))
+  }, [deadThreadContact, state])
+
+  const echoCrewInitials = useMemo(() => {
+    if (!echoChapter) return []
+    return contacts
+      .filter((c) => c.chapterIds.includes(echoChapter.id))
+      .slice(0, 4)
+      .map((c) => c.name.trim().split(/\s+/)[0]?.[0]?.toUpperCase() ?? '?')
+  }, [echoChapter, contacts])
+
   // Opening moment: only when there are zero urgent signals
   const hasSignals = chapterAtoms.some(
     (a) => a.atomState === 'fading' || a.atomState === 'birthday-live' || a.atomState === 'dead-thread'
@@ -552,6 +568,10 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
         }
       `}</style>
       <ConnectionStatusBadge />
+      {/* On Your Mind section */}
+      <div style={{ padding: '16px 44px 0', flexShrink: 0 }}>
+        <OnYourMindSection contacts={[]} onNavigate={() => {}} />
+      </div>
       {/* Header */}
       <div style={{
         display: 'flex',
@@ -606,8 +626,8 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
       {deadThreadContact && (
         <div style={{ padding: '16px 44px 0', flexShrink: 0 }}>
           <DeadThreadCard
-            contactName={deadThreadContact.name}
-            contactInitials={deadThreadContact.name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
+            contact={deadThreadContact}
+            weeksSince={deadThreadWeeksSince}
             onTryAgain={handleDeadThreadTryAgain}
             onLetItRest={handleDeadThreadLetItRest}
           />
@@ -620,6 +640,7 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
           <QuietDayCard
             chapterName={echoChapter?.name}
             yearsAgo={echoChapter?.echoAnniversary?.years}
+            crewInitials={echoCrewInitials}
             onClick={echoChapter ? () => handleSeeEcho(echoChapter) : undefined}
           />
         </div>

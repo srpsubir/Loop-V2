@@ -1,33 +1,34 @@
 import React, { useState } from 'react'
+import type { Contact } from '@shared/types'
+
+const SERIF = '"Lora", Georgia, "Times New Roman", serif'
+const SANS = '"Inter", -apple-system, BlinkMacSystemFont, sans-serif'
 
 interface DeadThreadCardProps {
-  contactName: string
-  contactInitials: string
+  contact: Contact
+  weeksSince: number
   onTryAgain?: () => void
   onLetItRest?: () => void
 }
 
-export function DeadThreadCard({
-  contactName,
-  contactInitials,
-  onTryAgain,
-  onLetItRest,
-}: DeadThreadCardProps) {
-  const [hovTryAgain, setHovTryAgain] = useState(false)
+export function DeadThreadCard({ contact, weeksSince, onTryAgain, onLetItRest }: DeadThreadCardProps) {
+  const [hovReachOut, setHovReachOut] = useState(false)
   const [hovLetItRest, setHovLetItRest] = useState(false)
+  const firstName = contact.name.split(' ')[0] ?? contact.name
+  const initials = contact.name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
 
   return (
     <section
-      aria-label={`Resting thread with ${contactName}`}
+      aria-label={`Resting thread with ${contact.name}`}
       style={{
-        backgroundColor: 'var(--surface)',
-        borderRadius: 'var(--radius-md)',
-        boxShadow: 'var(--shadow-sm)',
-        padding: 16,
+        background: '#FFFFFF',
+        borderRadius: 12,
+        padding: '16px 20px',
+        boxShadow: '0 1px 4px rgba(26,16,12,0.07)',
         boxSizing: 'border-box',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
         <div
           aria-hidden="true"
           style={{
@@ -35,72 +36,74 @@ export function DeadThreadCard({
             height: 44,
             flexShrink: 0,
             borderRadius: '50%',
-            backgroundColor: 'rgba(184,98,74,0.12)',
-            color: 'var(--accent)',
-            fontFamily: 'var(--font-sans)',
+            background: '#B8624A',
+            color: '#FFFFFF',
+            fontFamily: SANS,
             fontWeight: 600,
             fontSize: 16,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            userSelect: 'none',
           }}
         >
-          {contactInitials}
+          {initials}
         </div>
 
-        <div style={{ minWidth: 0 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
-            fontFamily: 'var(--font-sans)',
+            fontFamily: SANS,
             fontSize: 11,
             textTransform: 'uppercase' as const,
             letterSpacing: '0.08em',
-            color: 'var(--text-muted)',
+            color: '#7A6056',
             marginBottom: 2,
           }}>
-            The thread is resting
+            No reply yet
           </div>
           <div style={{
-            fontFamily: 'var(--font-serif)',
-            fontSize: 17,
+            fontFamily: SERIF,
+            fontSize: 15,
             fontWeight: 600,
-            color: 'var(--text-primary)',
+            color: '#1A100C',
           }}>
-            {contactName}
+            {contact.name}
           </div>
         </div>
       </div>
 
       <p style={{
-        fontFamily: 'var(--font-sans)',
-        fontSize: 13,
+        fontFamily: SERIF,
+        fontSize: 15,
         fontStyle: 'italic',
-        color: 'var(--text-secondary)',
-        margin: '8px 0 0 0',
-        lineHeight: 1.45,
+        color: '#1A100C',
+        margin: '10px 0 0 0',
+        lineHeight: 1.5,
       }}>
-        Still quiet from {contactName}. No rush.
+        You and {firstName} said you'd catch up. It has been {weeksSince} weeks.
       </p>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14 }}>
         <button
           type="button"
           onClick={onTryAgain}
-          onMouseEnter={() => setHovTryAgain(true)}
-          onMouseLeave={() => setHovTryAgain(false)}
+          onMouseEnter={() => setHovReachOut(true)}
+          onMouseLeave={() => setHovReachOut(false)}
           style={{
-            backgroundColor: hovTryAgain ? 'rgba(184,98,74,0.88)' : 'var(--accent)',
-            color: '#F9F5EE',
-            borderRadius: 'var(--radius-full)',
-            padding: '7px 16px',
-            fontFamily: 'var(--font-sans)',
+            background: hovReachOut ? '#A6543E' : '#B8624A',
+            color: '#FFFFFF',
+            borderRadius: 999,
+            padding: '8px 18px',
+            fontFamily: SANS,
             fontSize: 13,
             fontWeight: 600,
             border: 'none',
             cursor: 'pointer',
-            transition: 'background-color 120ms ease',
-          }}
+            transition: 'background 120ms ease',
+            WebkitAppRegion: 'no-drag',
+          } as React.CSSProperties}
         >
-          Reach out again
+          Reach out
         </button>
         <button
           type="button"
@@ -110,13 +113,14 @@ export function DeadThreadCard({
           style={{
             background: 'none',
             border: 'none',
-            color: hovLetItRest ? 'var(--text-secondary)' : 'var(--text-muted)',
-            fontFamily: 'var(--font-sans)',
+            color: hovLetItRest ? '#1A100C' : '#6B5447',
+            fontFamily: SANS,
             fontSize: 13,
-            padding: '7px 10px',
+            padding: '8px 10px',
             cursor: 'pointer',
             transition: 'color 120ms ease',
-          }}
+            WebkitAppRegion: 'no-drag',
+          } as React.CSSProperties}
         >
           Let it rest
         </button>

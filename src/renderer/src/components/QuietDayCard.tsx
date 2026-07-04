@@ -1,26 +1,17 @@
 import React, { useState } from 'react'
 
+const SERIF = '"Lora", Georgia, "Times New Roman", serif'
+const SANS = '"Inter", -apple-system, BlinkMacSystemFont, sans-serif'
+
 export interface QuietDayCardProps {
-  chapterName?: string  // e.g. "Edinburgh" — triggers chapter-moment state
-  yearsAgo?: number     // e.g. 3 — required when chapterName present
-  onClick?: () => void  // optional: tap to open that chapter (State A only)
+  chapterName?: string
+  yearsAgo?: number
+  crewInitials?: string[]
+  onClick?: () => void
 }
 
-const HOVER_BG  = 'rgba(184,98,74,0.05)'
-
-const cardBase: React.CSSProperties = {
-  border:      '1px solid rgba(42,31,27,0.08)',
-  borderRadius: 'var(--radius-md)',
-  padding:     '20px 24px',
-  maxWidth:    440,
-  width:       '100%',
-  boxSizing:   'border-box',
-  background:  'var(--surface)',
-}
-
-export function QuietDayCard({ chapterName, yearsAgo, onClick }: QuietDayCardProps) {
+export function QuietDayCard({ chapterName, yearsAgo, crewInitials, onClick }: QuietDayCardProps) {
   const [hovered, setHovered] = useState(false)
-
   const isChapterMoment = Boolean(chapterName) && typeof yearsAgo === 'number'
   const clickable = isChapterMoment && typeof onClick === 'function'
 
@@ -32,41 +23,91 @@ export function QuietDayCard({ chapterName, yearsAgo, onClick }: QuietDayCardPro
         onClick={clickable ? onClick : undefined}
         onMouseEnter={clickable ? () => setHovered(true) : undefined}
         onMouseLeave={clickable ? () => setHovered(false) : undefined}
-        onKeyDown={clickable ? (e) => {
-          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.() }
-        } : undefined}
+        onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.() } } : undefined}
         style={{
-          ...cardBase,
-          backgroundColor: clickable && hovered ? HOVER_BG : undefined,
+          background: '#FFFFFF',
+          borderRadius: 12,
+          padding: '16px 20px',
+          boxShadow: hovered && clickable
+            ? '0 2px 8px rgba(26,16,12,0.10)'
+            : '0 1px 4px rgba(26,16,12,0.07)',
           cursor: clickable ? 'pointer' : 'default',
-        }}
+          position: 'relative',
+          overflow: 'hidden',
+          transition: 'box-shadow 150ms ease',
+          boxSizing: 'border-box',
+        } as React.CSSProperties}
       >
         <div style={{
-          fontFamily:    'var(--font-sans)',
-          fontSize:      11,
-          textTransform: 'uppercase',
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: 3,
+          background: '#B8624A',
+          borderRadius: '12px 0 0 12px',
+        }} />
+
+        <div style={{
+          fontFamily: SANS,
+          fontSize: 11,
+          textTransform: 'uppercase' as const,
           letterSpacing: '0.08em',
-          color:         'var(--text-muted)',
+          color: '#7A6056',
+          paddingLeft: 4,
         }}>
-          {yearsAgo} {yearsAgo === 1 ? 'year' : 'years'} ago
+          {yearsAgo} {yearsAgo === 1 ? 'year' : 'years'} ago today
         </div>
+
         <h3 style={{
-          fontFamily: 'var(--font-serif)',
-          fontSize:   20,
+          fontFamily: SERIF,
+          fontSize: 20,
           fontWeight: 600,
-          color:      'var(--text-primary)',
-          lineHeight: 1.2,
-          margin:     '8px 0 0 0',
+          color: '#1A100C',
+          lineHeight: 1.3,
+          margin: '8px 0 0 0',
+          paddingLeft: 4,
         }}>
           {chapterName} started.
         </h3>
+
+        {crewInitials && crewInitials.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', marginTop: 10, paddingLeft: 4 }}>
+            {crewInitials.slice(0, 4).map((initial, i) => (
+              <div
+                key={i}
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: '50%',
+                  background: '#B8624A',
+                  color: '#FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontFamily: SANS,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  marginLeft: i === 0 ? 0 : -8,
+                  border: '2px solid #FFFFFF',
+                  userSelect: 'none',
+                } as React.CSSProperties}
+              >
+                {initial}
+              </div>
+            ))}
+          </div>
+        )}
+
         <p style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize:   13,
-          color:      'var(--text-secondary)',
+          fontFamily: SANS,
+          fontSize: 13,
+          fontStyle: 'italic',
+          color: '#6B5447',
           lineHeight: 1.55,
-          marginTop:  8,
+          marginTop: 8,
           marginBottom: 0,
+          paddingLeft: 4,
         }}>
           Your people from that chapter are still close.
         </p>
@@ -75,27 +116,47 @@ export function QuietDayCard({ chapterName, yearsAgo, onClick }: QuietDayCardPro
   }
 
   return (
-    <div style={{ ...cardBase, cursor: 'default' }}>
+    <div style={{
+      background: '#FFFFFF',
+      borderRadius: 12,
+      padding: '16px 20px',
+      boxShadow: '0 1px 4px rgba(26,16,12,0.07)',
+      position: 'relative',
+      overflow: 'hidden',
+      boxSizing: 'border-box',
+    } as React.CSSProperties}>
+      <div style={{
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        bottom: 0,
+        width: 3,
+        background: '#B8624A',
+        borderRadius: '12px 0 0 12px',
+      }} />
+
       <h3 style={{
-        fontFamily: 'var(--font-serif)',
-        fontSize:   20,
-        fontStyle:  'italic',
+        fontFamily: SERIF,
+        fontSize: 20,
+        fontStyle: 'italic',
         fontWeight: 400,
-        color:      'var(--text-muted)',
-        lineHeight: 1.2,
-        margin:     0,
+        color: '#6B5447',
+        lineHeight: 1.3,
+        margin: 0,
+        paddingLeft: 4,
       }}>
         A quiet day.
       </h3>
       <p style={{
-        fontFamily: 'var(--font-sans)',
-        fontSize:   13,
-        color:      'var(--text-secondary)',
+        fontFamily: SANS,
+        fontSize: 13,
+        color: '#7A6056',
         lineHeight: 1.55,
-        marginTop:  8,
+        marginTop: 6,
         marginBottom: 0,
+        paddingLeft: 4,
       }}>
-        Your people are close.
+        Nothing needs your attention today.
       </p>
     </div>
   )
