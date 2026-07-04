@@ -1,4 +1,3 @@
-import * as Sentry from '@sentry/electron/renderer'
 import React from 'react'
 
 interface Props {
@@ -16,8 +15,8 @@ export class ErrorBoundary extends React.Component<Props, State> {
     return { error }
   }
 
-  componentDidCatch(error: Error, info: React.ErrorInfo): void {
-    Sentry.captureException(error, { extra: { componentStack: info.componentStack } })
+  componentDidCatch(_error: Error, _info: React.ErrorInfo): void {
+    // No telemetry — Loop is local-first, no data leaves the device.
   }
 
   render(): React.ReactNode {
@@ -30,22 +29,23 @@ export class ErrorBoundary extends React.Component<Props, State> {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          background: '#F9F5EE',
-          fontFamily: 'system-ui, sans-serif',
+          background: 'var(--bg)',
+          fontFamily: 'var(--font-sans)',
           gap: 16,
         }}>
-          <p style={{ fontSize: 15, color: '#6B5C55', margin: 0 }}>
-            Something went wrong. Restart Loop to continue.
+          <p style={{ fontSize: 15, color: 'var(--text-secondary)', margin: 0 }}>
+            Loop hit an unexpected error. Your data is safe.
           </p>
           <button
             onClick={() => window.location.reload()}
             style={{
               padding: '8px 20px',
-              background: '#B8624A',
-              color: '#F9F5EE',
+              background: 'var(--accent)',
+              color: 'var(--text-on-accent)',
               border: 'none',
-              borderRadius: 999,
+              borderRadius: 'var(--radius-full)',
               fontSize: 14,
+              fontFamily: 'var(--font-sans)',
               cursor: 'pointer',
             }}
           >

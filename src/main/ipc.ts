@@ -311,6 +311,7 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
   // ── Shell: open external URL ──────────────────────────────────────────────
 
   ipcMain.handle('shell:openExternal', async (_e, url: string) => {
+    if (!/^https:\/\//i.test(url)) return
     await shell.openExternal(url)
   })
 
