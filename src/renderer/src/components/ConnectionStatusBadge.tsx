@@ -7,10 +7,10 @@ export function ConnectionStatusBadge() {
   if (status === 'connected' || status === 'disconnected') return null
 
   const isReconnecting = status === 'reconnecting'
-  const dotColor = isReconnecting ? '#f59e0b' : '#ef4444'
-  const bgColor = isReconnecting ? 'rgba(245,158,11,0.08)' : 'rgba(239,68,68,0.08)'
-  const borderColor = isReconnecting ? 'rgba(245,158,11,0.2)' : 'rgba(239,68,68,0.2)'
-  const textColor = isReconnecting ? '#92400e' : '#991b1b'
+  const dotColor = isReconnecting ? 'var(--accent-light)' : 'var(--accent)'
+  const bgColor = 'var(--accent-faint)'
+  const borderColor = isReconnecting ? 'var(--border-light)' : 'var(--border)'
+  const textColor = isReconnecting ? 'var(--text-secondary)' : 'var(--text-primary)'
 
   let primary = ''
   let secondary = ''

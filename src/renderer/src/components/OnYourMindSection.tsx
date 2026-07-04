@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import type { Contact, AppState } from '@shared/types'
 
-const SERIF = '"Lora", Georgia, "Times New Roman", serif'
-const SANS = '"Inter", -apple-system, BlinkMacSystemFont, sans-serif'
+const SERIF = 'var(--font-serif)'
+const SANS = 'var(--font-sans)'
 
 interface OnYourMindSectionProps {
   contacts: Contact[]
@@ -52,7 +52,7 @@ export function OnYourMindSection({ contacts, onNavigate }: OnYourMindSectionPro
           <div
             key={contact.id}
             style={{
-              background: '#FFFFFF',
+              background: 'var(--surface-raised)',
               borderRadius: 12,
               padding: '14px 18px',
               boxShadow: '0 1px 4px rgba(26,16,12,0.07)',
@@ -67,8 +67,8 @@ export function OnYourMindSection({ contacts, onNavigate }: OnYourMindSectionPro
                 width: 44,
                 height: 44,
                 borderRadius: '50%',
-                background: '#B8624A',
-                color: '#FFFFFF',
+                background: 'var(--accent)',
+                color: 'var(--text-on-accent)',
                 fontFamily: SANS,
                 fontWeight: 600,
                 fontSize: 16,
@@ -87,7 +87,7 @@ export function OnYourMindSection({ contacts, onNavigate }: OnYourMindSectionPro
                 fontFamily: SERIF,
                 fontSize: 16,
                 fontWeight: 600,
-                color: '#1A100C',
+                color: 'var(--text-primary)',
                 lineHeight: 1.3,
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
@@ -98,7 +98,7 @@ export function OnYourMindSection({ contacts, onNavigate }: OnYourMindSectionPro
               <div style={{
                 fontFamily: SANS,
                 fontSize: 12,
-                color: '#7A6056',
+                color: 'var(--text-muted)',
                 marginTop: 2,
               }}>
                 {lastSpokeLabel(days)}
@@ -108,7 +108,7 @@ export function OnYourMindSection({ contacts, onNavigate }: OnYourMindSectionPro
                   fontFamily: SANS,
                   fontSize: 13,
                   fontStyle: 'italic',
-                  color: '#B8624A',
+                  color: 'var(--accent)',
                   marginTop: 3,
                 }}>
                   {reasonToReachOut}
@@ -122,8 +122,8 @@ export function OnYourMindSection({ contacts, onNavigate }: OnYourMindSectionPro
                 onClick={() => onNavigate('story', { contactId: contact.id, chapterId: contact.chapterIds[0] ?? '' })}
                 style={{
                   background: 'none',
-                  color: '#B8624A',
-                  border: '1.5px solid #B8624A',
+                  color: 'var(--accent)',
+                  border: '1.5px solid var(--accent)',
                   borderRadius: 999,
                   padding: '6px 13px',
                   fontFamily: SANS,
@@ -141,8 +141,8 @@ export function OnYourMindSection({ contacts, onNavigate }: OnYourMindSectionPro
                   type="button"
                   onClick={() => window.loop.shell.openWhatsApp(contact.whatsappId!).catch(() => {})}
                   style={{
-                    background: '#B8624A',
-                    color: '#FFFFFF',
+                    background: 'var(--accent)',
+                    color: 'var(--text-on-accent)',
                     border: 'none',
                     borderRadius: 999,
                     padding: '6px 13px',

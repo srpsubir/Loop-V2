@@ -451,6 +451,17 @@ export function SettingsScreen({ onBack, onConnect }: SettingsScreenProps) {
             )}
           </Section>
 
+          <Section label="About">
+            <div style={{ padding: '14px 14px' }}>
+              <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, lineHeight: 1.65, color: 'var(--text-secondary)', margin: 0 }}>
+                "Time passes. People get busy. Silence accumulates. Not because anyone stopped caring. Because staying close takes effort nobody has, and nobody keeps count. Loop keeps count. Quietly."
+              </p>
+              <p style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-muted)', margin: '12px 0 0', lineHeight: 1.5 }}>
+                Loop is local-first. Everything stays on your Mac. Nothing is shared, sold, or seen by anyone else.
+              </p>
+            </div>
+          </Section>
+
           <Section label="Data">
             <Row
               stacked title="Where Loop keeps things"

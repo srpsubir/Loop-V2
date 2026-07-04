@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 
-const SERIF = '"Lora", Georgia, "Times New Roman", serif'
-const SANS = '"Inter", -apple-system, BlinkMacSystemFont, sans-serif'
+const SERIF = 'var(--font-serif)'
+const SANS = 'var(--font-sans)'
 
 export interface QuietDayCardProps {
   chapterName?: string
@@ -25,7 +25,7 @@ export function QuietDayCard({ chapterName, yearsAgo, crewInitials, onClick }: Q
         onMouseLeave={clickable ? () => setHovered(false) : undefined}
         onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.() } } : undefined}
         style={{
-          background: '#FFFFFF',
+          background: 'var(--surface-raised)',
           borderRadius: 12,
           padding: '16px 20px',
           boxShadow: hovered && clickable
@@ -44,7 +44,7 @@ export function QuietDayCard({ chapterName, yearsAgo, crewInitials, onClick }: Q
           top: 0,
           bottom: 0,
           width: 3,
-          background: '#B8624A',
+          background: 'var(--accent)',
           borderRadius: '12px 0 0 12px',
         }} />
 
@@ -53,7 +53,7 @@ export function QuietDayCard({ chapterName, yearsAgo, crewInitials, onClick }: Q
           fontSize: 11,
           textTransform: 'uppercase' as const,
           letterSpacing: '0.08em',
-          color: '#7A6056',
+          color: 'var(--text-muted)',
           paddingLeft: 4,
         }}>
           {yearsAgo} {yearsAgo === 1 ? 'year' : 'years'} ago today
@@ -63,7 +63,7 @@ export function QuietDayCard({ chapterName, yearsAgo, crewInitials, onClick }: Q
           fontFamily: SERIF,
           fontSize: 20,
           fontWeight: 600,
-          color: '#1A100C',
+          color: 'var(--text-primary)',
           lineHeight: 1.3,
           margin: '8px 0 0 0',
           paddingLeft: 4,
@@ -80,8 +80,8 @@ export function QuietDayCard({ chapterName, yearsAgo, crewInitials, onClick }: Q
                   width: 28,
                   height: 28,
                   borderRadius: '50%',
-                  background: '#B8624A',
-                  color: '#FFFFFF',
+                  background: 'var(--accent)',
+                  color: 'var(--surface-raised)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -89,7 +89,7 @@ export function QuietDayCard({ chapterName, yearsAgo, crewInitials, onClick }: Q
                   fontSize: 12,
                   fontWeight: 600,
                   marginLeft: i === 0 ? 0 : -8,
-                  border: '2px solid #FFFFFF',
+                  border: '2px solid var(--surface-raised)',
                   userSelect: 'none',
                 } as React.CSSProperties}
               >
@@ -103,7 +103,7 @@ export function QuietDayCard({ chapterName, yearsAgo, crewInitials, onClick }: Q
           fontFamily: SANS,
           fontSize: 13,
           fontStyle: 'italic',
-          color: '#6B5447',
+          color: 'var(--text-secondary)',
           lineHeight: 1.55,
           marginTop: 8,
           marginBottom: 0,
@@ -117,7 +117,7 @@ export function QuietDayCard({ chapterName, yearsAgo, crewInitials, onClick }: Q
 
   return (
     <div style={{
-      background: '#FFFFFF',
+      background: 'var(--surface-raised)',
       borderRadius: 12,
       padding: '16px 20px',
       boxShadow: '0 1px 4px rgba(26,16,12,0.07)',
@@ -131,7 +131,7 @@ export function QuietDayCard({ chapterName, yearsAgo, crewInitials, onClick }: Q
         top: 0,
         bottom: 0,
         width: 3,
-        background: '#B8624A',
+        background: 'var(--accent)',
         borderRadius: '12px 0 0 12px',
       }} />
 
@@ -140,7 +140,7 @@ export function QuietDayCard({ chapterName, yearsAgo, crewInitials, onClick }: Q
         fontSize: 20,
         fontStyle: 'italic',
         fontWeight: 400,
-        color: '#6B5447',
+        color: 'var(--text-secondary)',
         lineHeight: 1.3,
         margin: 0,
         paddingLeft: 4,
@@ -150,7 +150,7 @@ export function QuietDayCard({ chapterName, yearsAgo, crewInitials, onClick }: Q
       <p style={{
         fontFamily: SANS,
         fontSize: 13,
-        color: '#7A6056',
+        color: 'var(--text-muted)',
         lineHeight: 1.55,
         marginTop: 6,
         marginBottom: 0,

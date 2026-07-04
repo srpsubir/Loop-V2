@@ -7,13 +7,13 @@ const WARM_FILTER = 'sepia(.32) saturate(1.05) hue-rotate(-8deg)'
 
 function Avatar({ name, size = 28 }: { name: string; size?: number }) {
   const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
-  const tints = ['#C49A8A', '#D4856E', '#6A9470', '#C49A8A', '#B8624A']
+  const tints = ['var(--people)', 'var(--accent-light)', 'var(--positive)', 'var(--people)', 'var(--accent)']
   let h = 0
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0
   return (
     <div style={{
       width: size, height: size, borderRadius: 'var(--radius-full)', flex: 'none',
-      background: tints[h % tints.length], color: '#F9F5EE',
+      background: tints[h % tints.length], color: 'var(--text-on-accent)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontFamily: 'var(--font-sans)', fontWeight: 600,
       fontSize: Math.round(size * 0.38), letterSpacing: '0.01em',
@@ -57,7 +57,7 @@ export function OnThisDay({
       onMouseLeave={() => setHov(false)}
       style={{
         width: 296,
-        background: '#FEFCF8',
+        background: 'var(--surface-raised)',
         padding: '16px 16px 36px',
         borderRadius: 4,
         boxShadow: hov

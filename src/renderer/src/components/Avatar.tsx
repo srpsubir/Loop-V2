@@ -12,7 +12,7 @@ interface AvatarProps {
 
 function nameToHue(name: string): string {
   // Deterministic warm color from name
-  const palette = ['#C49A8A', '#B8624A', '#6A9470', '#A38F85', '#D4856E', '#8B6A5E']
+  const palette = ['var(--people)', 'var(--accent)', 'var(--positive)', 'var(--text-muted)', 'var(--accent-light)', 'var(--text-secondary)']
   const idx = [...name].reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % palette.length
   return palette[idx]
 }
@@ -64,7 +64,7 @@ export function Avatar({ src, name = '', size = 44, ring = 'none', style }: Avat
         fontFamily: 'var(--font-sans)',
         fontSize: size * 0.37,
         fontWeight: 600,
-        color: '#FBF7F0',
+        color: 'var(--text-on-accent)',
         userSelect: 'none',
         ...style,
       }}

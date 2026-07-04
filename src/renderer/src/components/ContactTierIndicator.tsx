@@ -53,7 +53,7 @@ export function ContactTierIndicator({
         justifyContent: 'center',
         overflow: 'hidden',
         flexShrink: 0,
-        boxShadow: isClose && !fading ? '0 0 0 2px #F4E7E2, 0 0 0 4px #B8624A' : undefined,
+        boxShadow: isClose && !fading ? '0 0 0 2px var(--bg), 0 0 0 4px var(--accent)' : undefined,
       }}>
         {src ? (
           <img src={src} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -62,7 +62,7 @@ export function ContactTierIndicator({
             fontFamily: 'var(--font-sans)',
             fontSize: isClose ? 18 : 16,
             fontWeight: isClose ? 600 : 500,
-            color: isClose ? '#B8624A' : '#A38F85',
+            color: isClose ? 'var(--accent)' : 'var(--text-muted)',
             letterSpacing: '0.01em',
             userSelect: 'none',
           }}>
@@ -77,7 +77,7 @@ export function ContactTierIndicator({
           width: 6,
           height: 6,
           borderRadius: '50%',
-          background: '#B8624A',
+          background: 'var(--accent)',
           marginTop: -2,
         }} />
       )}
@@ -102,7 +102,7 @@ export function ContactTierIndicator({
         <div style={{
           fontFamily: 'var(--font-sans)',
           fontSize: 10,
-          color: daysOverdue >= 30 ? '#C4613C' : '#9B8B82',
+          color: daysOverdue >= 30 ? 'var(--accent)' : 'var(--text-muted)',
           marginTop: -2,
           textAlign: 'center',
         }}>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 
-const SERIF = '"Lora", Georgia, "Times New Roman", serif'
-const SANS = '"Inter", -apple-system, BlinkMacSystemFont, sans-serif'
+const SERIF = 'var(--font-serif)'
+const SANS = 'var(--font-sans)'
 
 type SidebarSection = 'your-loops' | 'people' | 'chapters' | 'settings'
 
@@ -33,7 +33,7 @@ export function AppSidebar({ currentScreen, onNavigate }: Props) {
       style={{
         width: 200,
         height: '100%',
-        background: '#EDD9D2',
+        background: 'var(--surface)',
         display: 'flex',
         flexDirection: 'column',
         flexShrink: 0,
@@ -48,7 +48,7 @@ export function AppSidebar({ currentScreen, onNavigate }: Props) {
           fontFamily: SERIF,
           fontSize: 15,
           fontWeight: 700,
-          color: '#1A100C',
+          color: 'var(--text-primary)',
           letterSpacing: '-0.01em',
           WebkitAppRegion: 'no-drag',
         } as React.CSSProperties}
@@ -81,7 +81,7 @@ export function AppSidebar({ currentScreen, onNavigate }: Props) {
                 paddingLeft: isActive ? 9 : 12,
                 paddingRight: 12,
                 border: 'none',
-                borderLeft: isActive ? '3px solid #B8624A' : '3px solid transparent',
+                borderLeft: isActive ? '3px solid var(--accent)' : '3px solid transparent',
                 background: isActive
                   ? 'rgba(184,98,74,0.08)'
                   : isHov
@@ -91,7 +91,7 @@ export function AppSidebar({ currentScreen, onNavigate }: Props) {
                 fontFamily: SANS,
                 fontSize: 13,
                 fontWeight: isActive ? 500 : 400,
-                color: isActive ? '#1A100C' : '#5A4038',
+                color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
                 textAlign: 'left',
                 borderRadius: 6,
                 transition: 'background 120ms ease',
@@ -116,14 +116,14 @@ export function AppSidebar({ currentScreen, onNavigate }: Props) {
             width: 32,
             height: 32,
             borderRadius: '50%',
-            background: '#B8624A',
+            background: 'var(--accent)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             fontFamily: SERIF,
             fontSize: 14,
             fontWeight: 600,
-            color: '#FFFFFF',
+            color: 'var(--text-on-accent)',
           }}
         >
           L

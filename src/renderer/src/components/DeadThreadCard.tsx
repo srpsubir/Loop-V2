@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
 import type { Contact } from '@shared/types'
 
-const SERIF = '"Lora", Georgia, "Times New Roman", serif'
-const SANS = '"Inter", -apple-system, BlinkMacSystemFont, sans-serif'
+const SERIF = 'var(--font-serif)'
+const SANS = 'var(--font-sans)'
 
 interface DeadThreadCardProps {
   contact: Contact
@@ -21,7 +21,7 @@ export function DeadThreadCard({ contact, weeksSince, onTryAgain, onLetItRest }:
     <section
       aria-label={`Resting thread with ${contact.name}`}
       style={{
-        background: '#FFFFFF',
+        background: 'var(--surface-raised)',
         borderRadius: 12,
         padding: '16px 20px',
         boxShadow: '0 1px 4px rgba(26,16,12,0.07)',
@@ -36,8 +36,8 @@ export function DeadThreadCard({ contact, weeksSince, onTryAgain, onLetItRest }:
             height: 44,
             flexShrink: 0,
             borderRadius: '50%',
-            background: '#B8624A',
-            color: '#FFFFFF',
+            background: 'var(--accent)',
+            color: 'var(--text-on-accent)',
             fontFamily: SANS,
             fontWeight: 600,
             fontSize: 16,
@@ -55,7 +55,7 @@ export function DeadThreadCard({ contact, weeksSince, onTryAgain, onLetItRest }:
             fontFamily: SERIF,
             fontSize: 15,
             fontWeight: 600,
-            color: '#1A100C',
+            color: 'var(--text-primary)',
           }}>
             {contact.name}
           </div>
@@ -66,7 +66,7 @@ export function DeadThreadCard({ contact, weeksSince, onTryAgain, onLetItRest }:
         fontFamily: SERIF,
         fontSize: 15,
         fontStyle: 'italic',
-        color: '#1A100C',
+        color: 'var(--text-primary)',
         margin: '10px 0 0 0',
         lineHeight: 1.5,
       }}>
@@ -80,8 +80,8 @@ export function DeadThreadCard({ contact, weeksSince, onTryAgain, onLetItRest }:
           onMouseEnter={() => setHovReachOut(true)}
           onMouseLeave={() => setHovReachOut(false)}
           style={{
-            background: hovReachOut ? '#A6543E' : '#B8624A',
-            color: '#FFFFFF',
+            background: hovReachOut ? 'var(--accent-hover)' : 'var(--accent)',
+            color: 'var(--text-on-accent)',
             borderRadius: 999,
             padding: '8px 18px',
             fontFamily: SANS,
@@ -103,7 +103,7 @@ export function DeadThreadCard({ contact, weeksSince, onTryAgain, onLetItRest }:
           style={{
             background: 'none',
             border: 'none',
-            color: hovLetItRest ? '#1A100C' : '#6B5447',
+            color: hovLetItRest ? 'var(--text-primary)' : 'var(--text-secondary)',
             fontFamily: SANS,
             fontSize: 13,
             padding: '8px 10px',

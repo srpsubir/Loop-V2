@@ -270,6 +270,19 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
   ipcMain.handle('data:deleteAll', async (_e, opts?: { confirmed?: boolean }) => {
     // MAV-178: require explicit confirmation flag — rejects accidental or unauthenticated IPC calls
     if (opts?.confirmed !== true) return
+
+    // Snapshot before deletion so the user can recover manually if needed
+    try {
+      const backupDir = path.join(LOOP_DIR, 'backups')
+      await fs.promises.mkdir(backupDir, { recursive: true })
+      const [state, contacts] = await Promise.all([readState(), listContacts()])
+      const backup = { timestamp: new Date().toISOString(), state, contacts }
+      await fs.promises.writeFile(
+        path.join(backupDir, `backup_${Date.now()}.json`),
+        JSON.stringify(backup, null, 2)
+      )
+    } catch { /* backup failure must never block the delete */ }
+
     try {
       const files = await fs.promises.readdir(CONTACTS_DIR)
       await Promise.all(files.map((f) => fs.promises.unlink(path.join(CONTACTS_DIR, f)).catch(() => {})))
