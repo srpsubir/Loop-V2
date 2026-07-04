@@ -28,11 +28,9 @@ _Updated: 2026-07-04_
 - TDZ bug fix (echoChapter declaration order)
 - wdio: scan loading gate + data-testid selectors
 
-## Security fixes — committed `5f83241`
-1. **Sentry + PostHog removed** — `analytics.ts` is a no-op stub; `ErrorBoundary.tsx` + `main.tsx` stripped
-2. **shell:openExternal validation** — https:// scheme guard in ipc.ts — DONE
-3. **Backup before deleteAll** — not yet implemented
-4. **Baileys pin** — not yet done
+## Security fixes — ALL DONE
+- `5f83241` Sentry + PostHog removed; shell:openExternal https:// guard
+- `e6fea43` Backup before deleteAll; Baileys pinned to 7.0.0-rc11 (no ^)
 
 ## IPC dead-wiring audit results
 - `calendar:addEvent` — in preload, no main handler, no renderer caller. DEAD STUB.
@@ -67,8 +65,6 @@ to override any persisted real-session state.
 - **MAV-204** — model:status IPC — on-device SLM/LLM integration planning (Backlog, High)
 
 ## Pending / in-flight work
-1. D-II token enforcement (design fix #1) — awaiting decision to proceed
-5. Beat 3 interactive — no decision yet
-6. MAV-202 manifesto in settings/about
-7. Push to remote: `! git push origin main` (user must run, PAT constraint)
-8. DMG: `npm run dist` — gated on all tests green + D-II done + manifesto done
+1. Beat 3 interactive — no decision yet
+2. Push to remote: `! git push origin main` (user must run, PAT constraint)
+3. DMG: `npm run dist` — gated on all tests green (unit + wdio + e2e)
