@@ -42,6 +42,8 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
         })
         await window.loop.state.patch({
           onboardingComplete: true,
+          whatsappConnected: false,
+          chapterDetectionComplete: true,
           chapters: [{ id: chId, name: chName, active: true }],
           contacts: {
             [cId]: {
@@ -100,33 +102,31 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
     const atom = await browser.$(`[data-chapter-id="${CH_ID}"]`)
     await atom.click()
     await browser.pause(1000)
-    const firstName = C_NAME.split(' ')[0]
-    const crewMember = await browser.$(`*=${firstName}`)
+    const crewMember = await browser.$('[data-testid="crew-member"]')
     await crewMember.waitForExist({ timeout: 5000 })
-    log(`Chapter Detail opened, crew member visible: ${firstName}`)
+    log(`Chapter Detail opened, crew member visible`)
   })
 
   it('Chapter Detail shows all crew as tappable', async () => {
-    const firstName = C_NAME.split(' ')[0]
-    const member = await browser.$(`*=${firstName}`)
+    const member = await browser.$('[data-testid="crew-member"]')
     const displayed = await member.isDisplayed()
     expect(displayed).toBe(true)
     log('Crew member is displayed')
   })
 
   it('tapping crew member opens Story screen', async () => {
-    const firstName = C_NAME.split(' ')[0]
-    const crewMember = await browser.$(`*=${firstName}`)
+    const crewMember = await browser.$('[data-testid="crew-member"]')
     await crewMember.click()
     await browser.pause(1000)
-    // Story screen renders full contact name as heading
-    const heading = await browser.$(`*=${C_NAME}`)
+    const heading = await browser.$('[data-testid="story-contact-name"]')
     await heading.waitForExist({ timeout: 5000 })
+    const headingText = await heading.getText()
+    expect(headingText).toContain(C_NAME.split(' ')[0])
     log('Story screen opened')
   })
 
   it('Story screen shows Open WhatsApp CTA', async () => {
-    const cta = await browser.$('*=Open WhatsApp')
+    const cta = await browser.$('[data-testid="open-whatsapp-cta"]')
     await cta.waitForExist({ timeout: 3000 })
     const displayed = await cta.isDisplayed()
     expect(displayed).toBe(true)
@@ -140,7 +140,7 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
     }, C_ID)
     log(`storyOpenedAt before tap: ${stateBefore}`)
 
-    const cta = await browser.$('*=Open WhatsApp')
+    const cta = await browser.$('[data-testid="open-whatsapp-cta"]')
     await cta.click()
     await browser.pause(800)
 
@@ -153,36 +153,19 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
   })
 
   it('back from Story returns to Chapter Detail (not Your Loops)', async () => {
-    // Navigate back via aria label (ArrowLeft button)
-    const backBtns = await browser.$$('button')
-    let clicked = false
-    for (const btn of backBtns) {
-      const label = await btn.getAttribute('aria-label')
-      if (label === 'Back') { await btn.click(); clicked = true; break }
-    }
-    if (!clicked) {
-      // fallback: first back button on page
-      const firstBack = await browser.$('[aria-label="Back"]')
-      await firstBack.click()
-    }
+    const firstBack = await browser.$('[aria-label="Back"]')
+    await firstBack.waitForExist({ timeout: 3000 })
+    await firstBack.click()
     await browser.pause(1000)
-    const firstName = C_NAME.split(' ')[0]
-    const crewMember = await browser.$(`*=${firstName}`)
+    const crewMember = await browser.$('[data-testid="crew-member"]')
     await crewMember.waitForExist({ timeout: 5000 })
     log('Back from Story → Chapter Detail confirmed')
   })
 
   it('back from Chapter Detail returns to Your Loops', async () => {
-    const backBtns = await browser.$$('button')
-    let clicked = false
-    for (const btn of backBtns) {
-      const label = await btn.getAttribute('aria-label')
-      if (label === 'Back') { await btn.click(); clicked = true; break }
-    }
-    if (!clicked) {
-      const firstBack = await browser.$('[aria-label="Back"]')
-      await firstBack.click()
-    }
+    const firstBack = await browser.$('[aria-label="Back"]')
+    await firstBack.waitForExist({ timeout: 3000 })
+    await firstBack.click()
     await browser.pause(1000)
     const atom = await browser.$(`[data-chapter-id="${CH_ID}"]`)
     await atom.waitForExist({ timeout: 5000 })

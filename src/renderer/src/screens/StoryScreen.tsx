@@ -196,6 +196,7 @@ export function StoryScreen({ contactId, onBack }: StoryScreenProps) {
           {contact.whatsappId && (
             <Button
               variant="ghost"
+              data-testid="open-whatsapp-cta"
               iconLeft={<Send size={13} strokeWidth={1.8} />}
               onClick={async () => {
                 if (!contact.whatsappId) return
@@ -256,7 +257,9 @@ export function StoryScreen({ contactId, onBack }: StoryScreenProps) {
 
           <div style={{ flex: 1 }}>
             {/* Name — 38px Lora 600, no tier badge */}
-            <div style={{
+            <div
+              data-testid="story-contact-name"
+              style={{
               fontFamily: 'var(--font-serif)',
               fontSize: 38,
               fontWeight: 600,

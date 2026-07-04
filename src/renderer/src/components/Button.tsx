@@ -13,6 +13,7 @@ interface ButtonProps {
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void
   children?: React.ReactNode
   style?: React.CSSProperties
+  'data-testid'?: string
 }
 
 const sizeTokens = {
@@ -53,6 +54,7 @@ export function Button({
   onClick,
   children,
   style,
+  'data-testid': dataTestId,
 }: ButtonProps): React.JSX.Element {
   const [hovered, setHovered] = useState(false)
   const sz = sizeTokens[size]
@@ -62,6 +64,7 @@ export function Button({
       type={type}
       disabled={disabled}
       onClick={onClick}
+      data-testid={dataTestId}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{

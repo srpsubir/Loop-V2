@@ -63,6 +63,8 @@ function CrewMember({
         transition: 'background var(--duration-fast) var(--ease-out)',
         outline: 'none',
       }}
+      data-testid="crew-member"
+      data-contact-name={contact.name}
     >
       <ContactTierIndicator
         tier={contact.tier}
