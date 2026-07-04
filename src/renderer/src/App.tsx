@@ -17,6 +17,10 @@ import { PrivacyNoticeScreen } from './screens/PrivacyNoticeScreen'
 import { OnboardingFeltMomentScreen } from './screens/OnboardingFeltMomentScreen'
 import { OnboardingNormaliseScreen } from './screens/OnboardingNormaliseScreen'
 import { OnboardingRevealScreen } from './screens/OnboardingRevealScreen'
+import { OnboardingNameYourPeopleScreen } from './screens/OnboardingNameYourPeopleScreen'
+import { PeopleScreen } from './screens/PeopleScreen'
+import { AppSidebar } from './components/AppSidebar'
+import { TitlebarSearch } from './components/TitlebarSearch'
 import type { ChapterCandidate } from '@shared/types'
 import { ConnectionStateProvider } from './ConnectionStateContext'
 
@@ -26,6 +30,7 @@ type Nav =
   | { screen: 'welcome' }
   | { screen: 'onboarding-felt-moment' }
   | { screen: 'onboarding-normalise' }
+  | { screen: 'onboarding-name-your-people' }
   | { screen: 'onboarding-reveal' }
   | { screen: 'privacy-notice' }
   | { screen: 'whatsapp-connect' }
@@ -35,6 +40,7 @@ type Nav =
   | { screen: 'email-capture' }
   | { screen: 'stay-close' }
   | { screen: 'your-loops' }
+  | { screen: 'people' }
   | { screen: 'chapter-detail'; chapterId: string }
   | { screen: 'story'; contactId: string; chapterId: string }
   | { screen: 'settings' }
@@ -434,6 +440,51 @@ function WhatsAppConnectScreen({ onConnected }: { onConnected: () => void }) {
   )
 }
 
+// ─── AppShell ─────────────────────────────────────────────────────────────────
+
+function AppShell({
+  nav,
+  onNavigate,
+  children,
+}: {
+  nav: Nav
+  onNavigate: (n: Nav) => void
+  children: React.ReactNode
+}) {
+  return (
+    <div style={{ display: 'flex', height: '100%' } as React.CSSProperties}>
+      <AppSidebar
+        currentScreen={nav.screen}
+        onNavigate={(section) => {
+          if (section === 'your-loops') onNavigate({ screen: 'your-loops' })
+          else if (section === 'people') onNavigate({ screen: 'people' })
+          else if (section === 'chapters') onNavigate({ screen: 'your-loops' })
+          else if (section === 'settings') onNavigate({ screen: 'settings' })
+        }}
+      />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+        <div
+          style={{
+            height: 40,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: '#F4E7E2',
+            borderBottom: '1px solid rgba(26,16,12,0.06)',
+            flexShrink: 0,
+            WebkitAppRegion: 'drag',
+          } as React.CSSProperties}
+        >
+          <TitlebarSearch />
+        </div>
+        <div style={{ flex: 1, overflow: 'hidden' }}>
+          {children}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── App root ─────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -515,6 +566,13 @@ export default function App() {
     case 'onboarding-normalise':
       return (
         <OnboardingNormaliseScreen
+          onContinue={() => setNav({ screen: 'onboarding-name-your-people' })}
+        />
+      )
+
+    case 'onboarding-name-your-people':
+      return (
+        <OnboardingNameYourPeopleScreen
           onContinue={async () => {
             try {
               const state = await window.loop.state.get()
@@ -658,41 +716,63 @@ export default function App() {
 
     case 'your-loops':
       return (
-        <ConnectionStateProvider>
-          <YourLoopsScreen
-            onOpenChapter={(chapterId) => setNav({ screen: 'chapter-detail', chapterId })}
-            onOpenSettings={() => setNav({ screen: 'settings' })}
-            onOpenStory={(contactId, chapterId) => setNav({ screen: 'story', contactId, chapterId })}
+        <AppShell nav={nav} onNavigate={setNav}>
+          <ConnectionStateProvider>
+            <YourLoopsScreen
+              onOpenChapter={(chapterId) => setNav({ screen: 'chapter-detail', chapterId })}
+              onOpenSettings={() => setNav({ screen: 'settings' })}
+              onOpenStory={(contactId, chapterId) => setNav({ screen: 'story', contactId, chapterId })}
+            />
+          </ConnectionStateProvider>
+        </AppShell>
+      )
+
+    case 'people':
+      return (
+        <AppShell nav={nav} onNavigate={setNav}>
+          <PeopleScreen
+            onNavigate={(screen, params) => {
+              if (screen === 'story' && params && typeof params === 'object') {
+                const { contactId, chapterId } = params as { contactId: string; chapterId: string }
+                setNav({ screen: 'story', contactId, chapterId })
+              }
+            }}
           />
-        </ConnectionStateProvider>
+        </AppShell>
       )
 
     case 'chapter-detail':
       return (
-        <ConnectionStateProvider>
-          <ChapterDetailScreen
-            chapterId={nav.chapterId}
-            onBack={goYourLoops}
-            onOpenStory={(contactId) => setNav({ screen: 'story', contactId, chapterId: nav.chapterId })}
-          />
-        </ConnectionStateProvider>
+        <AppShell nav={nav} onNavigate={setNav}>
+          <ConnectionStateProvider>
+            <ChapterDetailScreen
+              chapterId={nav.chapterId}
+              onBack={goYourLoops}
+              onOpenStory={(contactId) => setNav({ screen: 'story', contactId, chapterId: nav.chapterId })}
+            />
+          </ConnectionStateProvider>
+        </AppShell>
       )
 
     case 'story':
       return (
-        <ConnectionStateProvider>
-          <StoryScreen
-            contactId={nav.contactId}
-            onBack={() => setNav({ screen: 'chapter-detail', chapterId: nav.chapterId })}
-          />
-        </ConnectionStateProvider>
+        <AppShell nav={nav} onNavigate={setNav}>
+          <ConnectionStateProvider>
+            <StoryScreen
+              contactId={nav.contactId}
+              onBack={() => setNav({ screen: 'chapter-detail', chapterId: nav.chapterId })}
+            />
+          </ConnectionStateProvider>
+        </AppShell>
       )
 
     case 'settings':
       return (
-        <ConnectionStateProvider>
-          <SettingsScreen onBack={goYourLoops} onConnect={() => setNav({ screen: 'whatsapp-connect' })} />
-        </ConnectionStateProvider>
+        <AppShell nav={nav} onNavigate={setNav}>
+          <ConnectionStateProvider>
+            <SettingsScreen onBack={goYourLoops} onConnect={() => setNav({ screen: 'whatsapp-connect' })} />
+          </ConnectionStateProvider>
+        </AppShell>
       )
 
     default:

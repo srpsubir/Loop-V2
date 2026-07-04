@@ -84,7 +84,10 @@ describe('WhatsApp connect screen', () => {
     await act(async () => {
       result = render(React.createElement(App))
     })
-    // Navigate through Beat 1 (felt moment) and Beat 2 (normalise) intro screens
+    // Navigate through Beat 1 (felt moment), Beat 2 (normalise), Beat 3 (name your people)
+    await act(async () => {
+      await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    })
     await act(async () => {
       await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
     })
