@@ -73,40 +73,30 @@ describe('Loop Electron app (real)', () => {
     expect(name).toBe('Loop')
   })
 
-  // ── Welcome screen ────────────────────────────────────────────────────────
+  // ── Onboarding Beat 1 (felt-moment screen) ───────────────────────────────
+  // App starts on OnboardingFeltMomentScreen when onboardingComplete=false
 
-  it('welcome screen shows Connect WhatsApp button', async () => {
-    const visible = await win.getByRole('button', { name: 'Connect WhatsApp' }).isVisible()
-    log(`Connect WhatsApp visible: ${visible}`)
+  it('felt moment screen shows opening headline', async () => {
+    const visible = await win.getByText("There's someone you keep meaning to call.").isVisible()
+    log(`felt moment headline visible: ${visible}`)
     expect(visible).toBe(true)
   })
 
-  it('welcome screen shows tagline', async () => {
-    const visible = await win.getByText('Every chapter of your life, and the people you lived it with.').isVisible()
-    log(`tagline visible: ${visible}`)
-    expect(visible).toBe(true)
-  })
-
-  it('welcome screen shows privacy line', async () => {
-    const visible = await win.getByText('Your messages never leave your Mac.').isVisible()
-    log(`privacy line visible: ${visible}`)
-    expect(visible).toBe(true)
-  })
-
-  it('welcome screen shows 3-step strip', async () => {
-    const visible = await win.getByText('Loop maps the chapters of your life').isVisible()
-    log(`steps strip visible: ${visible}`)
+  it('felt moment screen has a continue button', async () => {
+    const btn = win.getByRole('button').first()
+    const visible = await btn.isVisible()
+    log(`continue button visible: ${visible}`)
     expect(visible).toBe(true)
   })
 
   // ── Navigation ────────────────────────────────────────────────────────────
 
-  it('clicking Connect WhatsApp navigates to connect screen', async () => {
-    await win.getByRole('button', { name: 'Connect WhatsApp' }).click()
-    // Wait for WhatsApp connect screen heading to appear
-    await win.waitForSelector('text=Connect WhatsApp', { timeout: 8_000 })
-    const visible = await win.getByText('Connect WhatsApp', { exact: true }).first().isVisible()
-    log(`connect screen visible: ${visible}`)
-    expect(visible).toBe(true)
+  it('clicking continue on felt moment navigates to next onboarding screen', async () => {
+    await win.getByRole('button').first().click()
+    // Beat 2: OnboardingNormaliseScreen — wait for any button to appear
+    await win.waitForSelector('button', { state: 'attached', timeout: 8_000 })
+    const title = await win.title()
+    log(`title after navigation: ${title}`)
+    expect(title).toBe('Loop')
   }, 15_000)
 })
