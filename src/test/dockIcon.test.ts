@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // ─── Track whenReady resolution ───────────────────────────────────────────────
 
@@ -55,10 +55,19 @@ vi.mock('@electron-toolkit/utils', () => ({
 }))
 
 describe('dock icon', () => {
+  const originalPlatform = process.platform
+
   beforeEach(() => {
     setIconMock.mockClear()
     setNameMock.mockClear()
     vi.resetModules()
+    // index.ts only sets the dock icon on darwin — pin the platform so this
+    // test is deterministic regardless of the OS running the suite.
+    Object.defineProperty(process, 'platform', { value: 'darwin' })
+  })
+
+  afterEach(() => {
+    Object.defineProperty(process, 'platform', { value: originalPlatform })
   })
 
   it('sets the dock icon synchronously before whenReady resolves', async () => {
