@@ -167,6 +167,12 @@ const loopAPI = {
       ipcRenderer.invoke('account:signInWithGoogle'),
   },
 
+  // MAV-217: telemetry opt-out
+  telemetry: {
+    setEnabled: (enabled: boolean): Promise<void> =>
+      ipcRenderer.invoke('telemetry:setEnabled', enabled),
+  },
+
 }
 
 if (process.contextIsolated) {

@@ -5,7 +5,7 @@ import { homedir } from 'os'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerAllHandlers } from './ipc'
 import Scanner from './scanner'
-import { initAnalytics, track, shutdownAnalytics } from './analytics'
+import { initAnalytics, initSentry, track, shutdownAnalytics } from './analytics'
 import WhatsAppManager from './whatsapp'
 import { readState, patchState } from './store'
 import { initAutoUpdater } from './updater'
@@ -46,6 +46,7 @@ async function validateSessionState(): Promise<void> {
   }
 }
 
+initSentry()
 initAnalytics()
 
 // Suppress EPIPE errors from stdout/stderr (libsignal writes to a closed pipe on quit)

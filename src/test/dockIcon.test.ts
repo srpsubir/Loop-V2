@@ -38,6 +38,7 @@ vi.mock('electron', () => ({
 // Stub everything index.ts pulls in so the import doesn't blow up
 vi.mock('../main/analytics', () => ({
   initAnalytics: vi.fn(),
+  initSentry: vi.fn(),
   track: vi.fn(),
   shutdownAnalytics: vi.fn().mockResolvedValue(undefined),
 }))

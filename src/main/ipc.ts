@@ -6,7 +6,7 @@ import { readState, patchState, listContacts, saveContact, deleteContact, LOOP_D
 import WhatsAppManager from './whatsapp'
 import Scanner, { registerScanHandlers } from './scanner'
 import { registerPhotosHandlers } from './photos'
-import { track } from './analytics'
+import { track, initAnalytics, initSentry } from './analytics'
 import { scoreGroups, clustersToCandidates } from './chapters'
 import type { AppState, Contact, Chapter, Story } from '../shared/types'
 
@@ -318,6 +318,14 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
     } catch { /* dir may not exist */ }
     try { await fs.promises.unlink(STATE_FILE) } catch { /* may not exist */ }
     getWindow()?.webContents.reload()
+  })
+
+  // ── Telemetry (MAV-217) ───────────────────────────────────────────────────
+
+  ipcMain.handle('telemetry:setEnabled', async (_e, enabled: boolean): Promise<void> => {
+    await patchState({ telemetryEnabled: enabled })
+    initSentry(enabled)
+    initAnalytics(enabled)
   })
 
   // ── Account: Google Sign-In stub (MAV-216) ───────────────────────────────

@@ -166,6 +166,29 @@ function Toast({ toast, onClose }: { toast: ToastState; onClose: () => void }) {
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 
+function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      style={{
+        width: 44, height: 26, borderRadius: 999, border: 'none', cursor: 'pointer', padding: 0,
+        background: checked ? 'var(--accent)' : 'var(--border)',
+        transition: 'background 200ms',
+        position: 'relative', flex: 'none',
+      }}
+    >
+      <span style={{
+        position: 'absolute', top: 3, left: checked ? 21 : 3,
+        width: 20, height: 20, borderRadius: '50%',
+        background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
+        transition: 'left 200ms',
+      }} />
+    </button>
+  )
+}
+
 function Section({ label, children, footnote }: { label: string; children?: React.ReactNode; footnote?: string }) {
   return (
     <section>
@@ -227,6 +250,7 @@ export function SettingsScreen({ onBack, onConnect }: SettingsScreenProps) {
   const [dataDir, setDataDir] = useState('~/Documents/Loop')
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [toast, setToast] = useState<ToastState>(null)
+  const [telemetryEnabled, setTelemetryEnabled] = useState(true)
   useEffect(() => {
     Promise.all([
       window.loop.state.get(),
@@ -237,6 +261,7 @@ export function SettingsScreen({ onBack, onConnect }: SettingsScreenProps) {
       setContacts(cs)
       setConnected(state.whatsappConnected)
       setDataDir(dir.replace(/^\/Users\/[^/]+/, '~'))
+      setTelemetryEnabled(state.telemetryEnabled !== false)
     }).catch(() => {})
 
     const unsub = window.loop.state.onChange(() => {
@@ -274,6 +299,11 @@ export function SettingsScreen({ onBack, onConnect }: SettingsScreenProps) {
         },
       },
     })
+  }
+
+  const handleTelemetryToggle = async (enabled: boolean) => {
+    setTelemetryEnabled(enabled)
+    await window.loop.telemetry.setEnabled(enabled).catch(() => {})
   }
 
   const handleDeleteAll = () => {
@@ -356,6 +386,14 @@ export function SettingsScreen({ onBack, onConnect }: SettingsScreenProps) {
                 Loop is local-first. Everything stays on your Mac. Nothing is shared, sold, or seen by anyone else.
               </p>
             </div>
+          </Section>
+
+          <Section label="Privacy">
+            <Row
+              title="Anonymous crash reports and usage stats"
+              sub="Stack traces and event counts only. No contact data ever leaves your Mac."
+              control={<Toggle checked={telemetryEnabled} onChange={handleTelemetryToggle} />}
+            />
           </Section>
 
           <Section label="Data">

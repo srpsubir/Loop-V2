@@ -75,6 +75,9 @@ interface LoopAPI {
   account: {
     signInWithGoogle: () => Promise<{ email: string; googleId: string } | null>
   }
+  telemetry: {
+    setEnabled: (enabled: boolean) => Promise<void>
+  }
 }
 
 declare global {

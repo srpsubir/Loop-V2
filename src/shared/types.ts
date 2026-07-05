@@ -134,6 +134,7 @@ export interface AppState {
   inviteCodes?: InviteCode[]              // 3 codes generated on first scan
   privacyAcceptedAt?: string               // ISO timestamp — set when user accepts privacy notice + LLM consent (MAV-179/180)
   manuallySelected?: string[]             // MAV-215: contact IDs chosen in Beat 3 contact picker
+  telemetryEnabled?: boolean              // MAV-217: default true (private beta); opt-out in Settings
 }
 
 // ─── Screen ──────────────────────────────────────────────────────────────────

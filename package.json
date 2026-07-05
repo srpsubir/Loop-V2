@@ -21,6 +21,7 @@
     "@anthropic-ai/sdk": "^0.96.0",
     "@electron-toolkit/preload": "^3.0.1",
     "@electron-toolkit/utils": "^3.0.0",
+    "@sentry/electron": "^7.15.0",
     "@whiskeysockets/baileys": "7.0.0-rc13",
     "electron-updater": "^6.8.9",
     "html-to-image": "^1.11.13",
