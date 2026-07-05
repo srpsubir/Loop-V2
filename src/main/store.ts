@@ -61,11 +61,23 @@ export async function writeState(state: AppState): Promise<void> {
   await fs.writeFile(STATE_FILE, JSON.stringify(state, null, 2), 'utf-8')
 }
 
-export async function patchState(patch: Partial<AppState>): Promise<AppState> {
-  const current = await readState()
-  const next = { ...current, ...patch }
-  await writeState(next)
-  return next
+// Serialise all patchState calls to prevent read-modify-write race conditions
+// (scanner and renderer can both call patchState concurrently)
+let _patchQueue: Promise<AppState> = Promise.resolve({} as AppState)
+
+export function patchState(patch: Partial<AppState>): Promise<AppState> {
+  _patchQueue = _patchQueue.then(async () => {
+    const current = await readState()
+    const next = { ...current, ...patch }
+    await writeState(next)
+    return next
+  }).catch(async () => {
+    const current = await readState()
+    const next = { ...current, ...patch }
+    await writeState(next)
+    return next
+  })
+  return _patchQueue
 }
 
 export async function listContacts(): Promise<Contact[]> {

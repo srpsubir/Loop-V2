@@ -11,7 +11,7 @@ import { SettingsScreen } from './screens/SettingsScreen'
 import { ChapterInferenceScreen } from './screens/ChapterInferenceScreen'
 import { CrewDetectionScreen } from './screens/CrewDetectionScreen'
 import { ChapterNamingScreen } from './screens/ChapterNamingScreen'
-import { EmailCaptureScreen } from './screens/EmailCaptureScreen'
+import { OnboardingGoogleSignInScreen } from './screens/OnboardingGoogleSignInScreen'
 import { StayCloseScreen } from './screens/StayCloseScreen'
 import { PrivacyNoticeScreen } from './screens/PrivacyNoticeScreen'
 import { OnboardingFeltMomentScreen } from './screens/OnboardingFeltMomentScreen'
@@ -711,7 +711,7 @@ export default function App() {
 
     case 'email-capture':
       return (
-        <EmailCaptureScreen
+        <OnboardingGoogleSignInScreen
           onDone={goStayClose}
         />
       )

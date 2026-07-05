@@ -72,6 +72,9 @@ interface LoopAPI {
     getDir: () => Promise<string>
     deleteAll: () => Promise<void>
   }
+  account: {
+    signInWithGoogle: () => Promise<{ email: string; googleId: string } | null>
+  }
 }
 
 declare global {

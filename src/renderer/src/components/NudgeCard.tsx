@@ -58,7 +58,7 @@ export function NudgeCard({ contact, contactInitials, nudgeText, onMessage, onDi
       padding: 16,
       background: 'var(--surface-raised)',
       borderRadius: 'var(--radius-md)',
-      boxShadow: '0 1px 3px rgba(26,16,12,0.07), 0 4px 14px rgba(26,16,12,0.07)',
+      boxShadow: 'var(--shadow-md)',
       borderLeft: '4px solid var(--accent)',
     }}>
       {/* Avatar */}
@@ -158,9 +158,9 @@ export function NudgeCard({ contact, contactInitials, nudgeText, onMessage, onDi
                 left: 0,
                 width: 180,
                 background: 'var(--surface-raised)',
-                border: '1px solid rgba(26,16,12,0.08)',
+                border: '1px solid var(--border-light)',
                 borderRadius: 12,
-                boxShadow: '0 4px 16px rgba(26,16,12,0.12)',
+                boxShadow: 'var(--shadow-md)',
                 zIndex: 10,
                 overflow: 'hidden',
               }}>
@@ -193,7 +193,7 @@ export function NudgeCard({ contact, contactInitials, nudgeText, onMessage, onDi
                       color: 'var(--text-primary)',
                       background: hovOption === i ? 'rgba(184,98,74,0.06)' : 'none',
                       border: 'none',
-                      borderBottom: i < SNOOZE_OPTIONS.length - 1 ? '1px solid rgba(26,16,12,0.06)' : 'none',
+                      borderBottom: i < SNOOZE_OPTIONS.length - 1 ? '1px solid var(--border-light)' : 'none',
                       textAlign: 'left',
                       padding: '0 12px',
                       cursor: 'pointer',
@@ -205,7 +205,7 @@ export function NudgeCard({ contact, contactInitials, nudgeText, onMessage, onDi
                 ))}
 
                 {/* Divider + Cancel */}
-                <div style={{ borderTop: '1px solid rgba(26,16,12,0.08)' }}>
+                <div style={{ borderTop: '1px solid var(--border-light)' }}>
                   <button
                     onClick={() => setShowPopover(false)}
                     onMouseEnter={() => setHovCancel(true)}

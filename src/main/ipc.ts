@@ -8,7 +8,7 @@ import Scanner, { registerScanHandlers } from './scanner'
 import { registerPhotosHandlers } from './photos'
 import { track } from './analytics'
 import { scoreGroups, clustersToCandidates } from './chapters'
-import type { AppState, Contact, Chapter, InviteCode, Story } from '../shared/types'
+import type { AppState, Contact, Chapter, Story } from '../shared/types'
 
 export function registerAllHandlers(getWindow: () => BrowserWindow | null): void {
   // ── State ─────────────────────────────────────────────────────────────────
@@ -141,11 +141,7 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
     try {
       // Read current state before patching — a loggedOut event must never reset
       // onboardingComplete or chapters, only flip whatsappConnected.
-      const current = await readState()
-      await patchState({
-        ...current,
-        whatsappConnected: false,
-      })
+      await patchState({ whatsappConnected: false })
     } catch (err) {
       console.error('[ipc] Failed to patch state on disconnect:', err)
     }
@@ -258,6 +254,7 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
   // ── Nudge snooze (MAV-205) ────────────────────────────────────────────────
 
   ipcMain.handle('nudge:snooze', async (_e, { contactId, days }: { contactId: string; days: number }): Promise<void> => {
+    if (!Number.isFinite(days) || days <= 0 || days > 365) return
     const state = await readState()
     const cs = state.contacts[contactId]
     if (!cs) return
@@ -323,34 +320,10 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
     getWindow()?.webContents.reload()
   })
 
-  // ── Invite codes ─────────────────────────────────────────────────────────────
-
-  function generateCode(): string {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-    return 'LOOP-' + Array.from({ length: 5 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
-  }
-
-  ipcMain.handle('invite:generate', async (): Promise<InviteCode[]> => {
-    const state = await readState()
-    if (state.inviteCodes && state.inviteCodes.length > 0) return state.inviteCodes
-    const codes: InviteCode[] = [generateCode(), generateCode(), generateCode()].map((code) => ({ code }))
-    await patchState({ inviteCodes: codes })
-    return codes
-  })
-
-  ipcMain.handle('invite:redeem', async (_e, code: string): Promise<boolean> => {
-    const upper = code.toUpperCase().trim()
-    try {
-      const res = await fetch('https://srpsubir.app.n8n.cloud/webhook/invite', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: upper }),
-      })
-      const json = await res.json() as { valid: boolean }
-      return json.valid
-    } catch {
-      return /^LOOP-[A-Z0-9]{5}$/.test(upper)
-    }
+  // ── Account: Google Sign-In stub (MAV-216) ───────────────────────────────
+  // Real OAuth flow wired in MAV-208. Returns null until backend is live.
+  ipcMain.handle('account:signInWithGoogle', async (): Promise<{ email: string; googleId: string } | null> => {
+    return null
   })
 
   // ── Shell: open external URL ──────────────────────────────────────────────

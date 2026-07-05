@@ -1,7 +1,7 @@
 // MAV-45 — settings screen (CD design + full IPC wiring)
 import React, { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, MessageCircle, Trash2, Folder, Send, Copy, Check } from 'lucide-react'
-import type { AppState, Contact, InviteCode } from '@shared/types'
+import { ArrowLeft, MessageCircle, Trash2, Folder } from 'lucide-react'
+import type { AppState, Contact } from '@shared/types'
 
 const MONO = '"SFMono-Regular","SF Mono",ui-monospace,Menlo,monospace'
 
@@ -138,55 +138,7 @@ function ConfirmDialog({ open, onClose, onConfirm }: { open: boolean; onClose: (
   )
 }
 
-function ShareDialog({ open, code, onClose, onCopy }: {
-  open: boolean; code: string; onClose: () => void; onCopy: () => void
-}) {
-  const shareMsg = `I've been using Loop to keep up with the people from our chapter. It quietly reminds you who you've drifted from. Here's an invite to join me: ${code}`
-  const [copied, setCopied] = useState(false)
-  const copyRef = useRef<ReturnType<typeof setTimeout>>()
 
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [open, onClose])
-
-  if (!open) return null
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(shareMsg).catch(() => {})
-    setCopied(true)
-    onCopy()
-    clearTimeout(copyRef.current)
-    copyRef.current = setTimeout(() => setCopied(false), 2000)
-  }
-
-  return (
-    <div role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
-      style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'rgba(42,31,27,0.32)', backdropFilter: 'saturate(1.05) blur(1px)' }}>
-      <div role="dialog" aria-modal="true"
-        style={{ width: '100%', maxWidth: 440, background: 'var(--bg)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-xl)', padding: 28 }}>
-        <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.01em', lineHeight: 1.25, marginBottom: 14 }}>
-          Share an invite
-        </div>
-        <div style={{
-          fontFamily: MONO, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7,
-          background: 'var(--surface)', borderRadius: 10, padding: '14px 16px',
-          userSelect: 'all', marginBottom: 20,
-        }}>
-          {shareMsg}
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-          <Btn variant="ghost" onClick={onClose}>Close</Btn>
-          <Btn variant="primary" onClick={handleCopy}>
-            {copied ? <><Check size={13} strokeWidth={2.5} style={{ marginRight: 6 }} />Copied</> : <><Copy size={13} strokeWidth={2} style={{ marginRight: 6 }} />Copy message</>}
-          </Btn>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 type ToastState = { message: string; tone: 'neutral' | 'positive'; action?: { label: string; onClick: () => void } } | null
 
@@ -275,21 +227,16 @@ export function SettingsScreen({ onBack, onConnect }: SettingsScreenProps) {
   const [dataDir, setDataDir] = useState('~/Documents/Loop')
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [toast, setToast] = useState<ToastState>(null)
-  const [inviteCodes, setInviteCodes] = useState<InviteCode[]>([])
-  const [shareDialogOpen, setShareDialogOpen] = useState(false)
-
   useEffect(() => {
     Promise.all([
       window.loop.state.get(),
       window.loop.contacts.list(),
       window.loop.data.getDir(),
-      window.loop.invite.generate(),
-    ]).then(([state, cs, dir, codes]) => {
+    ]).then(([state, cs, dir]) => {
       setAppState(state)
       setContacts(cs)
       setConnected(state.whatsappConnected)
       setDataDir(dir.replace(/^\/Users\/[^/]+/, '~'))
-      setInviteCodes(codes)
     }).catch(() => {})
 
     const unsub = window.loop.state.onChange(() => {
@@ -371,57 +318,6 @@ export function SettingsScreen({ onBack, onConnect }: SettingsScreenProps) {
             </div>
           </Section>
 
-          {/* ── Invite Your Chapters ───────────────────────────────────────── */}
-          {inviteCodes.length > 0 && (() => {
-            const usedCount = inviteCodes.filter(c => c.usedAt).length
-            const firstAvailable = inviteCodes.find(c => !c.usedAt)
-            const copyCode = (code: string) => {
-              navigator.clipboard.writeText(code).catch(() => {})
-              setToast({ message: 'Code copied.', tone: 'positive' })
-            }
-            return (
-              <Section label="Invite your chapters">
-                <div style={{ padding: '12px 14px 6px' }}>
-                  <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0 0 14px' }}>
-                    Invite the people from your chapters to join Loop.
-                  </p>
-                  <div style={{ borderTop: '1px solid var(--border-light)' }}>
-                    {inviteCodes.map((c, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '11px 4px', borderBottom: '1px solid var(--border-light)' }}>
-                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontFamily: MONO, fontSize: 15, fontWeight: 500, letterSpacing: '.03em', color: c.usedAt ? 'var(--text-muted)' : 'var(--text-primary)' }}>
-                            {c.code}
-                          </span>
-                          {!c.usedAt && (
-                            <IconBtn size={28} label="Copy code" onClick={() => copyCode(c.code)}
-                              icon={<Copy size={13} strokeWidth={2} />} />
-                          )}
-                        </div>
-                        <span style={{
-                          fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500, padding: '3px 10px',
-                          borderRadius: 'var(--radius-full)',
-                          background: c.usedAt ? 'var(--surface)' : 'var(--terracotta-faint)',
-                          color: c.usedAt ? 'var(--text-muted)' : 'var(--accent)',
-                        }}>
-                          {c.usedAt ? 'Used' : 'Available'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
-                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--text-muted)' }}>
-                      {usedCount} of 3 invites used
-                    </span>
-                    {firstAvailable && (
-                      <Btn variant="secondary" size="sm" onClick={() => setShareDialogOpen(true)}>
-                        <Send size={12} strokeWidth={2} style={{ marginRight: 6 }} />Share an invite
-                      </Btn>
-                    )}
-                  </div>
-                </div>
-              </Section>
-            )
-          })()}
 
           <Section
             label="People"
@@ -494,15 +390,6 @@ export function SettingsScreen({ onBack, onConnect }: SettingsScreenProps) {
         onConfirm={handleDeleteAll}
       />
 
-      <ShareDialog
-        open={shareDialogOpen}
-        code={inviteCodes.find(c => !c.usedAt)?.code ?? ''}
-        onClose={() => setShareDialogOpen(false)}
-        onCopy={() => {
-          setShareDialogOpen(false)
-          setToast({ message: 'Invite copied. Paste it anywhere.', tone: 'positive' })
-        }}
-      />
 
       <Toast toast={toast} onClose={() => setToast(null)} />
     </div>

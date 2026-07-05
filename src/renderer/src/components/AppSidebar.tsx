@@ -33,12 +33,12 @@ export function AppSidebar({ currentScreen, onNavigate }: Props) {
       style={{
         width: 200,
         height: '100%',
-        background: 'rgba(237, 217, 210, 0.72)',
+        background: 'var(--sidebar-bg)',
         WebkitBackdropFilter: 'blur(20px) saturate(1.8)',
         display: 'flex',
         flexDirection: 'column',
         flexShrink: 0,
-        borderRight: '1px solid rgba(26,16,12,0.08)',
+        borderRight: '1px solid var(--border-light)',
         WebkitAppRegion: 'drag',
       } as React.CSSProperties}
     >
@@ -84,9 +84,9 @@ export function AppSidebar({ currentScreen, onNavigate }: Props) {
                 border: 'none',
                 borderLeft: isActive ? '3px solid var(--accent)' : '3px solid transparent',
                 background: isActive
-                  ? 'rgba(184,98,74,0.08)'
+                  ? 'rgba(184,98,74,0.10)'
                   : isHov
-                  ? 'rgba(26,16,12,0.04)'
+                  ? 'rgba(128,80,56,0.06)'
                   : 'transparent',
                 cursor: 'pointer',
                 fontFamily: SANS,

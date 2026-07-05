@@ -772,14 +772,14 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
         {closeContacts.length > 0 ? (
           <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#B8624A', flexShrink: 0 }} />
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)', flexShrink: 0 }} />
               <div style={{
                 fontFamily: 'var(--font-sans)',
                 fontSize: 11,
                 fontWeight: 600,
                 letterSpacing: '.08em',
                 textTransform: 'uppercase',
-                color: '#9C7A73',
+                color: 'var(--text-muted)',
               }}>
                 Stay close
               </div>
@@ -805,11 +805,11 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
             </div>
           </>
         ) : (
-          <div style={{ borderLeft: '3px solid #C4613C', paddingLeft: 12 }}>
-            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: '#6B5C52' }}>
+          <div style={{ borderLeft: '3px solid var(--accent)', paddingLeft: 12 }}>
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--text-secondary)' }}>
               The people who matter most, all in one place.
             </div>
-            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: '#9B8B82', marginTop: 3 }}>
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>
               Mark someone as Close from their world.
             </div>
           </div>
@@ -818,20 +818,20 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
 
       {/* Zone divider — People / Chapter layers */}
       <div style={{ padding: '20px 44px 0', flexShrink: 0 }}>
-        <hr style={{ border: 'none', borderTop: '1px solid rgba(26,16,12,0.09)' }} />
+        <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)' }} />
       </div>
 
       {/* Chapter cards — MAV-197 */}
       <div style={{ padding: '16px 44px 0', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-          <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(26,16,12,0.25)', flexShrink: 0 }} />
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--text-muted)', flexShrink: 0 }} />
           <div style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 11,
             fontWeight: 600,
             letterSpacing: '.08em',
             textTransform: 'uppercase',
-            color: '#9C7A73',
+            color: 'var(--text-muted)',
           }}>
             Chapters
           </div>
@@ -887,7 +887,7 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
               position: 'relative',
               width: 340,
               height: 478,
-              background: '#FBF5EE',
+              background: 'var(--surface-raised)',
               borderRadius: 20,
               padding: '40px 36px 36px',
               display: 'flex',
@@ -980,7 +980,7 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
                       height: 38,
                       borderRadius: '50%',
                       background: tintFor(c.name),
-                      border: '2px solid #FBF5EE',
+                      border: '2px solid rgba(255,255,255,0.20)',
                       marginLeft: i === 0 ? 0 : -11,
                       transform: `translateY(${offsets[i] ?? 0}px) rotate(${rotations[i] ?? 0}deg)`,
                       display: 'flex',

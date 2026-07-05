@@ -48,6 +48,18 @@ async function validateSessionState(): Promise<void> {
 
 initAnalytics()
 
+// Suppress EPIPE errors from stdout/stderr (libsignal writes to a closed pipe on quit)
+process.stdout.on('error', (err: NodeJS.ErrnoException) => { if (err.code !== 'EPIPE') throw err })
+process.stderr.on('error', (err: NodeJS.ErrnoException) => { if (err.code !== 'EPIPE') throw err })
+
+// Surface uncaught errors to a log file rather than a silent crash
+process.on('uncaughtException', (err) => {
+  const logPath = join(homedir(), 'Documents', 'Loop', 'crash.log')
+  const entry = `[${new Date().toISOString()}] uncaughtException: ${err.stack ?? err.message}\n`
+  require('fs').appendFileSync(logPath, entry)
+  throw err
+})
+
 // MAV-199: Prevent multiple instances — second launch focuses the existing window instead
 const gotTheLock = app.requestSingleInstanceLock()
 if (!gotTheLock) {
@@ -104,7 +116,7 @@ async function createWindow(): Promise<void> {
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
+    if (/^https:\/\//i.test(details.url)) shell.openExternal(details.url)
     return { action: 'deny' }
   })
 

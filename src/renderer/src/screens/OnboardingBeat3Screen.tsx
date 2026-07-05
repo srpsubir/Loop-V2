@@ -61,7 +61,7 @@ function AvatarTile({
         outline: 'none',
         padding: '8px 4px',
         borderRadius: 'var(--radius-md)',
-        background: hov ? 'rgba(26,16,12,0.04)' : 'transparent',
+        background: hov ? 'rgba(128,80,56,0.06)' : 'transparent',
         transition: 'background var(--duration-fast) var(--ease-out)',
         WebkitAppRegion: 'no-drag',
       } as React.CSSProperties}

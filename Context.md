@@ -4,77 +4,92 @@ _Updated: 2026-07-05_
 ## Current git state
 - Branch: main
 - Latest commits (newest first):
+  - `4899111` fix: nudge:snooze preload + openWhatsApp contactId forwarding (MAV-205, MAV-212)
   - `1dfa7cd` feat: Beat 3 contact picker + Chapter crew picker (MAV-215, MAV-206)
-  - `8075850` feat: signals ranking + progressive suppression + snooze data model (MAV-205, MAV-209, MAV-210, MAV-211, MAV-212, MAV-213)
+  - `8075850` feat: signals ranking + progressive suppression + snooze data model
   - `f371f69` chore: update Context.md — backlog complete
   - `e6fea43` feat: D-II token enforcement, deleteAll backup, Baileys pin, manifesto
   - `5f83241` security: remove Sentry/PostHog + validate shell:openExternal
-  - `b9094f5` fix(wdio): green wdio suite — data-testid selectors + scan loading state fix
+
+## Uncommitted changes (this session — ready to commit)
+
+### Dark mode fixes
+- `src/renderer/src/styles/globals.css` — added `--sidebar-bg` token (light + dark values)
+- `src/renderer/src/components/AppSidebar.tsx` — sidebar bg → `var(--sidebar-bg)`, border → `var(--border-light)`, hover states neutral
+- `src/renderer/src/screens/YourLoopsScreen.tsx` — 6 hardcoded hex → CSS vars (section dots, text colors, echo card modal bg, divider, crew avatar border)
+- `src/renderer/src/components/NudgeCard.tsx` — 4 hardcoded rgba shadows/borders → `var(--shadow-md)` / `var(--border-light)`
+- `src/renderer/src/screens/OnboardingBeat3Screen.tsx` — hover bg dark ink → neutral warm tint; grid gap 28→32
+
+### Bug fixes
+- `src/main/index.ts` — EPIPE handler (stdout/stderr), crash.log for uncaughtException, `setWindowOpenHandler` https:// guard (security bypass fixed)
+- `src/main/store.ts` — `patchState` promise queue (race condition CRASH fix)
+- `src/main/ipc.ts` — `disconnected` no longer spreads full state (CRASH fix); `nudge:snooze` validates days input; stale `invite:*` handlers + `generateCode` removed; `InviteCode` import removed
+
+### Feature removal
+- `src/renderer/src/screens/SettingsScreen.tsx` — "Invite Your Chapters" section, `ShareDialog` component, `inviteCodes` state, `window.loop.invite.generate()` IPC call all removed
+
+### MAV-216: Google Sign-In screen
+- `src/renderer/src/screens/OnboardingGoogleSignInScreen.tsx` — new screen (warm parchment, personalized headline from WA name, Google G SVG, "Not now" skip)
+- `src/main/ipc.ts` — `account:signInWithGoogle` stub (returns null until MAV-208)
+- `src/preload/index.ts` — `window.loop.account.signInWithGoogle()` bridge; `InviteCode` import removed
+- `src/renderer/src/env.d.ts` — `account.signInWithGoogle` type declaration
+- `src/renderer/src/App.tsx` — `EmailCaptureScreen` → `OnboardingGoogleSignInScreen` in `email-capture` nav slot
 
 ## Test status
-- Unit (vitest): 144 tests, 10 files — ALL PASSING (2026-07-04)
-- wdio (IPC navigation): 13 tests — ALL PASSING (2026-07-04)
+- Unit (vitest): 144 tests, 10 files — ALL PASSING (2026-07-05)
+- TypeScript: clean (npx tsc --noEmit exits 0)
+- wdio (IPC navigation): last run 2026-07-05 — ALL PASSING
 - Playwright (e2e): not run this session
 
-## What's shipped (committed)
-- Phase 6+7+8: AppShell, sidebar nav, TitlebarSearch, QuietDayCard, DeadThreadCard, OnYourMindSection, PeopleScreen
-- D-II token enforcement (22 hardcoded hex → CSS vars, all components)
-- Dark mode (@media prefers-color-scheme + data-theme, transparent BG)
-- Font scale, spacing grid, concentric radius, vibrancy fixes
-- Security: Sentry/PostHog removed, shell:openExternal https:// guard, deleteAll backup
-- Baileys pinned to 7.0.0-rc11 (no ^)
-- MAV-202 manifesto in Settings/About screen
-- Product-vision.md: Beat 3 declaration framing struck, contact picker confirmed
-
-## Security — ALL DONE
-- `5f83241` Sentry + PostHog removed; shell:openExternal https:// guard
-- `e6fea43` Backup before deleteAll; Baileys pinned
-
-## Design audit — ALL DONE
-All 10 design fixes shipped across `e6fea43` and `c95da16`. Screen transitions skipped (framer-motion not installed).
-
-## Research outputs (written to Loop folder)
-- `signals-audit.md` — full C1/ranking gap analysis
-- `story-audit.md` — generateStory() teardown, 8 reasonToReachOut variants, draftMessage templates
-- `MAV-203-analysis.md` — calendar/freemium analysis
-- `MAV-204-analysis.md` — SLM/LLM/Baileys coverage analysis
-- `design-research.md` — Mobbin searches pending (re-auth needed)
-
-## Architecture decisions (locked)
-- No bundled language model. 700MB is a non-starter.
-- Long-term generative path: Apple Intelligence (iOS 18+ / macOS Sequoia+), zero app size overhead.
-- Group chat mood inference: not feasible (Baileys syncFullHistory: false, group content not fetched). Replaced by MAV-206 crew picker.
-- Ex/unwanted contact filtering: rules on behavioral signals (dismissCount), no model.
-- Calendar integration: replaced by snooze (MAV-205). Calendar export opt-in later if ever.
-- Freemium: one-time purchase, parked until post-DMG (MAV-208).
+## Architecture decisions (locked this session)
+- Google Sign-In (OAuth) for account creation — one tap, no password, no email field
+- Placement: post-Beat 5 (First Truth) — highest emotional engagement
+- Account = license gate only. No WhatsApp data or relationship data ever leaves device.
+- Backend stores: email + googleId + licenseStatus only. No behavioural data.
+- WA name (`creds.me.name`) used for personalized headline — synchronous read, no network call
+- Auth backend: MAV-208 scope (parked post-DMG). Stub returns null until then.
+- patchState: all writes now serialised via promise queue (race condition fix)
 
 ## Full Linear backlog
 
+### Shipped this session
+- **MAV-216** — Google Sign-In screen (post-Beat 5), stub IPC, wired into onboarding
+
 ### Signals & ranking — SHIPPED 2026-07-04
 - **MAV-209** DONE — relationshipStrength (C1) wired into contacts strip + nudge sort
-- **MAV-210** DONE — Progressive nudge suppression (nudgeDismissCount, autosuppressed)
+- **MAV-210** DONE — Progressive nudge suppression
 - **MAV-211** DONE — Birthday occasion overrides nudge sort priority
-- **MAV-212** DONE — lastReachOutAt gate (7-day re-nudge suppression after reach-out)
-- **MAV-213** DONE — reconnectedAt ranking boost (1.3x within 14 days)
+- **MAV-212** DONE — lastReachOutAt gate
+- **MAV-213** DONE — reconnectedAt ranking boost
 
 ### Core features — SHIPPED 2026-07-04
-- **MAV-205** DONE — snoozedUntil on ContactState + nudge:snooze IPC handler + snooze UI on NudgeCard ("Remind me later" popover with 4 options, fully shipped)
-
-### Story / Their world
-- **MAV-207** DONE — generateStory() template improvements, all copy approved + shipped (`f782031`)
-- **MAV-214** DONE — draftMessage field on Story + generateDraftMessage() helper, all copy approved + shipped (`f782031`)
-
-### Core features
-- **MAV-206** DONE — Chapter crew picker — two-zone layout, saves crewContactIds to chapter state
-- **MAV-215** DONE — Beat 3 contact picker — 4-column avatar grid, saves manuallySelected to state
-
-### IPC / planning
-- **MAV-203** — calendar:addEvent planning (superseded by MAV-205 snooze + MAV-208 billing)
-- **MAV-204** — model:status planning (superseded by MAV-207 templates + Apple Intelligence path)
+- **MAV-205** DONE — snoozedUntil + nudge:snooze IPC + snooze UI
+- **MAV-206** DONE — Chapter crew picker
+- **MAV-207** DONE — generateStory() copy improvements
+- **MAV-214** DONE — draftMessage field + generateDraftMessage()
+- **MAV-215** DONE — Beat 3 contact picker
 
 ### Parked
-- **MAV-208** — Freemium / billing epic (park pre-DMG, Low)
+- **MAV-208** — Freemium / billing epic (park pre-DMG). MAV-216 stub is the placeholder front door.
 
 ## Pending / in-flight
-1. Push to remote: `git push origin main` (user must run, PAT constraint)
-2. DMG: `npm run dist` — gated on all tests green (unit + wdio + e2e)
+1. Commit this session's changes (diff reviewed, ready)
+2. Push to remote: `git push origin main` (user must run, PAT constraint)
+3. Playwright e2e: `npm run test:e2e` (requires build first)
+4. DMG: `npm run dist` — gated on all tests green (unit + wdio + e2e all green)
+
+## Bugs triage (2026-07-05)
+- #1 Old orbit-ring UI: FIXED (AppShell)
+- #2 Two Loop icons in Dock: known dev limitation — DMG fixes
+- #3 Invite Your Chapters in Settings: FIXED (removed this session)
+- #4 NudgeCard no snooze: FIXED (MAV-205)
+- #5 Chapter inference loading: not a bug
+- #6 Generic crash screen: OPEN — crash.log now captures root cause on next occurrence
+- #7 EPIPE crash from libsignal: FIXED (this session)
+- #8 Dark mode sidebar pinkish: FIXED (this session)
+
+## Open design topics
+1. Nostalgia/quiet-day
+2. Warm/Close tier
+3. Dead thread/second loop
+4. "On your mind" label (MAV-201) — screen name SETTLED as "Their world"

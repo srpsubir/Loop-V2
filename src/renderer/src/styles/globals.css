@@ -63,6 +63,8 @@
   --border-light:       var(--line-light);
   --focus-ring:         0 0 0 3px rgba(184, 98, 74, 0.28);
   --selection-bg:       rgba(184, 98, 74, 0.18);
+  /* Sidebar — translucent warm surface, adapts per theme */
+  --sidebar-bg:         rgba(237, 217, 210, 0.72);
 }
 
 /* ── Dark mode ──────────────────────────────────────────────────────────────── */
@@ -87,6 +89,7 @@
     --accent-hover:      #B86040;
     --focus-ring:        0 0 0 3px rgba(200, 114, 78, 0.32);
     --selection-bg:      rgba(200, 114, 78, 0.22);
+    --sidebar-bg:        rgba(37, 22, 16, 0.85);
   }
 }
 
@@ -109,6 +112,7 @@
   --accent-hover:      #B86040;
   --focus-ring:        0 0 0 3px rgba(200, 114, 78, 0.32);
   --selection-bg:      rgba(200, 114, 78, 0.22);
+  --sidebar-bg:        rgba(37, 22, 16, 0.85);
 }
 
 :root[data-theme="light"] {

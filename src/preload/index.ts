@@ -161,6 +161,12 @@ const loopAPI = {
     deleteAll: (): Promise<void> => ipcRenderer.invoke('data:deleteAll', { confirmed: true }),
   },
 
+  // MAV-216: Google Sign-In stub — real OAuth wired in MAV-208 backend milestone
+  account: {
+    signInWithGoogle: (): Promise<{ email: string; googleId: string } | null> =>
+      ipcRenderer.invoke('account:signInWithGoogle'),
+  },
+
 }
 
 if (process.contextIsolated) {
