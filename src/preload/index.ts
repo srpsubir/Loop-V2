@@ -61,6 +61,8 @@ const loopAPI = {
       return () => ipcRenderer.off('whatsapp:protocol-error', handler)
     },
     retry: (): Promise<void> => ipcRenderer.invoke('whatsapp:retry'),
+    sendMessage: (jid: string, text: string, contactId?: string): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke('whatsapp:sendMessage', jid, text, contactId),
   },
 
   scan: {

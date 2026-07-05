@@ -323,6 +323,33 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
     getWindow()?.webContents.reload()
   })
 
+  // ── WhatsApp send (MAV-228) ───────────────────────────────────────────────────
+
+  ipcMain.handle('whatsapp:sendMessage', async (_e, jid: string, text: string, contactId?: string): Promise<{ ok: boolean; error?: string }> => {
+    if (typeof jid !== 'string' || !jid.trim()) return { ok: false, error: 'Invalid JID' }
+    if (typeof text !== 'string' || !text.trim()) return { ok: false, error: 'Message cannot be empty' }
+    if (text.length > 4096) return { ok: false, error: 'Message too long' }
+    try {
+      await wa.sendMessage(jid, text)
+      if (contactId && typeof contactId === 'string') {
+        try {
+          const state = await readState()
+          const cs = state.contacts[contactId]
+          if (cs) {
+            await patchState({
+              contacts: { ...state.contacts, [contactId]: { ...cs, lastReachOutAt: new Date().toISOString() } },
+            })
+            getWindow()?.webContents.send('state:changed')
+          }
+        } catch { /* non-fatal — message was sent */ }
+      }
+      return { ok: true }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      return { ok: false, error: msg }
+    }
+  })
+
   // ── Telemetry (MAV-217) ───────────────────────────────────────────────────
 
   ipcMain.handle('telemetry:setEnabled', async (_e, enabled: boolean): Promise<void> => {

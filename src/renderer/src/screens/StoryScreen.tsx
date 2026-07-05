@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { ArrowLeft, Send, Camera } from 'lucide-react'
 import { Avatar, Button, IconButton, Tag } from '../components'
+import { MessageComposer } from '../components/MessageComposer'
 import type { Contact, Story, AppState, Chapter } from '@shared/types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -82,15 +83,18 @@ export function StoryScreen({ contactId, onBack }: StoryScreenProps) {
   })
   const [loading, setLoading] = useState(true)
   const [tier, setTier] = useState<'close' | 'warm'>('warm')
+  const [whatsappConnected, setWhatsappConnected] = useState(false)
 
   useEffect(() => {
     async function load() {
       try {
-        const [brief, contacts, state] = await Promise.all([
+        const [brief, contacts, state, waStatus] = await Promise.all([
           window.loop.story.open(contactId),
           window.loop.contacts.list(),
           window.loop.state.get() as Promise<AppState>,
+          window.loop.whatsapp.status(),
         ])
+        setWhatsappConnected(waStatus.status === 'connected')
         const contact = contacts.find((c) => c.id === contactId) ?? null
         if (contact) setTier(contact.tier)
         const cs = state.contacts[contactId]
@@ -193,7 +197,7 @@ export function StoryScreen({ contactId, onBack }: StoryScreenProps) {
             icon={<ArrowLeft size={18} strokeWidth={1.8} />}
             onClick={onBack}
           />
-          {contact.whatsappId && (
+          {contact.whatsappId && !whatsappConnected && (
             <Button
               variant="ghost"
               data-testid="open-whatsapp-cta"
@@ -368,6 +372,18 @@ export function StoryScreen({ contactId, onBack }: StoryScreenProps) {
                 lineHeight: 1.6,
               }}>
                 {brief.reasonToReachOut}
+              </div>
+            )}
+
+            {/* Inline message composer (MAV-228) — only when WhatsApp connected */}
+            {contact.whatsappId && whatsappConnected && (
+              <div style={{ marginBottom: 36 }}>
+                <MessageComposer
+                  draftMessage={brief.draftMessage}
+                  whatsappId={contact.whatsappId}
+                  contactId={contactId}
+                  contactName={contact.name.split(' ')[0]}
+                />
               </div>
             )}
 

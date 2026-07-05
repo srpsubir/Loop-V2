@@ -26,6 +26,7 @@ interface LoopAPI {
     onLoggedOut: (cb: () => void) => () => void
     onProtocolError: (cb: (data: { reason?: string }) => void) => () => void
     retry: () => Promise<void>
+    sendMessage: (jid: string, text: string, contactId?: string) => Promise<{ ok: boolean; error?: string }>
   }
   scan: {
     run: () => Promise<void>

@@ -119,6 +119,13 @@ class WhatsAppManager extends EventEmitter {
   getCurrentQR(): string | null { return this.currentQR }
   isConnected(): boolean { return this.status === 'connected' }
 
+  async sendMessage(jid: string, text: string): Promise<void> {
+    if (!this.socket) throw new Error('WhatsApp not connected')
+    const normalised = jid.includes('@') ? jid : `${jid.replace(/[^0-9]/g, '')}@s.whatsapp.net`
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (this.socket as any).sendMessage(normalised, { text })
+  }
+
   private setStatus(s: WAConnectionStatus): void {
     this.status = s
     this.emit('status', s)
