@@ -1,5 +1,5 @@
 import { app, shell, BrowserWindow, protocol, net } from 'electron'
-import { join } from 'path'
+import { join, resolve, sep } from 'path'
 import { promises as fs } from 'fs'
 import { homedir } from 'os'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -103,8 +103,9 @@ async function createWindow(): Promise<void> {
     title: 'Loop',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
+      sandbox: false,         // required: preload uses Node APIs (ipcRenderer)
       contextIsolation: true,
+      nodeIntegration: false, // explicit — never allow renderer Node access
     },
   })
 
@@ -130,9 +131,17 @@ async function createWindow(): Promise<void> {
 
 app.whenReady().then(async () => {
   // Serve local files (photos) via loop-file:// protocol
+  // Restricted to allowed roots — prevents renderer reading arbitrary filesystem paths
+  const ALLOWED_ROOTS = [
+    join(homedir(), 'Documents', 'Loop'),
+    join(homedir(), 'Pictures'),
+  ]
   protocol.handle('loop-file', (request) => {
-    const path = decodeURIComponent(request.url.slice('loop-file://'.length))
-    return net.fetch('file://' + path)
+    const raw = decodeURIComponent(request.url.slice('loop-file://'.length))
+    const resolved = resolve(raw)
+    const allowed = ALLOWED_ROOTS.some((root) => resolved.startsWith(root + sep) || resolved === root)
+    if (!allowed) return new Response('Forbidden', { status: 403 })
+    return net.fetch('file://' + resolved)
   })
 
   electronApp.setAppUserModelId('com.loop.app')

@@ -213,8 +213,10 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
       confirmed: false,
     }))
 
+    const existingIds = new Set(state.chapters.map((c) => c.id))
+    const dedupedChapters = newChapters.filter((c) => !existingIds.has(c.id))
     await patchState({
-      chapters: [...state.chapters, ...newChapters],
+      chapters: [...state.chapters, ...dedupedChapters],
       chapterDetectionComplete: true,
     })
     track('chapters_confirmed', { count: confirmed.length })
@@ -222,6 +224,7 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
   })
 
   ipcMain.handle('chapters:setName', async (_e, chapterId: string, name: string) => {
+    if (typeof name !== 'string' || name.trim().length === 0 || name.length > 100) return
     const state = await readState()
     const chapters = state.chapters.map((ch) =>
       ch.id === chapterId ? { ...ch, name, confirmed: true } : ch
@@ -343,8 +346,21 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
 
   // ── Analytics bridge ──────────────────────────────────────────────────────
 
+  const ALLOWED_EVENTS = new Set([
+    'app_opened', 'whatsapp_connected', 'whatsapp_disconnected', 'whatsapp_connection_failed',
+    'scan_completed', 'chapters_detected', 'chapters_confirmed',
+    'onboarding_step_completed', 'nudge_acted_on', 'suggestion_acted_on',
+  ])
+
   ipcMain.handle('analytics:track', (_e, event: string, properties?: Record<string, unknown>) => {
-    track(event, properties)
+    if (typeof event !== 'string' || !ALLOWED_EVENTS.has(event)) return
+    // Strip non-primitive values — prevents accidental object exfiltration
+    const safe = properties
+      ? Object.fromEntries(
+          Object.entries(properties).filter(([, v]) => v === null || ['string', 'number', 'boolean'].includes(typeof v))
+        )
+      : undefined
+    track(event, safe)
   })
 
   // ── Photos ────────────────────────────────────────────────────────────────

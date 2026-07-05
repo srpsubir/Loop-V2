@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppState, Contact, Story, ChapterCandidate, InviteCode } from '../shared/types'
+import type { AppState, Contact, Story, ChapterCandidate } from '../shared/types'
 
 const loopAPI = {
   state: {
@@ -92,11 +92,6 @@ const loopAPI = {
       ipcRenderer.invoke('shell:openWhatsApp', whatsappId, contactId),
     openExternal: (url: string): Promise<void> =>
       ipcRenderer.invoke('shell:openExternal', url),
-  },
-
-  invite: {
-    generate: (): Promise<InviteCode[]> => ipcRenderer.invoke('invite:generate'),
-    redeem: (code: string): Promise<boolean> => ipcRenderer.invoke('invite:redeem', code),
   },
 
   photos: {

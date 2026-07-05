@@ -26,7 +26,10 @@ let installId: string
 
 export function initAnalytics(enabled = true): void {
   installId = getOrCreateInstallId()
-  if (!enabled) { phClient = null; return }
+  // Shut down any existing client before creating a new one (prevents leaked clients on toggle)
+  phClient?.shutdown().catch(() => {})
+  phClient = null
+  if (!enabled) return
 
   phClient = new PostHog(
     process.env.POSTHOG_KEY ?? 'phc_n0dOeeasCvJXlDAgBv92MbttC4sa1fH3v2UYRaUm5zD',
@@ -44,6 +47,11 @@ export function initSentry(enabled = true): void {
     beforeSend(event) {
       delete event.user   // never send identity
       return event
+    },
+    beforeBreadcrumb(breadcrumb) {
+      // Keep category/type for context, strip data payloads that could contain IPC args
+      delete breadcrumb.data
+      return breadcrumb
     },
   })
   if (enabled) Sentry.setTag('app_version', app.getVersion())

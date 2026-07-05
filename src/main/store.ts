@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs'
 import { join } from 'path'
+import * as path from 'path'
 import { homedir } from 'os'
 import type { AppState, Contact } from '../shared/types'
 
@@ -98,13 +99,19 @@ export async function listContacts(): Promise<Contact[]> {
   }
 }
 
+function safeContactId(id: string): string {
+  const safe = path.basename(id).replace(/[^a-z0-9_-]/gi, '')
+  if (!safe) throw new Error(`invalid contact id: ${id}`)
+  return safe
+}
+
 export async function saveContact(contact: Contact): Promise<Contact> {
   await ensureLoopDir()
   const toSave = contact.tier === 'close' && !contact.intervalDays
     ? { ...contact, intervalDays: 30 }
     : contact
   await fs.writeFile(
-    join(CONTACTS_DIR, `${toSave.id}.json`),
+    join(CONTACTS_DIR, `${safeContactId(toSave.id)}.json`),
     JSON.stringify(toSave, null, 2),
     'utf-8'
   )
@@ -112,5 +119,5 @@ export async function saveContact(contact: Contact): Promise<Contact> {
 }
 
 export async function deleteContact(id: string): Promise<void> {
-  await fs.unlink(join(CONTACTS_DIR, `${id}.json`))
+  await fs.unlink(join(CONTACTS_DIR, `${safeContactId(id)}.json`))
 }
