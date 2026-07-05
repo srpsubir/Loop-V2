@@ -122,6 +122,10 @@ class WhatsAppManager extends EventEmitter {
   async sendMessage(jid: string, text: string): Promise<void> {
     if (!this.socket) throw new Error('WhatsApp not connected')
     const normalised = jid.includes('@') ? jid : `${jid.replace(/[^0-9]/g, '')}@s.whatsapp.net`
+    // Reject JIDs that don't conform to WhatsApp's known address format
+    if (!/^\d+@(s\.whatsapp\.net|g\.us)$/.test(normalised)) {
+      throw new Error(`Invalid WhatsApp JID: ${normalised}`)
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (this.socket as any).sendMessage(normalised, { text })
   }
