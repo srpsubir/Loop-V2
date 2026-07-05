@@ -327,10 +327,13 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
 
   ipcMain.handle('whatsapp:sendMessage', async (_e, jid: string, text: string, contactId?: string): Promise<{ ok: boolean; error?: string }> => {
     if (typeof jid !== 'string' || !jid.trim()) return { ok: false, error: 'Invalid JID' }
+    // Normalise first so we can validate the final form
+    const normalisedJid = jid.includes('@') ? jid : `${jid.replace(/[^0-9]/g, '')}@s.whatsapp.net`
+    if (!/^\d+@(s\.whatsapp\.net|g\.us)$/.test(normalisedJid)) return { ok: false, error: 'Invalid JID' }
     if (typeof text !== 'string' || !text.trim()) return { ok: false, error: 'Message cannot be empty' }
     if (text.length > 4096) return { ok: false, error: 'Message too long' }
     try {
-      await wa.sendMessage(jid, text)
+      await wa.sendMessage(normalisedJid, text)
       if (contactId && typeof contactId === 'string') {
         try {
           const state = await readState()
@@ -346,7 +349,9 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
       return { ok: true }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
-      return { ok: false, error: msg }
+      // Strip internal details (JIDs, phone numbers) before surfacing to renderer
+      const safe = /@|\b\d{7,}\b/.test(msg) ? 'Send failed. Try opening WhatsApp directly.' : msg
+      return { ok: false, error: safe }
     }
   })
 
