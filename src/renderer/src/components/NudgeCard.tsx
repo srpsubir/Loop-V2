@@ -42,7 +42,7 @@ export function NudgeCard({ contact, contactInitials, nudgeText, onMessage, onDi
 
   async function handleSnooze(days: number) {
     try {
-      await window.api.invoke('nudge:snooze', { contactId: contact.id, days })
+      await window.loop.nudge.snooze(contact.id, days)
     } catch {
       // best-effort — IPC failure should not block dismiss
     }

@@ -35,8 +35,11 @@ interface LoopAPI {
   story: {
     open: (contactId: string) => Promise<Story | null>
   }
+  nudge: {
+    snooze: (contactId: string, days: number) => Promise<void>
+  }
   shell: {
-    openWhatsApp: (whatsappId: string) => Promise<void>
+    openWhatsApp: (whatsappId: string, contactId?: string) => Promise<void>
     openExternal: (url: string) => Promise<void>
   }
   invite: {
@@ -53,15 +56,6 @@ interface LoopAPI {
     confirm: (jids: string[]) => Promise<void>
     setName: (chapterId: string, name: string) => Promise<void>
   }
-  calendar: {
-    addEvent: (payload: {
-      contactName: string
-      occasionType?: string | null
-      occasionDate?: string | null
-      reasonToReachOut: string
-      contextLine?: string
-    }) => Promise<void>
-  }
   update: {
     onChecking: (cb: () => void) => () => void
     onAvailable: (cb: (data: { version: string }) => void) => () => void
@@ -77,9 +71,6 @@ interface LoopAPI {
   data: {
     getDir: () => Promise<string>
     deleteAll: () => Promise<void>
-  }
-  model: {
-    status: () => Promise<{ exists: boolean; ready: boolean; downloading: boolean }>
   }
 }
 

@@ -218,7 +218,7 @@ export function StoryScreen({ contactId, onBack }: StoryScreenProps) {
                     })
                   }
                 } catch { /* non-critical */ }
-                window.loop.shell.openWhatsApp(contact.whatsappId)
+                window.loop.shell.openWhatsApp(contact.whatsappId, contact.id)
               }}
             >
               Open WhatsApp

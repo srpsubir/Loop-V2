@@ -139,7 +139,7 @@ export function OnYourMindSection({ contacts, onNavigate }: OnYourMindSectionPro
               {contact.whatsappId && (
                 <button
                   type="button"
-                  onClick={() => window.loop.shell.openWhatsApp(contact.whatsappId!).catch(() => {})}
+                  onClick={() => window.loop.shell.openWhatsApp(contact.whatsappId!, contact.id).catch(() => {})}
                   style={{
                     background: 'var(--accent)',
                     color: 'var(--text-on-accent)',

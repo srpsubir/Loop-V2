@@ -82,9 +82,14 @@ const loopAPI = {
       ipcRenderer.invoke('story:open', contactId),
   },
 
+  nudge: {
+    snooze: (contactId: string, days: number): Promise<void> =>
+      ipcRenderer.invoke('nudge:snooze', { contactId, days }),
+  },
+
   shell: {
-    openWhatsApp: (whatsappId: string): Promise<void> =>
-      ipcRenderer.invoke('shell:openWhatsApp', whatsappId),
+    openWhatsApp: (whatsappId: string, contactId?: string): Promise<void> =>
+      ipcRenderer.invoke('shell:openWhatsApp', whatsappId, contactId),
     openExternal: (url: string): Promise<void> =>
       ipcRenderer.invoke('shell:openExternal', url),
   },
@@ -97,16 +102,6 @@ const loopAPI = {
   photos: {
     pickHero: (): Promise<string | null> => ipcRenderer.invoke('photos:pickHero'),
     pickChapter: (): Promise<string | null> => ipcRenderer.invoke('photos:pickChapter'),
-  },
-
-  calendar: {
-    addEvent: (payload: {
-      contactName: string
-      occasionType?: string | null
-      occasionDate?: string | null
-      reasonToReachOut: string
-      contextLine?: string
-    }): Promise<void> => ipcRenderer.invoke('calendar:addEvent', payload),
   },
 
   chapters: {
@@ -166,10 +161,6 @@ const loopAPI = {
     deleteAll: (): Promise<void> => ipcRenderer.invoke('data:deleteAll', { confirmed: true }),
   },
 
-  model: {
-    status: (): Promise<{ exists: boolean; ready: boolean; downloading: boolean }> =>
-      ipcRenderer.invoke('model:status'),
-  },
 }
 
 if (process.contextIsolated) {

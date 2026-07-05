@@ -406,7 +406,7 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
     const chapterId = nudgeContact.chapterIds[0]
     if (!chapterId) {
       // Fallback: open WhatsApp directly if contact has no chapter assignment
-      if (nudgeContact.whatsappId) window.loop.shell.openWhatsApp(nudgeContact.whatsappId).catch(() => {})
+      if (nudgeContact.whatsappId) window.loop.shell.openWhatsApp(nudgeContact.whatsappId, nudgeContact.id).catch(() => {})
       return
     }
     // Navigate to Story; Story screen handles state update + WhatsApp open
