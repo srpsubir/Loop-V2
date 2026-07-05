@@ -656,7 +656,7 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
       {nudgeContact && (
         <div style={{ padding: '16px 44px 0', flexShrink: 0 }}>
           <NudgeCard
-            contactName={nudgeContact.name}
+            contact={nudgeContact}
             contactInitials={nudgeContact.name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
             nudgeText={`${nudgeContact.name.split(' ')[0]} has been quiet in your life lately.`}
             onMessage={handleNudgeMessage}

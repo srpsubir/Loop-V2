@@ -1,9 +1,10 @@
 # Loop Session Context
-_Updated: 2026-07-04_
+_Updated: 2026-07-05_
 
 ## Current git state
 - Branch: main
 - Latest commits (newest first):
+  - `1dfa7cd` feat: Beat 3 contact picker + Chapter crew picker (MAV-215, MAV-206)
   - `8075850` feat: signals ranking + progressive suppression + snooze data model (MAV-205, MAV-209, MAV-210, MAV-211, MAV-212, MAV-213)
   - `f371f69` chore: update Context.md — backlog complete
   - `e6fea43` feat: D-II token enforcement, deleteAll backup, Baileys pin, manifesto
@@ -57,15 +58,15 @@ All 10 design fixes shipped across `e6fea43` and `c95da16`. Screen transitions s
 - **MAV-213** DONE — reconnectedAt ranking boost (1.3x within 14 days)
 
 ### Core features — SHIPPED 2026-07-04
-- **MAV-205** DONE — snoozedUntil on ContactState + nudge:snooze IPC handler (UI not wired, data model ready)
+- **MAV-205** DONE — snoozedUntil on ContactState + nudge:snooze IPC handler + snooze UI on NudgeCard ("Remind me later" popover with 4 options, fully shipped)
 
 ### Story / Their world
-- **MAV-207** — generateStory() template improvements — richer "Their world" without a model (Medium)
-- **MAV-214** — draftMessage field on Story — suggested opening message (Medium)
+- **MAV-207** DONE — generateStory() template improvements, all copy approved + shipped (`f782031`)
+- **MAV-214** DONE — draftMessage field on Story + generateDraftMessage() helper, all copy approved + shipped (`f782031`)
 
 ### Core features
-- **MAV-206** — Chapter crew picker — manual warm signal after chapter detection (High) ← blocked on Mobbin
-- **MAV-215** — Beat 3 screen — contact picker onboarding (High) ← blocked on Mobbin
+- **MAV-206** DONE — Chapter crew picker — two-zone layout, saves crewContactIds to chapter state
+- **MAV-215** DONE — Beat 3 contact picker — 4-column avatar grid, saves manuallySelected to state
 
 ### IPC / planning
 - **MAV-203** — calendar:addEvent planning (superseded by MAV-205 snooze + MAV-208 billing)
@@ -75,9 +76,5 @@ All 10 design fixes shipped across `e6fea43` and `c95da16`. Screen transitions s
 - **MAV-208** — Freemium / billing epic (park pre-DMG, Low)
 
 ## Pending / in-flight
-1. Mobbin re-auth → design research for MAV-206, MAV-215 (Beat 3)
-2. Push to remote: `git push origin main` (user must run, PAT constraint)
-3. DMG: `npm run dist` — gated on all tests green (unit + wdio + e2e)
-
-## Next buildable (no design needed, code only)
-1. MAV-207 + MAV-214 — story templates + draftMessage
+1. Push to remote: `git push origin main` (user must run, PAT constraint)
+2. DMG: `npm run dist` — gated on all tests green (unit + wdio + e2e)
