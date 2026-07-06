@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import type { AppState, Contact, Story, InviteCode } from '@shared/types'
+import type { AppState, Contact, Story } from '@shared/types'
 
 interface LoopAPI {
   state: {
@@ -42,10 +42,6 @@ interface LoopAPI {
   shell: {
     openWhatsApp: (whatsappId: string, contactId?: string) => Promise<void>
     openExternal: (url: string) => Promise<void>
-  }
-  invite: {
-    generate: () => Promise<InviteCode[]>
-    redeem: (code: string) => Promise<boolean>
   }
   photos: {
     pickHero: () => Promise<string | null>

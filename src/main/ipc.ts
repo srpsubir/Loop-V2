@@ -17,7 +17,15 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
     return readState()
   })
 
+  const RENDERER_PATCH_ALLOWLIST = new Set<keyof AppState>([
+    'onboardingComplete', 'privacyAcceptedAt', 'whatsappConnected',
+    'emailCaptured', 'stayCloseComplete', 'manuallySelected',
+    'telemetryEnabled', 'notificationsEnabled', 'scanDay', 'scanCooldownHours',
+  ])
+
   ipcMain.handle('state:patch', async (_e, patch: Partial<AppState>): Promise<AppState> => {
+    const keys = Object.keys(patch) as (keyof AppState)[]
+    if (keys.some((k) => !RENDERER_PATCH_ALLOWLIST.has(k))) return readState()
     const next = await patchState(patch)
     getWindow()?.webContents.send('state:changed')
     return next
@@ -57,57 +65,6 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
       duration_to_connect_ms: waConnectStart.time ? Date.now() - waConnectStart.time : undefined,
     })
     Scanner.getInstance().run().catch(console.error)
-
-    // DIAGNOSTIC — remove after chat store audit
-    try {
-      const sock = (wa as any).socket as any
-      const allChats: any[] = sock?.chats?.all?.() ?? []
-
-      const groups = allChats.filter((c: any) => c.id?.endsWith('@g.us'))
-      const dms = allChats.filter((c: any) => !c.id?.endsWith('@g.us') && !c.id?.endsWith('@newsletter'))
-
-      const byYear: Record<number, number> = {}
-      for (const c of allChats) {
-        const ts = Number(c.conversationTimestamp ?? 0)
-        if (!ts) continue
-        const year = new Date(ts * 1000).getFullYear()
-        byYear[year] = (byYear[year] ?? 0) + 1
-      }
-
-      const sorted = [...allChats]
-        .filter((c: any) => Number(c.conversationTimestamp ?? 0) > 0)
-        .sort((a: any, b: any) => Number(a.conversationTimestamp) - Number(b.conversationTimestamp))
-
-      const oldest5 = sorted.slice(0, 5).map((c: any) => ({
-        date: new Date(Number(c.conversationTimestamp) * 1000).toISOString().slice(0, 10),
-        id: c.id,
-        name: c.name ?? c.id,
-        isGroup: c.id?.endsWith('@g.us'),
-      }))
-
-      const nowSec = Date.now() / 1000
-      const dmsOlderThan2yr = dms.filter((c: any) => (nowSec - Number(c.conversationTimestamp ?? 0)) > 2 * 365 * 86400).length
-      const dmsOlderThan5yr = dms.filter((c: any) => (nowSec - Number(c.conversationTimestamp ?? 0)) > 5 * 365 * 86400).length
-
-      console.log('\n[DIAG] ── Chat store contents ──────────────────────────')
-      console.log(`  Total chats : ${allChats.length}`)
-      console.log(`  Groups      : ${groups.length}`)
-      console.log(`  DMs         : ${dms.length}`)
-      console.log('\n  By year (conversationTimestamp):')
-      for (const year of Object.keys(byYear).sort()) {
-        console.log(`    ${year}: ${byYear[Number(year)]} chats`)
-      }
-      console.log('\n  Oldest 5 chats:')
-      for (const c of oldest5) {
-        console.log(`    [${c.date}] ${c.isGroup ? 'Group' : 'DM'}: ${c.name}`)
-      }
-      console.log(`\n  DMs older than 2 years : ${dmsOlderThan2yr}`)
-      console.log(`  DMs older than 5 years : ${dmsOlderThan5yr}`)
-      console.log('[DIAG] ──────────────────────────────────────────────────\n')
-    } catch (e) {
-      console.warn('[DIAG] Chat store read failed:', e)
-    }
-    // END DIAGNOSTIC
   })
 
   let lastFailureTime = 0
@@ -201,6 +158,7 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
   })
 
   ipcMain.handle('chapters:confirm', async (_e, confirmedJids: string[]) => {
+    if (!Array.isArray(confirmedJids) || !confirmedJids.every((j) => typeof j === 'string')) return
     const state = await readState()
     const confirmed = state.detectedChapters.filter((c) => confirmedJids.includes(c.waJid))
 

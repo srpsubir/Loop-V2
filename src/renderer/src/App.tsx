@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import QRCode from 'qrcode'
-import { QrCode, Loader2, CheckCircle } from 'lucide-react'
+import { QrCode, Loader2 } from 'lucide-react'
 import { Button } from './components'
 
 const MONO = '"SFMono-Regular","SF Mono",ui-monospace,Menlo,monospace'
@@ -52,33 +52,7 @@ type Nav =
 // ─── Welcome screen ───────────────────────────────────────────────────────────
 
 function WelcomeScreen({ onConnect }: { onConnect: () => void }) {
-  const [showSheet, setShowSheet] = useState(false)
-  const [code, setCode] = useState('')
-  const [redeeming, setRedeeming] = useState(false)
-  const [success, setSuccess] = useState(false)
-
-  const handleRedeem = async () => {
-    if (!code.trim() || redeeming) return
-    setRedeeming(true)
-    try {
-      const valid = await window.loop.invite.redeem(code.trim())
-      if (valid) {
-        setSuccess(true)
-        setTimeout(() => { setShowSheet(false); setSuccess(false); setCode(''); onConnect() }, 1900)
-      }
-    } catch { /* pass */ } finally {
-      setRedeeming(false)
-    }
-  }
-
   return (
-    <div style={{ position: 'relative', height: '100%' }}>
-      {/* Keyframes for bottom sheet */}
-      <style>{`
-        @keyframes mav91Scrim { from { opacity: 0 } to { opacity: 1 } }
-        @keyframes mav91SheetUp { from { transform: translateY(100%) } to { transform: none } }
-        @keyframes mav91Pop { from { opacity: 0; transform: scale(0.96) } to { opacity: 1; transform: none } }
-      `}</style>
     <div
       style={{
         height: '100%',
@@ -204,70 +178,8 @@ function WelcomeScreen({ onConnect }: { onConnect: () => void }) {
 
         {/* CTA */}
         <Button onClick={onConnect}>Connect WhatsApp</Button>
-
-        {/* Invite code entry */}
-        <button
-          type="button"
-          onClick={() => setShowSheet(true)}
-          style={{ background: 'none', border: 'none', fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--text-muted)', cursor: 'pointer', marginTop: 10, padding: '4px 0' }}
-        >
-          Have an invite code?
-        </button>
       </div>
     </div>
-
-    {/* Bottom sheet — positioned relative to the outer wrapper */}
-    {showSheet && (
-      <>
-        <div
-          style={{ position: 'absolute', inset: 0, zIndex: 40, background: 'rgba(42,31,27,0.32)', backdropFilter: 'blur(1px)', animation: 'mav91Scrim 200ms cubic-bezier(0.22,0.61,0.36,1)' }}
-          onMouseDown={() => setShowSheet(false)}
-        />
-        <div
-          role="dialog"
-          aria-modal="true"
-          style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 50, background: 'var(--bg)', borderRadius: '20px 20px 0 0', boxShadow: '0 -8px 40px rgba(42,31,27,0.18)', padding: '14px 24px 32px', animation: 'mav91SheetUp 280ms cubic-bezier(0.22,0.61,0.36,1)' }}
-        >
-          <div style={{ width: 44, height: 5, borderRadius: 999, background: 'var(--border)', margin: '0 auto 20px' }} />
-
-          {success ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '16px 0 8px', animation: 'mav91Pop 260ms cubic-bezier(0.22,0.61,0.36,1)' }}>
-              <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'var(--terracotta-faint)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <CheckCircle size={26} strokeWidth={1.8} color="var(--accent)" />
-              </div>
-              <p style={{ fontFamily: 'var(--font-serif)', fontSize: 22, fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>You're in</p>
-              <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)', margin: 0 }}>Setting up your space…</p>
-            </div>
-          ) : (
-            <>
-              <p style={{ fontFamily: 'var(--font-serif)', fontSize: 19, fontWeight: 600, textAlign: 'center', margin: 0, color: 'var(--text-primary)' }}>
-                Have an invite code?
-              </p>
-              <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', margin: '6px 0 0' }}>
-                Someone from your chapters saved you a spot.
-              </p>
-              <input
-                type="text"
-                placeholder="Enter your code"
-                autoCapitalize="characters"
-                spellCheck={false}
-                value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
-                onKeyDown={(e) => e.key === 'Enter' && handleRedeem()}
-                style={{ width: '100%', boxSizing: 'border-box', fontFamily: MONO, fontSize: 16, fontWeight: 500, letterSpacing: '.12em', textAlign: 'center', background: 'var(--surface)', boxShadow: 'var(--shadow-inset)', border: '1.5px solid transparent', borderRadius: 'var(--radius-md)', padding: '14px 16px', marginTop: 16, outline: 'none' }}
-              />
-              <Button
-                onClick={handleRedeem}
-                style={{ width: '100%', marginTop: 12 }}
-              >
-                {redeeming ? 'Checking…' : 'Redeem'}
-              </Button>
-            </>
-          )}
-        </div>
-      </>
-    )}
-  </div>
   )
 }
 
