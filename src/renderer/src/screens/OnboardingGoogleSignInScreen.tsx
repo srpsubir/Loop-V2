@@ -25,9 +25,11 @@ export function OnboardingGoogleSignInScreen({ onDone }: Props) {
     if (loading) return
     setLoading(true)
     try {
-      // MAV-216: stub — real OAuth wired in MAV-208 backend milestone
       const result = await window.loop.account.signInWithGoogle()
-      await window.loop.state.patch({ emailCaptured: true })
+      await window.loop.state.patch({
+        emailCaptured: true,
+        ...(result ? { email: result.email, googleId: result.googleId } : {}),
+      })
       onDone(result?.email ?? null)
     } catch {
       onDone(null)

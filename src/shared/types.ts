@@ -135,6 +135,9 @@ export interface AppState {
   privacyAcceptedAt?: string               // ISO timestamp — set when user accepts privacy notice + LLM consent (MAV-179/180)
   manuallySelected?: string[]             // MAV-215: contact IDs chosen in Beat 3 contact picker
   telemetryEnabled?: boolean              // MAV-217: default true (private beta); opt-out in Settings
+  email?: string                          // MAV-216: captured via Google Sign-In
+  googleId?: string                       // MAV-216: Google sub claim (anonymous user identifier)
+  licenseStatus?: 'beta' | 'pro' | 'expired'  // MAV-216/208: default 'beta' until billing wired
 }
 
 // ─── Screen ──────────────────────────────────────────────────────────────────

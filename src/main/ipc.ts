@@ -363,10 +363,92 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
     initAnalytics(enabled)
   })
 
-  // ── Account: Google Sign-In stub (MAV-216) ───────────────────────────────
-  // Real OAuth flow wired in MAV-208. Returns null until backend is live.
+  // ── Account: Google Sign-In (MAV-216) ────────────────────────────────────
   ipcMain.handle('account:signInWithGoogle', async (): Promise<{ email: string; googleId: string } | null> => {
-    return null
+    const clientId = process.env.GOOGLE_CLIENT_ID
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET
+    if (!clientId || !clientSecret) return null
+
+    const { randomBytes, createHash } = await import('crypto')
+    const http = await import('http')
+    const { URLSearchParams } = await import('url')
+
+    // PKCE
+    const verifier = randomBytes(48).toString('base64url')
+    const challenge = createHash('sha256').update(verifier).digest('base64url')
+
+    // Find a free port in 9000-9999
+    const port = await new Promise<number>((resolve, reject) => {
+      let attempt = 9000
+      const tryPort = () => {
+        const s = http.createServer()
+        s.listen(attempt, '127.0.0.1', () => {
+          const p = (s.address() as { port: number }).port
+          s.close(() => resolve(p))
+        })
+        s.on('error', () => { if (++attempt > 9999) reject(new Error('no free port')); else tryPort() })
+      }
+      tryPort()
+    })
+
+    const redirectUri = `http://127.0.0.1:${port}`
+    const authUrl = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      response_type: 'code',
+      scope: 'openid email',
+      code_challenge: challenge,
+      code_challenge_method: 'S256',
+      access_type: 'offline',
+      prompt: 'select_account',
+    })
+
+    await shell.openExternal(`https://accounts.google.com/o/oauth2/v2/auth?${authUrl.toString()}`)
+
+    // Wait for callback (5 min timeout)
+    const code = await new Promise<string>((resolve, reject) => {
+      const timeout = setTimeout(() => { server.close(); reject(new Error('OAuth timeout')) }, 5 * 60 * 1000)
+      const server = http.createServer((req, res) => {
+        const params = new URLSearchParams(req.url?.split('?')[1] ?? '')
+        const code = params.get('code')
+        const error = params.get('error')
+        res.writeHead(200, { 'Content-Type': 'text/html' })
+        res.end('<html><body style="font-family:sans-serif;padding:40px"><h2>Signed in to Loop.</h2><p>You can close this tab.</p></body></html>')
+        clearTimeout(timeout)
+        server.close()
+        if (code) resolve(code)
+        else reject(new Error(error ?? 'no code'))
+      })
+      server.listen(port, '127.0.0.1')
+    })
+
+    // Exchange code for tokens
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code',
+        code_verifier: verifier,
+      }).toString(),
+    })
+    if (!tokenRes.ok) return null
+    const tokens = await tokenRes.json() as { id_token?: string }
+    if (!tokens.id_token) return null
+
+    // Decode JWT payload (no signature verification — we trust Google's token endpoint)
+    const payload = JSON.parse(Buffer.from(tokens.id_token.split('.')[1], 'base64url').toString()) as {
+      sub: string; email: string
+    }
+    const { sub: googleId, email } = payload
+    if (!googleId || !email) return null
+
+    await patchState({ email, googleId, licenseStatus: 'beta' })
+    getWindow()?.webContents.send('state:changed')
+    return { email, googleId }
   })
 
   // ── Shell: open external URL ──────────────────────────────────────────────
