@@ -771,15 +771,19 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
       <div style={{ padding: '16px 44px 0', flexShrink: 0 }}>
         {closeContacts.length > 0 ? (
           <>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)', flexShrink: 0 }} />
+            <div style={{ marginBottom: 12 }}>
               <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
                 fontFamily: 'var(--font-sans)',
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: '.08em',
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: '.1em',
                 textTransform: 'uppercase',
-                color: 'var(--text-muted)',
+                color: 'var(--accent)',
+                background: 'rgba(184,98,74,0.10)',
+                padding: '3px 10px',
+                borderRadius: 'var(--radius-full)',
               }}>
                 Stay close
               </div>
@@ -823,15 +827,19 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
 
       {/* Chapter cards — MAV-197 */}
       <div style={{ padding: '16px 44px 0', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-          <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--text-muted)', flexShrink: 0 }} />
+        <div style={{ marginBottom: 14 }}>
           <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
             fontFamily: 'var(--font-sans)',
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: '.08em',
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: '.1em',
             textTransform: 'uppercase',
-            color: 'var(--text-muted)',
+            color: 'var(--accent)',
+            background: 'rgba(184,98,74,0.10)',
+            padding: '3px 10px',
+            borderRadius: 'var(--radius-full)',
           }}>
             Chapters
           </div>

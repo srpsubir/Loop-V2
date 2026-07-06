@@ -77,28 +77,47 @@ function CrewMember({
   )
 }
 
-// ─── Film strip empty state ───────────────────────────────────────────────────
+// ─── Photo moments grid ───────────────────────────────────────────────────────
 
-function FilmStripEmpty() {
+function MomentsGrid({ photos }: { photos: { src: string; name: string }[] }) {
   return (
     <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: 120,
-      background: 'var(--surface)',
-      borderRadius: 'var(--radius-md)',
-      gap: 10,
-      color: 'var(--text-muted)',
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+      gap: 8,
     }}>
-      <Camera size={20} strokeWidth={1.3} style={{ opacity: 0.4 }} />
-      <span style={{
-        fontFamily: 'var(--font-sans)',
-        fontSize: 13,
-        color: 'var(--text-muted)',
-      }}>
-        Moments from this chapter will appear here.
-      </span>
+      {photos.map((p, i) => (
+        <div key={i} style={{
+          borderRadius: 'var(--radius-md)',
+          overflow: 'hidden',
+          aspectRatio: '1 / 1',
+          background: 'var(--surface)',
+          position: 'relative',
+        }}>
+          <img
+            src={p.src}
+            alt={p.name}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          />
+          <div style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            padding: '16px 8px 6px',
+            background: 'linear-gradient(to top, rgba(42,31,27,0.55) 0%, transparent 100%)',
+            fontFamily: 'var(--font-sans)',
+            fontSize: 11,
+            color: 'rgba(249,245,238,0.9)',
+            fontWeight: 500,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
+            {p.name.split(' ')[0]}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
@@ -513,12 +532,17 @@ export function ChapterDetailScreen({ chapterId, onBack, onOpenStory, onPickCrew
           marginBottom: 16,
         }}>
           <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
             fontFamily: 'var(--font-sans)',
-            fontSize: 11,
+            fontSize: 10,
             letterSpacing: '.1em',
             textTransform: 'uppercase',
-            color: 'var(--text-muted)',
-            fontWeight: 600,
+            color: 'var(--accent)',
+            fontWeight: 700,
+            background: 'rgba(184,98,74,0.10)',
+            padding: '3px 10px',
+            borderRadius: 'var(--radius-full)',
           }}>
             Crew
           </div>
@@ -583,19 +607,37 @@ export function ChapterDetailScreen({ chapterId, onBack, onOpenStory, onPickCrew
           </div>
         )}
 
-        {/* Moments film strip */}
-        <div style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 11,
-          letterSpacing: '.1em',
-          textTransform: 'uppercase',
-          color: 'var(--text-muted)',
-          fontWeight: 600,
-          marginBottom: 16,
-        }}>
-          Moments
-        </div>
-        <FilmStripEmpty />
+        {/* Moments photo grid — only rendered when contacts have hero photos */}
+        {(() => {
+          const photos = contacts
+            .map((c) => {
+              const path = appState?.contacts[c.id]?.story?.heroPhotoPath
+              return path ? { src: `loop-file://${path}`, name: c.name } : null
+            })
+            .filter((p): p is { src: string; name: string } => p !== null)
+          if (photos.length === 0) return null
+          return (
+            <>
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 10,
+                letterSpacing: '.1em',
+                textTransform: 'uppercase',
+                color: 'var(--accent)',
+                fontWeight: 700,
+                background: 'rgba(184,98,74,0.10)',
+                padding: '3px 10px',
+                borderRadius: 'var(--radius-full)',
+                marginBottom: 16,
+              }}>
+                Moments
+              </div>
+              <MomentsGrid photos={photos} />
+            </>
+          )
+        })()}
 
         {/* Remove chapter */}
         <div style={{ marginTop: 48, paddingTop: 24, borderTop: '1px solid var(--border-light)', display: 'flex', justifyContent: 'center' }}>

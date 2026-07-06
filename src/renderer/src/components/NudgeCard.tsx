@@ -56,9 +56,9 @@ export function NudgeCard({ contact, contactInitials, nudgeText, onMessage, onDi
       alignItems: 'flex-start',
       gap: 12,
       padding: 16,
-      background: 'var(--surface-raised)',
+      background: 'var(--card)',
       borderRadius: 'var(--radius-md)',
-      boxShadow: 'var(--shadow-md)',
+      boxShadow: 'var(--shadow-lg)',
       borderLeft: '4px solid var(--accent)',
     }}>
       {/* Avatar */}
