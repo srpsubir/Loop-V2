@@ -1,22 +1,24 @@
 # Loop Session Context
-_Updated: 2026-07-05_
+_Updated: 2026-07-06_
 
 ## Current git state
 - Branch: main
 - Latest commits (newest first):
-  - `c090cd0` security: IPC hardening + renderer containment (audit findings)
-  - `45c2a5c` feat: privacy-safe analytics + crash reporting (MAV-217)
-  - `4811514` chore: remove node-llama-cpp and @sentry/electron (unused, 38MB saved)
-  - `420966f` fix: pin @whiskeysockets/baileys to 7.0.0-rc13, sync lock file
-  - `3e9fb4b` test: update e2e suite for Beat 1 nav flow + skip accessibility-gated tests
-  - `a252a8f` feat: Google Sign-In screen, dark mode fixes, IPC hardening, security fixes
+  - `1878bcf` security: MAV-216 OAuth — concurrent call guard + port exhaustion fix
+  - `c4ed58c` feat(MAV-216): real Google OAuth sign-in via PKCE + loopback
+  - `afb84e7` security(MAV-228): harden whatsapp:sendMessage IPC handler
+  - `af22d48` security: validate normalised JID format in WhatsAppManager.sendMessage
+  - `5af9401` feat(MAV-228): in-app WhatsApp message composer
+  - `0b053a8` fix(test): pin process.platform in dockIcon test for cross-platform CI
+  - `efffd6e` chore: update Context.md — session 2026-07-05
 
 ## Committed this session (ready to push or already pushed)
 
 ### DMG milestone
-- `dist/Loop-1.0.0-arm64.dmg` — built, signed (Developer ID: Subir Ranjan Paul / L793BCNDTN), NOT notarized
-- `dist/Loop-1.0.0.dmg` — Intel x64 build also produced
-- Installed app size ~280MB (down from ~318MB after removing node-llama-cpp + Sentry orphan)
+- `dist/Loop-1.0.0-arm64.dmg` (102MB) — Apple Silicon, signed + **notarized** ✓
+- `dist/Loop-1.0.0.dmg` (109MB) — Intel x64, signed + **notarized** ✓
+- Notarization credentials in `.env` (gitignored): APPLE_ID + APPLE_APP_SPECIFIC_PASSWORD + APPLE_TEAM_ID
+- Run `npm run dist` to rebuild — `.env` vars now auto-loaded by dist script
 
 ### CI fixes
 - Baileys pinned to `7.0.0-rc13` (was rc11 with rc13 in lock — npm ci mismatch)
@@ -59,7 +61,16 @@ _Updated: 2026-07-05_
 
 ## Full Linear backlog
 
-### Shipped this session
+### In progress this session
+- **MAV-228** — In-app WhatsApp message composer (build agent running)
+
+### Shipped this session (2026-07-06)
+- **MAV-228** — In-app WhatsApp message composer (Baileys send, 3 states, JID hardened)
+- **MAV-216** — Real Google OAuth sign-in (PKCE + loopback, no backend needed)
+  - Requires `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` in `.env` to activate
+  - Google Cloud Console: client ID `477892972489-8sl27pc0cecka6gv9sljo1h8a77q460i.apps.googleusercontent.com`
+
+### Shipped prior session (2026-07-05)
 - **MAV-217** — Privacy-safe analytics + crash reporting (Sentry + PostHog)
 
 ### Shipped prior sessions
@@ -80,10 +91,16 @@ _Updated: 2026-07-05_
 
 ## Pending
 1. Push to remote: `! cd /Users/subirpaul/Loop && git push origin main`
-2. Build DMG: `npm run dist` (user interrupted last attempt — run when ready)
-3. PostHog dashboard: enable "Discard client IP data" + "Person profiles: Never"
-4. Add `SENTRY_DSN` + `POSTHOG_KEY` to GitHub Actions secrets
-5. Notarization: wire App Store Connect API key in electron-builder.yml before sharing DMG externally
+2. PostHog dashboard: enable "Discard client IP data" + "Person profiles: Never"
+3. Add `SENTRY_DSN` + `POSTHOG_KEY` + `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` to GitHub Actions secrets
+
+## Vision gaps (from 2026-07-06 audit)
+1. **Chapter moments** — empty placeholder in ChapterDetailScreen; no moment data ever populated
+2. **Landing page** — wrong JTBD above fold (nostalgia leads, not losing-touch); manifesto section missing entirely; social proof missing
+3. **D-II design palette** — approved but not implemented; all screens still on D-I
+4. **About screen** — manifesto paragraph has no home in-app
+5. **Freemium/billing (MAV-208)** — parked; `licenseStatus` field ready in state
+6. **On-device model (MAV-204)** — parked
 
 ## Bugs triage (2026-07-05)
 - #1 Old orbit-ring UI: FIXED
