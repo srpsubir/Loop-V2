@@ -9,7 +9,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "dist": "npm run build && electron-builder --config electron-builder.yml",
+    "dist": "npm run build && export $(grep -v '^#' .env | grep -v '^$' | xargs) && electron-builder --config electron-builder.yml",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

@@ -364,7 +364,20 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
   })
 
   // ── Account: Google Sign-In (MAV-216) ────────────────────────────────────
+  let googleSignInInProgress = false
   ipcMain.handle('account:signInWithGoogle', async (): Promise<{ email: string; googleId: string } | null> => {
+    if (googleSignInInProgress) return null
+    googleSignInInProgress = true
+    try {
+      return await _doGoogleSignIn()
+    } catch {
+      return null
+    } finally {
+      googleSignInInProgress = false
+    }
+  })
+
+  async function _doGoogleSignIn(): Promise<{ email: string; googleId: string } | null> {
     const clientId = process.env.GOOGLE_CLIENT_ID
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET
     if (!clientId || !clientSecret) return null
@@ -377,19 +390,24 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
     const verifier = randomBytes(48).toString('base64url')
     const challenge = createHash('sha256').update(verifier).digest('base64url')
 
-    // Find a free port in 9000-9999
-    const port = await new Promise<number>((resolve, reject) => {
-      let attempt = 9000
-      const tryPort = () => {
-        const s = http.createServer()
-        s.listen(attempt, '127.0.0.1', () => {
-          const p = (s.address() as { port: number }).port
-          s.close(() => resolve(p))
-        })
-        s.on('error', () => { if (++attempt > 9999) reject(new Error('no free port')); else tryPort() })
-      }
-      tryPort()
-    })
+    // Find a free port in 9000-9999; return null cleanly if all occupied
+    let port: number
+    try {
+      port = await new Promise<number>((resolve, reject) => {
+        let attempt = 9000
+        const tryPort = () => {
+          const s = http.createServer()
+          s.listen(attempt, '127.0.0.1', () => {
+            const p = (s.address() as { port: number }).port
+            s.close(() => resolve(p))
+          })
+          s.on('error', () => { if (++attempt > 9999) reject(new Error('no free port')); else tryPort() })
+        }
+        tryPort()
+      })
+    } catch {
+      return null
+    }
 
     const redirectUri = `http://127.0.0.1:${port}`
     const authUrl = new URLSearchParams({
@@ -449,7 +467,7 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
     await patchState({ email, googleId, licenseStatus: 'beta' })
     getWindow()?.webContents.send('state:changed')
     return { email, googleId }
-  })
+  }
 
   // ── Shell: open external URL ──────────────────────────────────────────────
 
