@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   isRealMessage, computeNextOccasion, detectDeadThread, detectReconnection,
   computeReachOutUpdate, generateStory, detectReachOut,
+  resolveStory, isNudgeEligible,
 } from '../main/scanner'
 import type { Contact, ContactState, Story, Chapter } from '../shared/types'
 
@@ -435,6 +436,176 @@ describe('detectReachOut', () => {
     const state = { storyOpenedAt: openedAt } as ContactState
     const messages = [{ id: '1', fromMe: false, timestamp: Math.floor(Date.now() / 1000), text: 'hey' }]
     expect(detectReachOut(state, messages)).toBeNull()
+  })
+})
+
+// ─── generateStory — topic-aware branches (lines 225, 229) ───────────────────
+
+describe('generateStory — topic-aware lines', () => {
+  // Two messages each containing "hiking" (> 3 chars, not a stop word, appears 2× → topic)
+  const topicMsgs = [
+    { id: '1', fromMe: false, timestamp: Math.floor((Date.now() - 5 * 86400000) / 1000), text: 'hiking today was really amazing' },
+    { id: '2', fromMe: true,  timestamp: Math.floor((Date.now() - 3 * 86400000) / 1000), text: 'planning another hiking trip soon' },
+  ]
+
+  it('line 225: chapter + topics — mentions both in contextLines[0]', () => {
+    const story = generateStory(baseContact2, topicMsgs, chapters, null)
+    expect(story.contextLines[0]).toContain('University')
+    expect(story.contextLines[0]).toContain('hiking')
+  })
+
+  it('line 229: topics but no matching chapter — mentions topic and first name', () => {
+    const contact = { ...baseContact2, chapterIds: [] }
+    const story = generateStory(contact, topicMsgs, [], null)
+    expect(story.contextLines[0]).toContain('hiking')
+    expect(story.contextLines[0]).toContain('James')
+  })
+})
+
+// ─── generateDraftMessage — birthday draft variants (lines 191-192) ──────────
+
+describe('generateDraftMessage — birthday drafts', () => {
+  it('daysUntil === 1: uses birthday-tomorrow draft', () => {
+    const tomorrow = new Date(Date.now() + 86400000)
+    const occasion = { type: 'birthday' as const, date: tomorrow.toISOString(), label: 'Birthday tomorrow!' }
+    const story = generateStory(baseContact2, [], [], occasion)
+    expect(story.draftMessage).toContain('Thinking of you ahead of your birthday tomorrow')
+  })
+
+  it('daysUntil >= 2: uses generic catch-up draft', () => {
+    const future = new Date(Date.now() + 10 * 86400000)
+    const occasion = { type: 'birthday' as const, date: future.toISOString(), label: 'Birthday coming up!' }
+    const story = generateStory(baseContact2, [], [], occasion)
+    expect(story.draftMessage).toContain('been meaning to catch up')
+  })
+})
+
+// ─── generateDraftMessage — dead-thread path (line 204) ──────────────────────
+
+describe('generateDraftMessage — dead-thread draft', () => {
+  it('uses the dead-thread draft when occasion type is dead-thread', () => {
+    const occasion = {
+      type: 'dead-thread' as const,
+      date: new Date(Date.now() - 30 * 86400000).toISOString(),
+      label: 'You two had a plan to meet up.',
+    }
+    const story = generateStory(baseContact2, [], [], occasion)
+    expect(story.draftMessage).toContain('bad at following through')
+  })
+})
+
+// ─── resolveStory ─────────────────────────────────────────────────────────────
+
+describe('resolveStory', () => {
+  const existingStory: Story = {
+    generatedAt: new Date().toISOString(),
+    contextLines: ['line1', 'line2'],
+    reasonToReachOut: 'reason',
+    draftMessage: 'draft',
+  }
+
+  it('returns the existing story when needsRefresh=false and story exists', async () => {
+    const result = await resolveStory(baseContact2, [], [], null, existingStory, false)
+    expect(result).toBe(existingStory)
+  })
+
+  it('generates a new story when needsRefresh=true even if existingStory is set', async () => {
+    const result = await resolveStory(baseContact2, [], [], null, existingStory, true)
+    expect(result).not.toBe(existingStory)
+    expect(typeof result.generatedAt).toBe('string')
+  })
+
+  it('generates a new story when existingStory is null regardless of needsRefresh', async () => {
+    const result = await resolveStory(baseContact2, [], [], null, null, false)
+    expect(typeof result.generatedAt).toBe('string')
+  })
+})
+
+// ─── isNudgeEligible ──────────────────────────────────────────────────────────
+
+describe('isNudgeEligible', () => {
+  const eligible: Contact = {
+    id: 'c1', name: 'Test', whatsappId: '447700900000@s.whatsapp.net',
+    tier: 'close', chapterIds: [], intervalDays: 14,
+  } as unknown as Contact
+
+  const clean: ContactState = {
+    lastContactDate: null, lastScanAt: null, story: null, nextOccasion: null,
+    nudgeDismissCount: 0, autosuppressed: false,
+  }
+
+  it('returns true for a fully eligible contact', () => {
+    expect(isNudgeEligible(eligible, clean)).toBe(true)
+  })
+
+  it('returns false for non-close tier', () => {
+    const c = { ...eligible, tier: 'warm' as const }
+    expect(isNudgeEligible(c, clean)).toBe(false)
+  })
+
+  it('returns false for contact with no whatsappId', () => {
+    const c = { ...eligible, whatsappId: undefined }
+    expect(isNudgeEligible(c, clean)).toBe(false)
+  })
+
+  it('returns false when autosuppressed=true', () => {
+    expect(isNudgeEligible(eligible, { ...clean, autosuppressed: true })).toBe(false)
+  })
+
+  it('returns false when snoozedUntil is in the future', () => {
+    const cs = { ...clean, snoozedUntil: new Date(Date.now() + 86400000).toISOString() }
+    expect(isNudgeEligible(eligible, cs)).toBe(false)
+  })
+
+  it('returns true when snoozedUntil is in the past', () => {
+    const cs = { ...clean, snoozedUntil: new Date(Date.now() - 86400000).toISOString() }
+    expect(isNudgeEligible(eligible, cs)).toBe(true)
+  })
+
+  it('returns false when reached out within 7 days', () => {
+    const cs = { ...clean, lastReachOutAt: new Date(Date.now() - 3 * 86400000).toISOString() }
+    expect(isNudgeEligible(eligible, cs)).toBe(false)
+  })
+
+  it('returns true when last reach-out was more than 7 days ago', () => {
+    const cs = { ...clean, lastReachOutAt: new Date(Date.now() - 8 * 86400000).toISOString() }
+    expect(isNudgeEligible(eligible, cs)).toBe(true)
+  })
+
+  it('returns false when nudgeDismissCount >= 5', () => {
+    expect(isNudgeEligible(eligible, { ...clean, nudgeDismissCount: 5 })).toBe(false)
+  })
+
+  it('returns false when dismissed 3 days ago with <3 dismissals (7-day cooldown)', () => {
+    const cs = {
+      ...clean, nudgeDismissCount: 2,
+      nudgeDismissedAt: new Date(Date.now() - 3 * 86400000).toISOString(),
+    }
+    expect(isNudgeEligible(eligible, cs)).toBe(false)
+  })
+
+  it('returns true when dismissed 8 days ago with <3 dismissals (7-day cooldown passed)', () => {
+    const cs = {
+      ...clean, nudgeDismissCount: 2,
+      nudgeDismissedAt: new Date(Date.now() - 8 * 86400000).toISOString(),
+    }
+    expect(isNudgeEligible(eligible, cs)).toBe(true)
+  })
+
+  it('returns false when dismissed 15 days ago with >=3 dismissals (30-day cooldown)', () => {
+    const cs = {
+      ...clean, nudgeDismissCount: 3,
+      nudgeDismissedAt: new Date(Date.now() - 15 * 86400000).toISOString(),
+    }
+    expect(isNudgeEligible(eligible, cs)).toBe(false)
+  })
+
+  it('returns true when dismissed 31 days ago with >=3 dismissals (30-day cooldown passed)', () => {
+    const cs = {
+      ...clean, nudgeDismissCount: 3,
+      nudgeDismissedAt: new Date(Date.now() - 31 * 86400000).toISOString(),
+    }
+    expect(isNudgeEligible(eligible, cs)).toBe(true)
   })
 })
 
