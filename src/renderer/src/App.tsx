@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import QRCode from 'qrcode'
 import { QrCode, Loader2 } from 'lucide-react'
 import { Button } from './components'
@@ -748,7 +749,18 @@ export default function App() {
 
   return (
     <>
-      {screenContent}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={nav.screen}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -4 }}
+          transition={{ type: 'spring', stiffness: 260, damping: 20, mass: 0.8 }}
+          style={{ height: '100%', width: '100%' }}
+        >
+          {screenContent}
+        </motion.div>
+      </AnimatePresence>
       {showAbout && (
         <AboutScreen
           version={appVersion}

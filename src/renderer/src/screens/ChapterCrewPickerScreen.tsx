@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Check } from 'lucide-react'
+import { SkeletonBlock } from '../components/SkeletonPulse'
 import type { Contact, AppState } from '@shared/types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -248,25 +249,13 @@ export function ChapterCrewPickerScreen({ chapterId, onSave, onBack }: Props) {
 
   if (loading) {
     return (
-      <div
-        style={{
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--bg)',
-        }}
-      >
-        <span
-          style={{
-            fontFamily: 'var(--font-serif)',
-            fontStyle: 'italic',
-            color: 'var(--text-muted)',
-            fontSize: 17,
-          }}
-        >
-          Loading…
-        </span>
+      <div style={{ height: '100%', background: 'var(--bg)', padding: 24 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <SkeletonBlock width="100%" height={44} borderRadius={8} />
+          <SkeletonBlock width="100%" height={44} borderRadius={8} />
+          <SkeletonBlock width="100%" height={44} borderRadius={8} />
+          <SkeletonBlock width="100%" height={44} borderRadius={8} />
+        </div>
       </div>
     )
   }

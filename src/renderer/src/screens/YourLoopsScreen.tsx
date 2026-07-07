@@ -8,6 +8,7 @@ import { ContactTierIndicator } from '../components/ContactTierIndicator'
 import { QuietDayCard } from '../components/QuietDayCard'
 import { DeadThreadCard } from '../components/DeadThreadCard'
 import { OnYourMindSection } from '../components/OnYourMindSection'
+import { SkeletonCard } from '../components/SkeletonPulse'
 import type { AppState, Contact, ContactState, OnThisDayMemory, Chapter } from '@shared/types'
 import { toPng } from 'html-to-image'
 
@@ -535,10 +536,9 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
 
   if (loading) {
     return (
-      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
-        <div style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--text-muted)', fontStyle: 'italic' }}>
-          Loading…
-        </div>
+      <div style={{ height: '100%', overflowY: 'auto', background: 'var(--bg)', padding: '24px 20px' }}>
+        <SkeletonCard />
+        <SkeletonCard style={{ opacity: 0.6 }} />
       </div>
     )
   }

@@ -3,6 +3,7 @@ import { ArrowLeft, Camera, Trash2 } from 'lucide-react'
 import { IconButton } from '../components'
 import { ContactTierIndicator } from '../components/ContactTierIndicator'
 import { ConnectionStatusBadge } from '../components/ConnectionStatusBadge'
+import { SkeletonBlock } from '../components/SkeletonPulse'
 import type { Chapter, Contact, AppState, ContactState } from '@shared/types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -260,9 +261,11 @@ export function ChapterDetailScreen({ chapterId, onBack, onOpenStory, onPickCrew
 
   if (loading) {
     return (
-      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
-        <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--text-muted)', fontSize: 17 }}>
-          Loading…
+      <div style={{ height: '100%', background: 'var(--bg)', padding: 24 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <SkeletonBlock width="80%" height={14} />
+          <SkeletonBlock width="65%" height={14} />
+          <SkeletonBlock width="50%" height={14} />
         </div>
       </div>
     )
