@@ -99,7 +99,7 @@ export function NudgeCard({ contact, contactInitials, nudgeText, onMessage, onDi
           fontFamily: 'var(--font-sans)',
           fontSize: 13,
           fontStyle: 'italic',
-          color: 'var(--text-secondary)',
+          color: 'rgba(244,231,226,0.70)',
           marginTop: 4,
           lineHeight: 1.45,
         }}>
@@ -138,7 +138,7 @@ export function NudgeCard({ contact, contactInitials, nudgeText, onMessage, onDi
                 fontFamily: 'var(--font-sans)',
                 fontSize: 13,
                 fontWeight: 400,
-                color: 'var(--text-secondary)',
+                color: 'rgba(244,231,226,0.55)',
                 background: hovSnooze ? 'rgba(184,98,74,0.06)' : 'none',
                 border: 'none',
                 borderRadius: 'var(--radius-xs)',

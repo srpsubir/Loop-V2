@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, protocol, net } from 'electron'
+import { app, shell, BrowserWindow, protocol, net, Menu } from 'electron'
 import { join, resolve, sep } from 'path'
 import { promises as fs } from 'fs'
 import { homedir } from 'os'
@@ -153,6 +153,36 @@ app.whenReady().then(async () => {
   })
 
   registerAllHandlers(getWindow)
+
+  // macOS application menu with custom "About Loop" item
+  if (process.platform === 'darwin') {
+    Menu.setApplicationMenu(Menu.buildFromTemplate([
+      {
+        label: app.getName(),
+        submenu: [
+          {
+            label: 'About Loop',
+            click: () => {
+              getWindow()?.webContents.executeJavaScript(
+                'window.__loop_showAbout && window.__loop_showAbout()'
+              )
+            },
+          },
+          { type: 'separator' },
+          { role: 'services' },
+          { type: 'separator' },
+          { role: 'hide' },
+          { role: 'hideOthers' },
+          { role: 'unhide' },
+          { type: 'separator' },
+          { role: 'quit' },
+        ],
+      },
+      { role: 'editMenu' },
+      { role: 'viewMenu' },
+      { role: 'windowMenu' },
+    ]))
+  }
 
   // MAV-192: Validate session before window opens so renderer never sees stale state
   await validateSessionState()

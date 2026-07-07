@@ -170,6 +170,10 @@ const loopAPI = {
       ipcRenderer.invoke('telemetry:setEnabled', enabled),
   },
 
+  version: {
+    get: (): Promise<string> => ipcRenderer.invoke('version:get'),
+  },
+
 }
 
 if (process.contextIsolated) {

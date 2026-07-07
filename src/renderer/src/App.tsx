@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import QRCode from 'qrcode'
 import { QrCode, Loader2 } from 'lucide-react'
 import { Button } from './components'
+import { AboutScreen } from './AboutScreen'
 
 const MONO = '"SFMono-Regular","SF Mono",ui-monospace,Menlo,monospace'
 import { YourLoopsScreen } from './screens/YourLoopsScreen'
@@ -405,6 +406,16 @@ function AppShell({
 
 export default function App() {
   const [nav, setNav] = useState<Nav>({ screen: 'onboarding-felt-moment' })
+  const [showAbout, setShowAbout] = useState(false)
+  const [appVersion, setAppVersion] = useState('')
+
+  useEffect(() => {
+    window.loop.version.get().then(setAppVersion).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    ;(window as unknown as Record<string, unknown>).__loop_showAbout = () => setShowAbout(true)
+  }, [setShowAbout])
 
   useEffect(() => {
     const init = async () => {
@@ -475,26 +486,31 @@ export default function App() {
     setNav({ screen: 'your-loops' })
   }, [])
 
+  let screenContent: React.ReactNode
+
   switch (nav.screen) {
     case 'onboarding-felt-moment':
-      return <OnboardingFeltMomentScreen onContinue={() => setNav({ screen: 'onboarding-normalise' })} />
+      screenContent = <OnboardingFeltMomentScreen onContinue={() => setNav({ screen: 'onboarding-normalise' })} />
+      break
 
     case 'onboarding-normalise':
-      return (
+      screenContent = (
         <OnboardingNormaliseScreen
           onContinue={() => setNav({ screen: 'onboarding-beat3' })}
         />
       )
+      break
 
     case 'onboarding-beat3':
-      return (
+      screenContent = (
         <OnboardingBeat3Screen
           onContinue={() => setNav({ screen: 'onboarding-name-your-people' })}
         />
       )
+      break
 
     case 'onboarding-name-your-people':
-      return (
+      screenContent = (
         <OnboardingNameYourPeopleScreen
           onContinue={async () => {
             try {
@@ -508,12 +524,14 @@ export default function App() {
           }}
         />
       )
+      break
 
     case 'onboarding-reveal':
-      return <OnboardingRevealScreen onContinue={goEmailCapture} />
+      screenContent = <OnboardingRevealScreen onContinue={goEmailCapture} />
+      break
 
     case 'welcome':
-      return (
+      screenContent = (
         <WelcomeScreen
           onConnect={async () => {
             try {
@@ -527,9 +545,10 @@ export default function App() {
           }}
         />
       )
+      break
 
     case 'privacy-notice':
-      return (
+      screenContent = (
         <PrivacyNoticeScreen
           onAccept={async () => {
             try {
@@ -539,9 +558,10 @@ export default function App() {
           }}
         />
       )
+      break
 
     case 'whatsapp-connect':
-      return (
+      screenContent = (
         <WhatsAppConnectScreen
           onConnected={async () => {
             try {
@@ -560,17 +580,19 @@ export default function App() {
           }}
         />
       )
+      break
 
     case 'chapter-inference':
-      return (
+      screenContent = (
         <ChapterInferenceScreen
           onComplete={() => setNav({ screen: 'crew-detection' })}
           onSkip={goSkip}
         />
       )
+      break
 
     case 'crew-detection':
-      return (
+      screenContent = (
         <CrewDetectionScreen
           onComplete={async () => {
             try {
@@ -595,6 +617,7 @@ export default function App() {
           onSkip={goSkip}
         />
       )
+      break
 
     case 'chapter-naming': {
       const { candidates, index } = nav
@@ -607,7 +630,7 @@ export default function App() {
           setNav({ screen: 'onboarding-reveal' })
         }
       }
-      return (
+      screenContent = (
         <ChapterNamingScreen
           candidate={candidate}
           index={index}
@@ -619,26 +642,29 @@ export default function App() {
           onSkip={advance}
         />
       )
+      break
     }
 
     case 'email-capture':
-      return (
+      screenContent = (
         <OnboardingGoogleSignInScreen
           onDone={goStayClose}
         />
       )
+      break
 
     case 'stay-close':
-      return (
+      screenContent = (
         <ConnectionStateProvider>
           <StayCloseScreen
             onDone={goYourLoops}
           />
         </ConnectionStateProvider>
       )
+      break
 
     case 'your-loops':
-      return (
+      screenContent = (
         <AppShell nav={nav} onNavigate={setNav}>
           <ConnectionStateProvider>
             <YourLoopsScreen
@@ -649,9 +675,10 @@ export default function App() {
           </ConnectionStateProvider>
         </AppShell>
       )
+      break
 
     case 'people':
-      return (
+      screenContent = (
         <AppShell nav={nav} onNavigate={setNav}>
           <PeopleScreen
             onNavigate={(screen, params) => {
@@ -663,9 +690,10 @@ export default function App() {
           />
         </AppShell>
       )
+      break
 
     case 'chapter-detail':
-      return (
+      screenContent = (
         <AppShell nav={nav} onNavigate={setNav}>
           <ConnectionStateProvider>
             <ChapterDetailScreen
@@ -677,9 +705,10 @@ export default function App() {
           </ConnectionStateProvider>
         </AppShell>
       )
+      break
 
     case 'chapter-crew-picker':
-      return (
+      screenContent = (
         <AppShell nav={nav} onNavigate={setNav}>
           <ChapterCrewPickerScreen
             chapterId={nav.chapterId}
@@ -688,9 +717,10 @@ export default function App() {
           />
         </AppShell>
       )
+      break
 
     case 'story':
-      return (
+      screenContent = (
         <AppShell nav={nav} onNavigate={setNav}>
           <ConnectionStateProvider>
             <StoryScreen
@@ -700,17 +730,32 @@ export default function App() {
           </ConnectionStateProvider>
         </AppShell>
       )
+      break
 
     case 'settings':
-      return (
+      screenContent = (
         <AppShell nav={nav} onNavigate={setNav}>
           <ConnectionStateProvider>
             <SettingsScreen onBack={goYourLoops} onConnect={() => setNav({ screen: 'whatsapp-connect' })} />
           </ConnectionStateProvider>
         </AppShell>
       )
+      break
 
     default:
-      return null
+      screenContent = null
   }
+
+  return (
+    <>
+      {screenContent}
+      {showAbout && (
+        <AboutScreen
+          version={appVersion}
+          onOpenPrivacyPolicy={() => window.loop.shell.openExternal('https://srpsubir.github.io/Loop-V2/#privacy')}
+          onClose={() => setShowAbout(false)}
+        />
+      )}
+    </>
+  )
 }

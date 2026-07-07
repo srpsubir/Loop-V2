@@ -56,6 +56,7 @@ const mockLoop = {
   story: { open: vi.fn() },
   analytics: { track: vi.fn() },
   data: { getDir: vi.fn().mockResolvedValue('~/Documents/Loop'), deleteAll: vi.fn() },
+  version: { get: vi.fn().mockResolvedValue('0.0.0-test') },
 }
 
 const fireQR = (qr: string) => qrHandlers.forEach((h) => h(qr))

@@ -57,6 +57,7 @@ const mockLoop = {
   },
   onReconnection: vi.fn(() => () => {}),
   model: { status: vi.fn().mockResolvedValue({ exists: false, ready: false, downloading: false }) },
+  version: { get: vi.fn().mockResolvedValue('0.0.0-test') },
 }
 
 describe('SettingsScreen — data:deleteAll confirmation gate (MAV-178)', () => {

@@ -189,17 +189,17 @@ function ChapterCard({ atom, glow, onClick }: { atom: ChapterAtom; glow: boolean
       } as React.CSSProperties}
     >
       <div style={{ position: 'absolute', inset: 0, background: gradientFor(atom.chapter.name) }} />
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(26,16,12,0) 30%, rgba(26,16,12,0.65) 100%)' }} />
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(transparent 45%, rgba(0,0,0,0.72) 100%)' }} />
       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 12 }}>
         <div style={{ display: 'flex', marginBottom: 8 }}>
           {atom.crewColors.slice(0, 4).map((color, i) => (
             <div key={i} style={{
               width: 24, height: 24, borderRadius: '50%',
               background: color,
-              border: '1.5px solid rgba(255,255,255,0.65)',
+              border: '1.5px solid #D4804A',
               marginRight: -7,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 10, fontWeight: 500, color: 'white',
+              fontSize: 10, fontWeight: 500, color: '#F4E7E2',
               fontFamily: 'var(--font-sans)',
               userSelect: 'none',
             }}>

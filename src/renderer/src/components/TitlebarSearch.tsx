@@ -90,7 +90,14 @@ export function TitlebarSearch({ onNavigateContact }: Props) {
         WebkitAppRegion: 'no-drag',
       } as React.CSSProperties}
     >
+      <style>{`
+        .loop-titlebar-search::placeholder {
+          color: rgba(26,16,12,0.38);
+          opacity: 1;
+        }
+      `}</style>
       <input
+        className="loop-titlebar-search"
         ref={inputRef}
         type="text"
         value={query}

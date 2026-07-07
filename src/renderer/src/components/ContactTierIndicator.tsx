@@ -53,7 +53,8 @@ export function ContactTierIndicator({
         justifyContent: 'center',
         overflow: 'hidden',
         flexShrink: 0,
-        boxShadow: isClose && !fading ? '0 0 0 2px var(--bg), 0 0 0 4px var(--accent)' : undefined,
+        border: isClose && !fading ? '1.5px solid #D4804A' : undefined,
+        boxSizing: 'border-box',
       }}>
         {src ? (
           <img src={src} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -62,7 +63,7 @@ export function ContactTierIndicator({
             fontFamily: 'var(--font-sans)',
             fontSize: isClose ? 18 : 16,
             fontWeight: isClose ? 600 : 500,
-            color: isClose ? 'var(--accent)' : 'var(--text-muted)',
+            color: isClose ? '#F4E7E2' : 'var(--text-muted)',
             letterSpacing: '0.01em',
             userSelect: 'none',
           }}>

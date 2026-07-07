@@ -61,6 +61,7 @@ const mockLoop = {
   photos: { pickChapter: vi.fn().mockResolvedValue(null) },
   chapters: { setName: vi.fn().mockResolvedValue(undefined) },
   analytics: { track: vi.fn() },
+  version: { get: vi.fn().mockResolvedValue('0.0.0-test') },
 }
 
 describe('ChapterDetailScreen — chapter removal (MAV-184)', () => {

@@ -461,4 +461,8 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
 
   ipcMain.handle('update:install-now', () => installUpdateNow())
 
+  // ── App version ───────────────────────────────────────────────────────────
+
+  ipcMain.handle('version:get', () => app.getVersion())
+
 }

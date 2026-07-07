@@ -79,12 +79,12 @@ export function AppSidebar({ currentScreen, onNavigate }: Props) {
                 alignItems: 'center',
                 width: '100%',
                 height: 36,
-                paddingLeft: isActive ? 9 : 12,
+                paddingLeft: isActive ? 10 : 12,
                 paddingRight: 12,
                 border: 'none',
-                borderLeft: isActive ? '3px solid var(--accent)' : '3px solid transparent',
+                borderLeft: isActive ? '2px solid #C8724A' : '2px solid transparent',
                 background: isActive
-                  ? 'rgba(184,98,74,0.10)'
+                  ? 'transparent'
                   : isHov
                   ? 'rgba(128,80,56,0.06)'
                   : 'transparent',
@@ -92,7 +92,7 @@ export function AppSidebar({ currentScreen, onNavigate }: Props) {
                 fontFamily: SANS,
                 fontSize: 13,
                 fontWeight: isActive ? 500 : 400,
-                color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                color: isActive ? '#F4E7E2' : 'rgba(244,231,226,0.45)',
                 textAlign: 'left',
                 borderRadius: 8,
                 transition: 'background 120ms ease',

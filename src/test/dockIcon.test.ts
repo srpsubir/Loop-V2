@@ -17,6 +17,7 @@ vi.mock('electron', () => ({
     whenReady: whenReadyPromise,
     on: vi.fn(),
     setName: setNameMock,
+    getName: vi.fn().mockReturnValue('Loop'),
     getVersion: () => '0.1.0',
     quit: vi.fn(),
     requestSingleInstanceLock: vi.fn().mockReturnValue(true),
@@ -27,6 +28,10 @@ vi.mock('electron', () => ({
     loadFile = vi.fn()
     webContents = { setWindowOpenHandler: vi.fn(), send: vi.fn() }
     static getAllWindows = () => []
+  },
+  Menu: {
+    setApplicationMenu: vi.fn(),
+    buildFromTemplate: vi.fn().mockReturnValue({}),
   },
   shell: { openExternal: vi.fn() },
   ipcMain: { handle: vi.fn(), on: vi.fn() },

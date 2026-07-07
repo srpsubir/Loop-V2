@@ -75,6 +75,9 @@ interface LoopAPI {
   telemetry: {
     setEnabled: (enabled: boolean) => Promise<void>
   }
+  version: {
+    get: () => Promise<string>
+  }
 }
 
 declare global {
