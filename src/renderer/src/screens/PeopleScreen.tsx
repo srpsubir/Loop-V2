@@ -52,8 +52,8 @@ export function PeopleScreen({ onNavigate }: PeopleScreenProps) {
 
   if (loading) {
     return (
-      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F4E7E2' }}>
-        <div style={{ fontFamily: SERIF, fontSize: 18, color: '#7A6056', fontStyle: 'italic' }}>
+      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
+        <div style={{ fontFamily: SERIF, fontSize: 18, color: 'var(--text-muted)', fontStyle: 'italic' }}>
           Loading…
         </div>
       </div>
@@ -77,7 +77,7 @@ export function PeopleScreen({ onNavigate }: PeopleScreenProps) {
     })
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', background: '#F4E7E2' }}>
+    <div style={{ height: '100%', overflowY: 'auto', background: 'var(--bg)' }}>
       <div style={{ padding: '32px 44px', maxWidth: 680 }}>
         <h1 style={{
           fontFamily: SERIF,

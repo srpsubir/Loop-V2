@@ -63,8 +63,12 @@
   --border-light:       var(--line-light);
   --focus-ring:         0 0 0 3px rgba(184, 98, 74, 0.28);
   --selection-bg:       rgba(184, 98, 74, 0.18);
-  /* Card — white surface for D-II NudgeCard, elevated on parchment */
-  --card:               #FFFFFF;
+  /* Card — dark elevated surface for the NudgeCard (locked 2026-07-07,
+     Context.md "Contrast system — Option E"). Was briefly white during an
+     earlier D-II pass; NudgeCard.tsx's body/snooze text were already updated
+     to light-on-dark colors but this token and the heading color were not,
+     leaving the heading unreadable against a white card (MAV-253 audit). */
+  --card:               #2C1C14;
   /* D-II: terracotta section pill — label text + background */
   --pill-color:         var(--terracotta);
   --pill-bg:            rgba(184, 98, 74, 0.10);

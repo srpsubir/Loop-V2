@@ -90,7 +90,10 @@ export function NudgeCard({ contact, contactInitials, nudgeText, onMessage, onDi
           fontFamily: 'var(--font-serif)',
           fontSize: 17,
           fontWeight: 600,
-          color: 'var(--text-primary)',
+          // MAV-253: was var(--text-primary) (dark ink), unreadable against
+          // the dark #2C1C14 card — the subtitle/snooze text below already
+          // use light-on-dark colors, this just brings the heading in line.
+          color: 'var(--parchment-bg)',
           lineHeight: 1.2,
         }}>
           {contact.name}
