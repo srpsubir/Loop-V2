@@ -1,4 +1,5 @@
 import { BrowserWindow, ipcMain, shell, app } from 'electron'
+import { is } from '@electron-toolkit/utils'
 import { installUpdateNow } from './updater'
 import * as path from 'path'
 import * as fs from 'fs'
@@ -26,6 +27,19 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
   ipcMain.handle('state:patch', async (_e, patch: Partial<AppState>): Promise<AppState> => {
     const keys = Object.keys(patch) as (keyof AppState)[]
     if (keys.some((k) => !RENDERER_PATCH_ALLOWLIST.has(k))) return readState()
+    const next = await patchState(patch)
+    getWindow()?.webContents.send('state:changed')
+    return next
+  })
+
+  // Test/dev-only: bypasses RENDERER_PATCH_ALLOWLIST so wdio specs can seed full
+  // fixtures (chapters, contacts, chapterDetectionComplete, etc.) that production
+  // renderer code has no legitimate reason to write directly. `is.dev` is false in
+  // a real electron-builder-packaged app (app.isPackaged), so this never exists
+  // in what ships to users — checked at call time, not just registration, in case
+  // that ever changes.
+  ipcMain.handle('state:testPatch', async (_e, patch: Partial<AppState>): Promise<AppState> => {
+    if (!is.dev) throw new Error('state:testPatch is unavailable outside dev/test builds')
     const next = await patchState(patch)
     getWindow()?.webContents.send('state:changed')
     return next
@@ -231,6 +245,11 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
 
   // ── Shell ─────────────────────────────────────────────────────────────────
 
+  // wdio launches the built app with this flag (wdio.conf.ts appArgs) so E2E
+  // specs that click "Open WhatsApp" never spawn a real system browser and
+  // corrupt the ChromeDriver session — state mutations/tracking still run.
+  const IS_E2E_TEST = process.argv.includes('--loop-e2e-test')
+
   ipcMain.handle('shell:openWhatsApp', async (_e, whatsappId: string, contactId?: string) => {
     const phone = whatsappId.replace(/@.*$/, '').replace(/[^0-9]/g, '')
     track('suggestion_acted_on', { action: 'open_whatsapp' })
@@ -250,7 +269,7 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
         }
       } catch { /* non-fatal — open WhatsApp regardless */ }
     }
-    await shell.openExternal(`https://wa.me/${phone}`)
+    if (!IS_E2E_TEST) await shell.openExternal(`https://wa.me/${phone}`)
   })
 
   // ── Data ─────────────────────────────────────────────────────────────────

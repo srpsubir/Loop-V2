@@ -19,6 +19,7 @@ vi.mock('electron', () => ({
     setName: setNameMock,
     getName: vi.fn().mockReturnValue('Loop'),
     getVersion: () => '0.1.0',
+    getPath: vi.fn().mockReturnValue('/tmp'),
     quit: vi.fn(),
     requestSingleInstanceLock: vi.fn().mockReturnValue(true),
   },

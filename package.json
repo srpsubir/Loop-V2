@@ -1,6 +1,6 @@
 {
   "name": "loop",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "A personal relationship memory system — organised by the chapters of your life",
   "author": "Subir Paul",
   "main": "./out/main/index.js",
@@ -15,7 +15,8 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "npm run build && vitest run --config vitest.e2e.config.ts",
     "test:ipc": "npm run build && wdio run wdio.conf.ts",
-    "test:all": "npm run test && npm run test:e2e && npm run test:ipc"
+    "lint:colors": "node scripts/check-color-tokens.mjs",
+    "test:all": "npm run test && npm run lint:colors && npm run test:e2e && npm run test:ipc"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.96.0",

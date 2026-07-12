@@ -1,4 +1,9 @@
 import React, { useState } from 'react'
+import { TRAFFIC_LIGHT_POSITION, TRAFFIC_LIGHT_SAFE_ZONE } from '../../../shared/layout'
+
+// MAV-253: reserve room below the native traffic-light buttons so the
+// wordmark never collides with them — was previously a bare 18px guess.
+const WORDMARK_TOP_PADDING = TRAFFIC_LIGHT_POSITION.y + TRAFFIC_LIGHT_SAFE_ZONE.height + 8
 
 const SERIF = 'var(--font-serif)'
 const SANS = 'var(--font-sans)'
@@ -42,10 +47,13 @@ export function AppSidebar({ currentScreen, onNavigate }: Props) {
         WebkitAppRegion: 'drag',
       } as React.CSSProperties}
     >
-      {/* Wordmark */}
+      {/* Wordmark — data-testid sits on the inner text span, not this padded
+          wrapper, so a safe-zone bounding-box check measures where the glyph
+          actually renders rather than the whole padded container (which
+          always starts at the container's own origin regardless of padding). */}
       <div
         style={{
-          padding: '18px 20px 10px',
+          padding: `${WORDMARK_TOP_PADDING}px 20px 10px`,
           fontFamily: SERIF,
           fontSize: 15,
           fontWeight: 700,
@@ -54,7 +62,7 @@ export function AppSidebar({ currentScreen, onNavigate }: Props) {
           WebkitAppRegion: 'no-drag',
         } as React.CSSProperties}
       >
-        Loop
+        <span data-testid="app-wordmark">Loop</span>
       </div>
 
       {/* Nav */}

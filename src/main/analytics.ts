@@ -7,17 +7,22 @@ import { PostHog } from 'posthog-node'
 import { randomUUID } from 'crypto'
 import { readFileSync, writeFileSync, mkdirSync } from 'fs'
 import { join } from 'path'
-import { homedir } from 'os'
 import { app } from 'electron'
+import { LOOP_DIR } from './store'
 
-const LOOP_DIR = join(homedir(), 'Documents', 'Loop')
 const ID_FILE = join(LOOP_DIR, 'install-id')
 
 function getOrCreateInstallId(): string {
   try { return readFileSync(ID_FILE, 'utf-8').trim() } catch {}
   const id = randomUUID()
-  mkdirSync(LOOP_DIR, { recursive: true })
-  writeFileSync(ID_FILE, id)
+  try {
+    mkdirSync(LOOP_DIR, { recursive: true })
+    writeFileSync(ID_FILE, id)
+  } catch (err) {
+    // Best-effort persistence only (e.g. iCloud-synced Documents can ETIMEDOUT) —
+    // analytics must never crash app startup. Falls back to a per-session id.
+    console.error('[analytics] failed to persist install id (non-fatal):', err)
+  }
   return id
 }
 

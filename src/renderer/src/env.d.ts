@@ -6,6 +6,8 @@ interface LoopAPI {
   state: {
     get: () => Promise<AppState>
     patch: (patch: Partial<AppState>) => Promise<AppState>
+    // Test/dev-only — rejected by the main process outside dev/test builds.
+    testPatch: (patch: Partial<AppState>) => Promise<AppState>
     onChange: (cb: () => void) => () => void
   }
   contacts: {

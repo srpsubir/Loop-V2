@@ -25,8 +25,17 @@ Read `Context.md` at session start. Decisions marked "settled" are final — exe
 
 - `ChapterInferenceScreen` is the only caller of `chapters.detect()` — any change to chapter detection flow must go through it or explicitly justify the divergence
 - `Scanner.run()` scans contacts only (stories, occasions, dead threads). It does NOT trigger chapter detection — keep these flows separate
-- State lives in `~/Documents/Loop/state.json` — never mutate it outside `store.ts`
+- State lives in `<userData>/LoopData/state.json` (`~/Library/Application Support/loop/LoopData/state.json` in dev) — never mutate it outside `store.ts`. Moved off `~/Documents/Loop` in MAV-252 because iCloud Desktop/Documents sync silently hangs or empties file reads when unhealthy, which broke WhatsApp QR linking. `store.ts` migrates legacy `~/Documents/Loop` data automatically on first launch post-fix.
 - IPC handlers live in `src/main/ipc.ts` — one place, no handler registration elsewhere
+
+## Design/UX audits — two separate passes, never one blended review (MAV-253)
+
+A traffic-light/wordmark collision, an un-tokenized search bar color, and an orphaned Settings icon all shipped past multiple past audits because every audit reviewed *content and hierarchy* (copy tone, information density, emotional register) and never the actual pixels of the real running native macOS app. Magic Patterns previews and Storybook screenshots structurally cannot show native title-bar chrome — there are no real traffic lights in a browser tab. Going forward, run these as two distinct, separately-scoped passes — never conflate them:
+
+1. **Mechanical pass (automated, CI-enforced)**: `npm run lint:colors` (fails on any new raw hex/rgba outside `src/renderer/src/styles/globals.css`'s token system) + the native-chrome safe-zone assertion in `src/test/electron/app.test.ts` (part of `npm run test:e2e`). These are binary pass/fail gates, not judgment calls.
+2. **Content/tone pass (human or LLM judgment)**: copy, hierarchy, emotional register — same as before, but must run against a screenshot of the real packaged app (via Peekaboo or macos-use, both set up per MAV-251), never a Magic Patterns mockup or Storybook page alone. A mockup review, however careful, cannot catch a bug that only exists once real OS chrome is drawn on top of the renderer's content.
+
+See `src/shared/layout.ts` for the traffic-light safe-zone constants shared between main (`trafficLightPosition`) and renderer (safe-zone padding) — if you ever touch `BrowserWindow` creation or the sidebar wordmark, keep both in sync via that file, not separate hardcoded values.
 
 ## Known bugs fixed (do not reintroduce)
 

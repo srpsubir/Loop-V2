@@ -1,9 +1,10 @@
 import { EventEmitter } from 'events'
 import { join } from 'path'
 import { promises as fs } from 'fs'
-import { homedir } from 'os'
+import { LOOP_DIR } from './store'
 
-const AUTH_DIR = join(homedir(), 'Documents', 'Loop', 'whatsapp-auth')
+// MAV-252: lives under LOOP_DIR (Application Support), not ~/Documents/Loop.
+export const AUTH_DIR = join(LOOP_DIR, 'whatsapp-auth')
 
 export type WAConnectionStatus = 'disconnected' | 'connecting' | 'qr_pending' | 'connected' | 'reconnecting' | 'failed' | 'logged_out' | 'protocol_error'
 
@@ -469,7 +470,7 @@ class WhatsAppManager extends EventEmitter {
 
       // Persist for eval pipeline — overwrite on each scan so it stays fresh
       try {
-        const cachePath = join(homedir(), 'Documents', 'Loop', 'groups-discovered.json')
+        const cachePath = join(LOOP_DIR, 'groups-discovered.json')
         await fs.writeFile(cachePath, JSON.stringify(results, null, 2))
       } catch { /* non-fatal */ }
 

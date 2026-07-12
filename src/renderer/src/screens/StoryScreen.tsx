@@ -197,7 +197,11 @@ export function StoryScreen({ contactId, onBack }: StoryScreenProps) {
             icon={<ArrowLeft size={18} strokeWidth={1.8} />}
             onClick={onBack}
           />
-          {contact.whatsappId && !whatsappConnected && (
+          {/* Deliberate secondary path to WhatsApp Web/desktop, independent of
+              in-app connection state — per DESIGN_REVIEW.md, meant to sit alongside
+              the composer ("present when ready, not pushing"), not as a fallback
+              for a disconnected session. */}
+          {contact.whatsappId && (
             <Button
               variant="ghost"
               data-testid="open-whatsapp-cta"

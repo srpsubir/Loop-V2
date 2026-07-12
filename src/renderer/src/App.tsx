@@ -387,7 +387,7 @@ function AppShell({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: '#F4E7E2',
+            background: 'var(--bg)',
             borderBottom: '1px solid rgba(26,16,12,0.06)',
             flexShrink: 0,
             WebkitAppRegion: 'drag',
@@ -497,7 +497,11 @@ export default function App() {
     case 'onboarding-normalise':
       screenContent = (
         <OnboardingNormaliseScreen
-          onContinue={() => setNav({ screen: 'onboarding-beat3' })}
+          // Skips 'onboarding-beat3' (MAV-215 contact picker): it shows placeholder
+          // names as if selectable real contacts, before WhatsApp is connected, and
+          // its output (manuallySelected) has no consumer yet. Re-wire once MAV-215
+          // sources it from real post-connect contacts instead of PLACEHOLDER_PEOPLE.
+          onContinue={() => setNav({ screen: 'onboarding-name-your-people' })}
         />
       )
       break

@@ -51,24 +51,33 @@ export function OnboardingNameYourPeopleScreen({ onContinue }: Props) {
         You don't need their numbers. Just hold them in mind.
       </p>
 
+      <span style={{
+        fontFamily: SANS,
+        fontSize: 12,
+        fontWeight: 500,
+        letterSpacing: '0.06em',
+        textTransform: 'uppercase',
+        color: '#B8A99E',
+        margin: '32px 0 0',
+      }}>
+        for example
+      </span>
+
       <div style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: 10,
-        margin: '32px 0 0',
+        gap: 12,
+        margin: '14px 0 0',
         alignItems: 'center',
       }}>
         {CHIPS.map((label) => (
           <div key={label} style={{
-            padding: '10px 22px',
-            borderRadius: 999,
-            background: '#EDD9D2',
-            border: '1px solid rgba(26,16,12,0.12)',
             fontFamily: SANS,
-            fontSize: 14,
+            fontSize: 15,
             fontStyle: 'italic',
-            color: '#1A100C',
+            color: '#6B5447',
             userSelect: 'none',
+            pointerEvents: 'none',
           } as React.CSSProperties}>
             {label}
           </div>

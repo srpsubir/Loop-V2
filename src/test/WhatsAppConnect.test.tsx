@@ -78,7 +78,9 @@ describe('WhatsApp connect screen', () => {
   })
 
   // Renders App and navigates through the onboarding screens to the connect screen.
-  // Beat 1 (felt moment) → Beat 2 (normalise) → Beat 3 (contact picker) → Beat 4 (name your people) → WA connect
+  // Beat 1 (felt moment) → Beat 2 (normalise) → Beat 4 (name your people) → WA connect
+  // Beat 3 (fake contact picker) is skipped — it showed placeholder names as if real,
+  // selectable contacts before WhatsApp is even connected; see App.tsx onboarding-normalise.
   // The connect screen auto-starts whatsapp.start() on mount.
   async function renderConnectScreen() {
     const { default: App } = await import('../renderer/src/App')
@@ -90,18 +92,9 @@ describe('WhatsApp connect screen', () => {
     await act(async () => {
       await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
     })
-    // Beat 2: normalise → click Continue (now leads to Beat 3 contact picker)
+    // Beat 2: normalise → click Continue (now leads directly to Beat 4)
     await act(async () => {
       await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
-    })
-    // Beat 3: contact picker — select 3 people then click CTA
-    await act(async () => {
-      await userEvent.click(screen.getByRole('button', { name: 'Arjun' }))
-      await userEvent.click(screen.getByRole('button', { name: 'Sofia' }))
-      await userEvent.click(screen.getByRole('button', { name: 'Marcus' }))
-    })
-    await act(async () => {
-      await userEvent.click(screen.getByRole('button', { name: 'These are my people' }))
     })
     // Beat 4: name your people → click Continue
     await act(async () => {

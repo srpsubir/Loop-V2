@@ -6,11 +6,10 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerAllHandlers } from './ipc'
 import Scanner from './scanner'
 import { initAnalytics, initSentry, track, shutdownAnalytics } from './analytics'
-import WhatsAppManager from './whatsapp'
-import { readState, patchState } from './store'
+import WhatsAppManager, { AUTH_DIR } from './whatsapp'
+import { readState, patchState, LOOP_DIR, migrateLegacyLoopDir } from './store'
 import { initAutoUpdater } from './updater'
-
-const AUTH_DIR = join(homedir(), 'Documents', 'Loop', 'whatsapp-auth')
+import { TRAFFIC_LIGHT_POSITION } from '../shared/layout'
 
 /**
  * MAV-192: Guard against stale dev state persisting across installs.
@@ -46,20 +45,32 @@ async function validateSessionState(): Promise<void> {
   }
 }
 
-initSentry()
-initAnalytics()
+// Registered before initSentry/initAnalytics so startup errors in those paths
+// are logged rather than crashing before any handler exists.
+process.on('uncaughtException', (err) => {
+  const logPath = join(LOOP_DIR, 'crash.log')
+  const entry = `[${new Date().toISOString()}] uncaughtException: ${err.stack ?? err.message}\n`
+  try {
+    require('fs').mkdirSync(LOOP_DIR, { recursive: true })
+    require('fs').appendFileSync(logPath, entry)
+  } catch { /* best-effort — never let crash logging itself crash the crash handler */ }
+  throw err
+})
+
+// MAV-252: migrate any legacy ~/Documents/Loop data before anything else
+// touches LOOP_DIR (analytics' install-id, Sentry, etc.), so we don't create
+// an empty new-location directory that then blocks migration from running.
+// Bundled as CJS (no top-level await) — bounded IIFE instead; init calls
+// below still run within a few ms in the common (nothing-to-migrate) case.
+void (async () => {
+  await migrateLegacyLoopDir()
+  initSentry()
+  initAnalytics()
+})()
 
 // Suppress EPIPE errors from stdout/stderr (libsignal writes to a closed pipe on quit)
 process.stdout.on('error', (err: NodeJS.ErrnoException) => { if (err.code !== 'EPIPE') throw err })
 process.stderr.on('error', (err: NodeJS.ErrnoException) => { if (err.code !== 'EPIPE') throw err })
-
-// Surface uncaught errors to a log file rather than a silent crash
-process.on('uncaughtException', (err) => {
-  const logPath = join(homedir(), 'Documents', 'Loop', 'crash.log')
-  const entry = `[${new Date().toISOString()}] uncaughtException: ${err.stack ?? err.message}\n`
-  require('fs').appendFileSync(logPath, entry)
-  throw err
-})
 
 // MAV-199: Prevent multiple instances — second launch focuses the existing window instead
 const gotTheLock = app.requestSingleInstanceLock()
@@ -99,6 +110,9 @@ async function createWindow(): Promise<void> {
     minHeight: 640,
     show: false,
     titleBarStyle: 'hiddenInset',
+    // MAV-253: explicit, not left to Electron's undocumented default — see
+    // src/shared/layout.ts, which the renderer uses to reserve matching space.
+    trafficLightPosition: TRAFFIC_LIGHT_POSITION,
     backgroundColor: '#00000000',
     title: 'Loop',
     webPreferences: {
@@ -133,7 +147,7 @@ app.whenReady().then(async () => {
   // Serve local files (photos) via loop-file:// protocol
   // Restricted to allowed roots — prevents renderer reading arbitrary filesystem paths
   const ALLOWED_ROOTS = [
-    join(homedir(), 'Documents', 'Loop'),
+    LOOP_DIR,
     join(homedir(), 'Pictures'),
   ]
   protocol.handle('loop-file', (request) => {

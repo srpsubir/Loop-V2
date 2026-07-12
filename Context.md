@@ -8,10 +8,7 @@ _Updated: 2026-07-07_
 | Priority | Item | Notes |
 |---|---|---|
 | 1 | **DMG milestone** | Gate: features + 100% coverage + all green. Command: `npm run dist` |
-| 2 | **Nostalgia / quiet-day card** | Open design topic — no ticket yet |
-| 3 | **Warm / Close tier** | Open design topic — no ticket yet |
-| 4 | **Dead thread / second loop** | Open design topic — no ticket yet |
-| 5 | **MAV-208 Freemium / billing** | Parked pre-DMG. `licenseStatus` field already in state |
+| 2 | **MAV-208 Freemium / billing** | Parked pre-DMG. `licenseStatus` field already in state |
 
 ---
 

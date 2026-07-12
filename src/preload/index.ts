@@ -6,6 +6,10 @@ const loopAPI = {
     get: (): Promise<AppState> => ipcRenderer.invoke('state:get'),
     patch: (patch: Partial<AppState>): Promise<AppState> =>
       ipcRenderer.invoke('state:patch', patch),
+    // Test/dev-only — see state:testPatch in src/main/ipc.ts. Main process
+    // rejects this outside dev/test builds regardless of what's exposed here.
+    testPatch: (patch: Partial<AppState>): Promise<AppState> =>
+      ipcRenderer.invoke('state:testPatch', patch),
     onChange: (cb: () => void) => {
       ipcRenderer.on('state:changed', cb)
       return () => ipcRenderer.off('state:changed', cb)

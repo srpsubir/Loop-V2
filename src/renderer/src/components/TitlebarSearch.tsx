@@ -112,7 +112,11 @@ export function TitlebarSearch({ onNavigateContact }: Props) {
           border: focused
             ? '1px solid #B8624A'
             : '1px solid rgba(26,16,12,0.12)',
-          background: 'rgba(26,16,12,0.07)',
+          // MAV-253: was an ad hoc translucent tint (rgba(26,16,12,0.07)) that
+          // drifted visually from the toolbar's flat --bg background instead
+          // of reading as a deliberate sunken field. --surface is the next
+          // step down in the locked parchment palette.
+          background: 'var(--surface)',
           outline: 'none',
           padding: '0 12px',
           fontFamily: SANS,

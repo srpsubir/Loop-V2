@@ -40,7 +40,10 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
           chapterIds: [chId],
           intervalDays: 30,
         })
-        await window.loop.state.patch({
+        // state:patch's RENDERER_PATCH_ALLOWLIST rejects chapterDetectionComplete/
+        // chapters/contacts (production renderer code has no legitimate reason to
+        // write them directly) — use the dev-only testPatch to seed this fixture.
+        await window.loop.state.testPatch({
           onboardingComplete: true,
           whatsappConnected: false,
           chapterDetectionComplete: true,
@@ -61,7 +64,7 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
     if (injectErr) throw new Error(`Navigation state injection failed: ${injectErr}`)
 
     await browser.execute(() => { window.location.reload() })
-    await browser.pause(2500)
+    await browser.pause(4000)
 
     // Diagnostic: confirm what actually landed in persisted state at runtime.
     const chaptersJson = await browser.executeAsync(async (done) => {
@@ -101,7 +104,7 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
   it('tapping chapter atom opens Chapter Detail screen', async () => {
     const atom = await browser.$(`[data-chapter-id="${CH_ID}"]`)
     await atom.click()
-    await browser.pause(1000)
+    await browser.pause(2000)
     const crewMember = await browser.$('[data-testid="crew-member"]')
     await crewMember.waitForExist({ timeout: 5000 })
     log(`Chapter Detail opened, crew member visible`)
@@ -117,7 +120,7 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
   it('tapping crew member opens Story screen', async () => {
     const crewMember = await browser.$('[data-testid="crew-member"]')
     await crewMember.click()
-    await browser.pause(1000)
+    await browser.pause(2000)
     const heading = await browser.$('[data-testid="story-contact-name"]')
     await heading.waitForExist({ timeout: 5000 })
     const headingText = await heading.getText()
@@ -142,7 +145,7 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
 
     const cta = await browser.$('[data-testid="open-whatsapp-cta"]')
     await cta.click()
-    await browser.pause(800)
+    await browser.pause(1500)
 
     const stateAfter = await browser.executeAsync(async (cId, done) => {
       const s = await window.loop.state.get()
@@ -156,7 +159,7 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
     const firstBack = await browser.$('[aria-label="Back"]')
     await firstBack.waitForExist({ timeout: 3000 })
     await firstBack.click()
-    await browser.pause(1000)
+    await browser.pause(2000)
     const crewMember = await browser.$('[data-testid="crew-member"]')
     await crewMember.waitForExist({ timeout: 5000 })
     log('Back from Story → Chapter Detail confirmed')
@@ -166,7 +169,7 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
     const firstBack = await browser.$('[aria-label="Back"]')
     await firstBack.waitForExist({ timeout: 3000 })
     await firstBack.click()
-    await browser.pause(1000)
+    await browser.pause(2000)
     const atom = await browser.$(`[data-chapter-id="${CH_ID}"]`)
     await atom.waitForExist({ timeout: 5000 })
     log('Back from Chapter Detail → Your Loops confirmed')
@@ -176,7 +179,7 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
 
   it('chapter with fading contact shows fading atom state', async () => {
     await browser.executeAsync(async (chId, cId, done) => {
-      await window.loop.state.patch({
+      await window.loop.state.testPatch({
         contacts: {
           [cId]: {
             lastContactDate: new Date(Date.now() - 120 * 86400000).toISOString(), // 120 days ago
@@ -189,7 +192,7 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
     }, CH_ID, C_ID)
 
     await browser.execute(() => { window.location.reload() })
-    await browser.pause(2500)
+    await browser.pause(4000)
 
     const atom = await browser.$(`[data-atom-state="fading"]`)
     await atom.waitForExist({ timeout: 5000 })
@@ -198,7 +201,7 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
 
   it('chapter with dead-thread contact shows dead-thread atom state', async () => {
     await browser.executeAsync(async (chId, cId, done) => {
-      await window.loop.state.patch({
+      await window.loop.state.testPatch({
         contacts: {
           [cId]: {
             lastContactDate: new Date(Date.now() - 20 * 86400000).toISOString(),
@@ -214,7 +217,7 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
       done(null)
     }, CH_ID, C_ID)
     await browser.execute(() => { window.location.reload() })
-    await browser.pause(2500)
+    await browser.pause(4000)
 
     const atom = await browser.$(`[data-atom-state="dead-thread"]`)
     await atom.waitForExist({ timeout: 5000 })
@@ -224,7 +227,7 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
   it('chapter with birthday-live contact shows birthday-live atom state', async () => {
     const bd = new Date(Date.now() + 3 * 86400000) // 3 days from now
     await browser.executeAsync(async (cId, bdIso, done) => {
-      await window.loop.state.patch({
+      await window.loop.state.testPatch({
         contacts: {
           [cId]: {
             lastContactDate: new Date(Date.now() - 5 * 86400000).toISOString(),
@@ -240,7 +243,7 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
       done(null)
     }, C_ID, bd.toISOString())
     await browser.execute(() => { window.location.reload() })
-    await browser.pause(2500)
+    await browser.pause(4000)
 
     const atom = await browser.$(`[data-atom-state="birthday-live"]`)
     await atom.waitForExist({ timeout: 5000 })
@@ -251,7 +254,7 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
     // nextOccasion: null explicitly clears the birthday-live signal set by the
     // previous test, so showOpeningMoment's !hasSignals precondition holds.
     await browser.executeAsync(async (cId, done) => {
-      await window.loop.state.patch({
+      await window.loop.state.testPatch({
         contacts: {
           [cId]: {
             lastContactDate: new Date(Date.now() - 5 * 86400000).toISOString(),
@@ -270,7 +273,7 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
       done(null)
     }, C_ID)
     await browser.execute(() => { window.location.reload() })
-    await browser.pause(2500)
+    await browser.pause(4000)
 
     const card = await browser.$('[data-testid="opening-moment-card"]')
     await card.waitForExist({ timeout: 5000 })

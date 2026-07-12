@@ -19,6 +19,7 @@ export const config: Options.Testrunner = {
         'node_modules/electron/dist/Electron.app/Contents/MacOS/Electron'
       ),
       appEntryPoint: join(__dirname, 'out/main/index.js'),
+      appArgs: ['--loop-e2e-test'],
     },
   }],
 

@@ -576,6 +576,7 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
             icon={<Settings size={16} strokeWidth={1.8} />}
             label="Settings"
             onClick={onOpenSettings}
+            variant="soft"
           />
         </div>
       </div>
@@ -645,10 +646,14 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
             {(() => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening' })()}
           </div>
         </div>
+        {/* MAV-253: soft (not ghost) — a permanent surface background anchors
+            this visually as a control at rest, instead of reading as an
+            orphaned icon floating in open space. */}
         <IconButton
           icon={<Settings size={16} strokeWidth={1.8} />}
           label="Settings"
           onClick={onOpenSettings}
+          variant="soft"
         />
       </div>
 
