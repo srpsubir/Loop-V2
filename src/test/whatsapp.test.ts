@@ -52,4 +52,49 @@ describe('WhatsAppManager', () => {
 
     await expect(wa.disconnect()).resolves.not.toThrow()
   })
+
+  // MAV-255: a fabricated/externally-injected contact with no real WhatsApp
+  // conversation must never reach a real send — this is the guard that failed
+  // in the incident that prompted this ticket.
+  describe('sendMessage() refuses unverified contacts (MAV-255)', () => {
+    it('throws if there is no existing chat for the JID, even with a live socket', async () => {
+      const { default: WhatsAppManager } = await import('../main/whatsapp')
+      const wa = WhatsAppManager.getInstance()
+      const socketSendMessage = vi.fn().mockResolvedValue(undefined)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(wa as any).socket = { sendMessage: socketSendMessage }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(wa as any).chatStore = new Map() // no known chats — simulates fabricated contact data
+
+      await expect(wa.sendMessage('447700900001@s.whatsapp.net', 'hi')).rejects.toThrow(
+        /no existing whatsapp conversation/i
+      )
+      expect(socketSendMessage).not.toHaveBeenCalled()
+    })
+
+    it('sends when the JID has a real, known chat', async () => {
+      const { default: WhatsAppManager } = await import('../main/whatsapp')
+      const wa = WhatsAppManager.getInstance()
+      const socketSendMessage = vi.fn().mockResolvedValue(undefined)
+      const jid = '447700900003@s.whatsapp.net'
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(wa as any).socket = { sendMessage: socketSendMessage }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(wa as any).chatStore = new Map([[jid, { id: jid }]])
+
+      await wa.sendMessage(jid, 'hi')
+      expect(socketSendMessage).toHaveBeenCalledWith(jid, { text: 'hi' })
+    })
+
+    it('hasChatWith() reflects chatStore membership directly', async () => {
+      const { default: WhatsAppManager } = await import('../main/whatsapp')
+      const wa = WhatsAppManager.getInstance()
+      const jid = '447700900004@s.whatsapp.net'
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(wa as any).chatStore = new Map([[jid, { id: jid }]])
+
+      expect(wa.hasChatWith(jid)).toBe(true)
+      expect(wa.hasChatWith('447700900099@s.whatsapp.net')).toBe(false)
+    })
+  })
 })

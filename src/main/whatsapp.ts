@@ -120,12 +120,27 @@ class WhatsAppManager extends EventEmitter {
   getCurrentQR(): string | null { return this.currentQR }
   isConnected(): boolean { return this.status === 'connected' }
 
+  // MAV-255: chatStore is populated only from Baileys' own chats.set/chats.upsert
+  // events — i.e. conversations that genuinely exist on the connected WhatsApp
+  // account. Used as a real technical guarantee that a send target is a real
+  // contact, not e.g. externally-injected/fabricated contact data (which has no
+  // representation in chatStore since it never came from a real WhatsApp sync).
+  hasChatWith(jid: string): boolean {
+    return this.chatStore.has(jid)
+  }
+
   async sendMessage(jid: string, text: string): Promise<void> {
     if (!this.socket) throw new Error('WhatsApp not connected')
     const normalised = jid.includes('@') ? jid : `${jid.replace(/[^0-9]/g, '')}@s.whatsapp.net`
     // Reject JIDs that don't conform to WhatsApp's known address format
     if (!/^\d+@(s\.whatsapp\.net|g\.us)$/.test(normalised)) {
       throw new Error(`Invalid WhatsApp JID: ${normalised}`)
+    }
+    // MAV-255: never send to a JID with no existing conversation on the real
+    // connected account — the incident this guards against was fabricated
+    // contact data (seeded outside the app) reaching a real WhatsApp send.
+    if (!this.hasChatWith(normalised)) {
+      throw new Error('No existing WhatsApp conversation with this contact — refusing to send to an unverified number.')
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (this.socket as any).sendMessage(normalised, { text })

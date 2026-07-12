@@ -18,6 +18,11 @@ interface YourLoopsScreenProps {
   onOpenChapter: (chapterId: string) => void
   onOpenSettings: () => void
   onOpenStory: (contactId: string, chapterId: string) => void
+  // MAV-193 was a dead end: whatsappConnected && !chapterDetectionComplete shows
+  // this scanning state forever with no way back to ChapterInferenceScreen (the
+  // only caller of chapters.detect(), per CLAUDE.md) once the user is past
+  // onboarding. Lets the "still nothing after a while" state retry detection.
+  onRetryChapterDetection: () => void
 }
 
 type AtomState = 'active' | 'fading' | 'dead-thread' | 'birthday-live' | 'birthday-fading'
@@ -300,7 +305,7 @@ function OpeningMomentCard({ memory, chapters }: { memory: OnThisDayMemory; chap
 
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
-export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: YourLoopsScreenProps) {
+export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory, onRetryChapterDetection }: YourLoopsScreenProps) {
   const { state, contacts, loading } = useYourLoopsData()
   const { connectionState } = useConnectionState()
   const [glowChapterId, setGlowChapterId] = useState<string | null>(null)
@@ -543,8 +548,14 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
     )
   }
 
-  // MAV-193: WhatsApp connected but chapter detection not yet complete — show scanning state
-  if (state?.whatsappConnected && !state.chapterDetectionComplete) {
+  // MAV-193: WhatsApp connected but chapter detection not yet complete — show scanning state.
+  // Only full-page-block when there's truly nothing to show yet (no contacts scanned at all).
+  // The People layer (nudges/Stay Close) and Chapter layer are locked as co-equal (MAV-188) —
+  // this used to gate the ENTIRE feed, including nudges, on chapter detection alone, which
+  // subordinated People to Chapters and left real nudge-ready contacts invisible indefinitely
+  // whenever chapter detection found nothing. The CHAPTERS section below already has its own
+  // correct "Your chapters are on their way" sub-state for exactly this case.
+  if (state?.whatsappConnected && !state.chapterDetectionComplete && contacts.length === 0) {
     return (
       <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', gap: 20 }}>
         <style>{`
@@ -570,6 +581,23 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
           <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
             This usually takes 1–2 minutes.<br />Your chapters will appear when it's done.
           </div>
+          <button
+            type="button"
+            onClick={onRetryChapterDetection}
+            style={{
+              marginTop: 20,
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 13,
+              fontWeight: 600,
+              color: 'var(--accent)',
+              WebkitAppRegion: 'no-drag',
+            } as React.CSSProperties}
+          >
+            Taking longer than expected? Try again
+          </button>
         </div>
         <div style={{ position: 'absolute', top: 20, right: 20 }}>
           <IconButton
@@ -866,10 +894,21 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory }: 
         ) : (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
             <div style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-              {state?.whatsappConnected ? 'Your chapters are on their way.' : 'No chapters yet.'}
+              {!state?.whatsappConnected
+                ? 'No chapters yet.'
+                : state.chapterDetectionComplete
+                  ? 'No chapters detected yet.'
+                  : 'Your chapters are on their way.'}
             </div>
             <div style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)' }}>
-              {state?.whatsappConnected ? 'Loop is reading your conversations.' : 'Connect WhatsApp to discover your loops.'}
+              {!state?.whatsappConnected
+                ? 'Connect WhatsApp to discover your loops.'
+                : state.chapterDetectionComplete
+                  // MAV-193: was "Loop is reading your conversations" here regardless
+                  // of chapterDetectionComplete — misleadingly implied an in-progress
+                  // scan even once detection had conclusively finished with 0 results.
+                  ? 'Your groups may not have enough history yet for Loop to find a chapter.'
+                  : 'Loop is reading your conversations.'}
             </div>
           </div>
         )}
