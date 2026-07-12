@@ -382,6 +382,68 @@ class WhatsAppManager extends EventEmitter {
   // Patterns that indicate broadcast/admin/noise groups rather than real social chapters
   private static readonly GARBAGE_NAME_RE = /\b(broadcast|announce|announcement|update|updates|news|newsletter|society|alumni|association|residents|colony|welfare|committee|notices?|info|helpdesk|support|class of|batch of|school of|investor meet|networking event)\b/i
 
+  // MAV: groupFetchAllParticipating()'s bulk `participants` field is frequently
+  // incomplete/stale right after a fresh session (a known Baileys limitation) —
+  // observed returning exactly 2 participants for every group regardless of real
+  // size, which made every group fail chapters.ts's MIN_MEMBERS=3 gate and
+  // produced a guaranteed zero-chapter-candidate outcome. Real membership needs
+  // a per-group sock.groupMetadata() fetch (the pattern listGroups() already
+  // uses below) — but doing that for up to 200 groups against a real, live
+  // connected account requires explicit pacing to avoid WhatsApp rate-limiting
+  // or flagging the account. Batched with a delay between batches, a per-call
+  // timeout, and an overall budget so a stuck fetch can't hang chapter detection
+  // indefinitely; individual failures are skipped, not fatal to the whole pass.
+  private static readonly GROUP_META_BATCH_SIZE = 8
+  private static readonly GROUP_META_BATCH_DELAY_MS = 1500
+  private static readonly GROUP_META_PER_CALL_TIMEOUT_MS = 8_000
+  private static readonly GROUP_META_TOTAL_BUDGET_MS = 90_000
+
+  private async fetchRealGroupMembers(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    sock: any,
+    groupIds: string[]
+  ): Promise<Map<string, string[]>> {
+    const membersByGroup = new Map<string, string[]>()
+    const budgetDeadline = Date.now() + WhatsAppManager.GROUP_META_TOTAL_BUDGET_MS
+    const totalBatches = Math.ceil(groupIds.length / WhatsAppManager.GROUP_META_BATCH_SIZE)
+
+    for (let i = 0; i < groupIds.length; i += WhatsAppManager.GROUP_META_BATCH_SIZE) {
+      if (Date.now() >= budgetDeadline) {
+        console.warn(
+          `[WA] group metadata fetch budget (${WhatsAppManager.GROUP_META_TOTAL_BUDGET_MS}ms) exhausted — ` +
+          `${membersByGroup.size}/${groupIds.length} groups fetched, remaining groups skipped for this pass`
+        )
+        break
+      }
+
+      const batch = groupIds.slice(i, i + WhatsAppManager.GROUP_META_BATCH_SIZE)
+      const batchNum = Math.floor(i / WhatsAppManager.GROUP_META_BATCH_SIZE) + 1
+      console.log(`[WA] fetching group metadata: batch ${batchNum}/${totalBatches} (${batch.length} groups)`)
+
+      await Promise.all(batch.map(async (groupId) => {
+        try {
+          const timeout = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('groupMetadata timeout')), WhatsAppManager.GROUP_META_PER_CALL_TIMEOUT_MS)
+          )
+          const meta = await Promise.race([sock.groupMetadata(groupId), timeout])
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const participants = (meta?.participants ?? []).map((p: any) => p.id as string)
+          membersByGroup.set(groupId, participants)
+        } catch (err) {
+          console.warn(`[WA] groupMetadata failed for ${groupId}, skipping:`, err instanceof Error ? err.message : err)
+        }
+      }))
+
+      const isLastBatch = i + WhatsAppManager.GROUP_META_BATCH_SIZE >= groupIds.length
+      if (!isLastBatch) {
+        await new Promise((resolve) => setTimeout(resolve, WhatsAppManager.GROUP_META_BATCH_DELAY_MS))
+      }
+    }
+
+    console.log(`[WA] group metadata fetch complete: ${membersByGroup.size}/${groupIds.length} groups resolved`)
+    return membersByGroup
+  }
+
   private waitForStore(timeoutMs = 10_000): Promise<void> {
     if (this.storeReady) return Promise.resolve()
     return new Promise((resolve) => {
@@ -434,21 +496,38 @@ class WhatsAppManager extends EventEmitter {
 
       const groupEntries = Object.values(groupMap).slice(0, 200)
 
-      const results = []
+      // Cheap filters first (name/community/newsletter/garbage-regex) so the
+      // rate-limited per-group metadata fetch below only runs against groups
+      // that could plausibly become a chapter candidate, not all 200.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const candidateEntries: any[] = []
       for (const meta of groupEntries) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const m = meta as any
         const groupId: string = m.id
         const resolvedName: string = m.subject ?? ''
         if (!resolvedName || resolvedName === groupId) continue
-
-        // Garbage filter: communities, large groups, broadcast/admin name patterns
         if (m.isCommunity || m.isCommunityAnnounce) continue
         if (groupId.endsWith('@newsletter')) continue
         if (WhatsAppManager.GARBAGE_NAME_RE.test(resolvedName)) continue
+        candidateEntries.push(m)
+      }
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const members: string[] = (m.participants ?? []).map((p: any) => p.id as string)
+      // groupFetchAllParticipating()'s bulk `participants` field is unreliable
+      // right after a fresh session — fetch real per-group membership instead,
+      // rate-limited (see fetchRealGroupMembers doc comment).
+      const realMembersByGroup = await this.fetchRealGroupMembers(
+        sock,
+        candidateEntries.map((m) => m.id as string)
+      )
+
+      const results = []
+      for (const m of candidateEntries) {
+        const groupId: string = m.id
+        const resolvedName: string = m.subject ?? ''
+
+        const members: string[] = realMembersByGroup.get(groupId) ?? []
+        if (members.length === 0) continue // fetch failed or timed out — skip, don't guess
         if (members.length > 50) continue
         const createdAt: number | null = m.creation ?? null
         const ownerJid = (m.owner ?? '').replace(/:\d+@/, '@')
