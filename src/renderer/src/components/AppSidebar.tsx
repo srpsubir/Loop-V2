@@ -24,7 +24,7 @@ const NAV_ITEMS: { id: SidebarSection; label: string }[] = [
 
 function activeSection(screen: string): SidebarSection {
   if (screen === 'settings') return 'settings'
-  if (screen === 'chapter-detail' || screen === 'story') return 'chapters'
+  if (screen === 'chapters' || screen === 'chapter-detail' || screen === 'story') return 'chapters'
   if (screen === 'people') return 'people'
   return 'your-loops'
 }

@@ -23,6 +23,7 @@ import { OnboardingNameYourPeopleScreen } from './screens/OnboardingNameYourPeop
 import { OnboardingBeat3Screen } from './screens/OnboardingBeat3Screen'
 import { ChapterCrewPickerScreen } from './screens/ChapterCrewPickerScreen'
 import { PeopleScreen } from './screens/PeopleScreen'
+import { ChaptersScreen } from './screens/ChaptersScreen'
 import { AppSidebar } from './components/AppSidebar'
 import { TitlebarSearch } from './components/TitlebarSearch'
 import type { ChapterCandidate } from '@shared/types'
@@ -46,6 +47,7 @@ type Nav =
   | { screen: 'stay-close' }
   | { screen: 'your-loops' }
   | { screen: 'people' }
+  | { screen: 'chapters' }
   | { screen: 'chapter-detail'; chapterId: string }
   | { screen: 'chapter-crew-picker'; chapterId: string }
   | { screen: 'story'; contactId: string; chapterId: string }
@@ -376,7 +378,7 @@ function AppShell({
         onNavigate={(section) => {
           if (section === 'your-loops') onNavigate({ screen: 'your-loops' })
           else if (section === 'people') onNavigate({ screen: 'people' })
-          else if (section === 'chapters') onNavigate({ screen: 'your-loops' })
+          else if (section === 'chapters') onNavigate({ screen: 'chapters' })
           else if (section === 'settings') onNavigate({ screen: 'settings' })
         }}
       />
@@ -692,6 +694,16 @@ export default function App() {
                 setNav({ screen: 'story', contactId, chapterId })
               }
             }}
+          />
+        </AppShell>
+      )
+      break
+
+    case 'chapters':
+      screenContent = (
+        <AppShell nav={nav} onNavigate={setNav}>
+          <ChaptersScreen
+            onOpenChapter={(chapterId) => setNav({ screen: 'chapter-detail', chapterId })}
           />
         </AppShell>
       )
