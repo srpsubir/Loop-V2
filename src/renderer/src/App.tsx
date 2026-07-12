@@ -485,6 +485,15 @@ export default function App() {
   const goSkip = useCallback(async () => {
     try {
       await window.loop.state.patch({ onboardingComplete: true })
+      // chapterDetectionComplete is deliberately not in state:patch's renderer
+      // allowlist, so it must go through chapters:confirm (which sets it
+      // unconditionally). Without this, skipping chapter-inference/crew-detection
+      // with zero chapters left chapterDetectionComplete permanently false —
+      // YourLoopsScreen's "Loop is reading your conversations" scanning state
+      // (gated on whatsappConnected && !chapterDetectionComplete) then never
+      // clears, permanently hiding nudges/reach-out for any account whose
+      // WhatsApp groups don't produce chapter candidates.
+      await window.loop.chapters.confirm([])
     } catch { /* pass */ }
     setNav({ screen: 'your-loops' })
   }, [])
@@ -678,6 +687,7 @@ export default function App() {
               onOpenChapter={(chapterId) => setNav({ screen: 'chapter-detail', chapterId })}
               onOpenSettings={() => setNav({ screen: 'settings' })}
               onOpenStory={(contactId, chapterId) => setNav({ screen: 'story', contactId, chapterId })}
+              onRetryChapterDetection={() => setNav({ screen: 'chapter-inference' })}
             />
           </ConnectionStateProvider>
         </AppShell>
