@@ -7,26 +7,6 @@ const MONO = '"SFMono-Regular","SF Mono",ui-monospace,Menlo,monospace'
 
 type CSS = React.CSSProperties
 
-const TOKEN_CSS = `
-:root {
-  --bg: #F9F5EE; --surface: #EFE6D6; --surface-raised: #E8DBCA;
-  --text-primary: #2A1F1B; --text-secondary: #6B5447; --text-muted: #A38F85;
-  --text-on-accent: #F9F5EE;
-  --accent: #B8624A; --accent-hover: #A6543E; --terracotta-faint: #F5EAD8;
-  --rose: #C49A8A; --terracotta-light: #D4856E;
-  --positive: #6A9470; --positive-faint: #EAF2EB; --sage: #6A9470;
-  --border: #DDD0C0; --border-light: #EDE3D5;
-  --font-serif: "Lora", Georgia, serif;
-  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
-  --radius-md: 12px; --radius-lg: 18px; --radius-full: 999px;
-  --shadow-sm: 0 1px 2px rgba(42,31,27,0.05), 0 1px 3px rgba(42,31,27,0.04);
-  --shadow-md: 0 1px 2px rgba(42,31,27,0.05), 0 4px 12px rgba(42,31,27,0.07);
-  --shadow-xl: 0 4px 10px rgba(42,31,27,0.08), 0 24px 56px rgba(42,31,27,0.16);
-  --shadow-inset: inset 0 1px 3px rgba(42,31,27,0.08);
-  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
-  --duration-fast: 120ms; --duration-base: 200ms;
-}`
-
 // ─── Design primitives ────────────────────────────────────────────────────────
 
 function PaperCard({ children, padding = 20, style }: {
@@ -313,8 +293,6 @@ export function SettingsScreen({ onBack, onConnect }: SettingsScreenProps) {
 
   return (
     <div data-screen-label="Settings" style={{ height: '100%', overflowY: 'auto', background: 'var(--bg)' }}>
-      <style dangerouslySetInnerHTML={{ __html: TOKEN_CSS }} />
-
       {/* MAV-194: left-pad 80px to clear macOS traffic lights in hiddenInset titlebar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 24px 0 80px' }}>
         <IconBtn label="Back" onClick={onBack} icon={<ArrowLeft size={19} strokeWidth={2} />} />
