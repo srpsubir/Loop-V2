@@ -453,11 +453,25 @@ class WhatsAppManager extends EventEmitter {
   private static readonly GROUP_META_PER_CALL_TIMEOUT_MS = 8_000
   private static readonly GROUP_META_TOTAL_BUDGET_MS = 90_000
 
+  // MAV-257: WhatsApp's own rate limiter (`rate-overlimit`, not a timeout)
+  // consistently lets through only ~1/3 of groups per pass — confirmed via
+  // live logs across multiple separate runs. Every group whose fetch fails
+  // used to be dropped outright by callers (`if (members.length === 0)
+  // continue`), so "found N groups" was really "whichever third got through
+  // the rate limiter this specific run" — a group could be visible one scan
+  // and gone the next for no reason the user could see. Fix: consult and
+  // update the shared MAV-256 group cache per-group inside this fetch, so a
+  // group resolved on an earlier pass stays known even when a later pass
+  // fails to re-resolve it. Benefits both callers (listGroups() and
+  // listGroupsWithMeta()) since both route through this one method — a group
+  // resolved via chapter detection also helps the crew-detection group scan
+  // on its next cache hit, and vice versa.
   private async fetchRealGroupMembers(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     sock: any,
     groupIds: string[]
   ): Promise<Map<string, string[]>> {
+    await this.loadGroupCache()
     const membersByGroup = new Map<string, string[]>()
     const budgetDeadline = Date.now() + WhatsAppManager.GROUP_META_TOTAL_BUDGET_MS
     const totalBatches = Math.ceil(groupIds.length / WhatsAppManager.GROUP_META_BATCH_SIZE)
@@ -484,8 +498,25 @@ class WhatsAppManager extends EventEmitter {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const participants = (meta?.participants ?? []).map((p: any) => p.id as string)
           membersByGroup.set(groupId, participants)
+          const existing = this.groupCache.get(groupId)
+          this.groupCache.set(groupId, {
+            id: groupId,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            name: (meta as any)?.subject ?? existing?.name ?? '',
+            members: participants,
+            lastMessageAt: existing?.lastMessageAt ?? 0,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            createdAt: (meta as any)?.creation ?? existing?.createdAt ?? null,
+          })
         } catch (err) {
           console.warn(`[WA] groupMetadata failed for ${groupId}, skipping:`, err instanceof Error ? err.message : err)
+          // Don't let a rate-limited/failed fetch erase a group resolved on
+          // an earlier pass — fall back to last-known real membership rather
+          // than letting the caller drop the group entirely.
+          const cached = this.groupCache.get(groupId)
+          if (cached && cached.members.length > 0) {
+            membersByGroup.set(groupId, cached.members)
+          }
         }
       }))
 
@@ -495,6 +526,7 @@ class WhatsAppManager extends EventEmitter {
       }
     }
 
+    await this.saveGroupCache().catch(() => {})
     console.log(`[WA] group metadata fetch complete: ${membersByGroup.size}/${groupIds.length} groups resolved`)
     return membersByGroup
   }
@@ -676,7 +708,7 @@ class WhatsAppManager extends EventEmitter {
         const resolvedName: string = m.subject ?? ''
 
         const members: string[] = realMembersByGroup.get(groupId) ?? []
-        if (members.length === 0) continue // fetch failed or timed out — skip, don't guess
+        if (members.length === 0) continue // MAV-257: never resolved in any pass — genuinely unknown, skip
         if (members.length > 50) continue
         const createdAt: number | null = m.creation ?? null
         const ownerJid = (m.owner ?? '').replace(/:\d+@/, '@')
@@ -1041,7 +1073,7 @@ class WhatsAppManager extends EventEmitter {
       for (const m of candidateEntries) {
         const groupId: string = m.id
         const members = realMembersByGroup.get(groupId) ?? []
-        if (members.length === 0) continue // fetch failed or timed out — skip, don't guess
+        if (members.length === 0) continue // MAV-257: never resolved in any pass — genuinely unknown, skip
         results.push({ id: groupId, name: m.subject as string, members })
       }
 

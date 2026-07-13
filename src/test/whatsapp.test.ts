@@ -254,4 +254,97 @@ describe('WhatsAppManager', () => {
       expect(cache.has('never-cached@g.us')).toBe(false)
     })
   })
+
+  // MAV-257: WhatsApp's own rate limiter lets through only ~1/3 of groups per
+  // pass. fetchRealGroupMembers() used to drop any group whose fetch failed
+  // this specific pass, even if it had real, previously-resolved membership
+  // sitting in the MAV-256 cache — these tests cover the fallback that fixes
+  // it, called directly since fetchRealGroupMembers() is private.
+  describe('fetchRealGroupMembers() accumulates across passes (MAV-257)', () => {
+    it('falls back to cached members when the live fetch fails for a previously-resolved group', async () => {
+      const { default: WhatsAppManager } = await import('../main/whatsapp')
+      const wa = WhatsAppManager.getInstance()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cache = (wa as any).groupCache as Map<string, { id: string; name: string; members: string[]; lastMessageAt: number; createdAt: number | null }>
+      cache.set('g1@g.us', { id: 'g1@g.us', name: 'G1', members: ['a@s.whatsapp.net', 'b@s.whatsapp.net'], lastMessageAt: 0, createdAt: null })
+
+      const sock = { groupMetadata: vi.fn().mockRejectedValue(Object.assign(new Error('rate-overlimit'), {})) }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result: Map<string, string[]> = await (wa as any).fetchRealGroupMembers(sock, ['g1@g.us'])
+
+      expect(result.get('g1@g.us')).toEqual(['a@s.whatsapp.net', 'b@s.whatsapp.net'])
+    })
+
+    it('leaves a group unresolved (not in the result map) if it failed and was never cached before', async () => {
+      const { default: WhatsAppManager } = await import('../main/whatsapp')
+      const wa = WhatsAppManager.getInstance()
+
+      const sock = { groupMetadata: vi.fn().mockRejectedValue(Object.assign(new Error('rate-overlimit'), {})) }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result: Map<string, string[]> = await (wa as any).fetchRealGroupMembers(sock, ['never-seen@g.us'])
+
+      expect(result.has('never-seen@g.us')).toBe(false)
+    })
+
+    it('a successful fetch overwrites the cache with fresh members, not the stale ones', async () => {
+      const { default: WhatsAppManager } = await import('../main/whatsapp')
+      const wa = WhatsAppManager.getInstance()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cache = (wa as any).groupCache as Map<string, { members: string[] }>
+      cache.set('g1@g.us', { id: 'g1@g.us', name: 'G1', members: ['stale@s.whatsapp.net'], lastMessageAt: 0, createdAt: null } as never)
+
+      const sock = {
+        groupMetadata: vi.fn().mockResolvedValue({
+          subject: 'G1',
+          participants: [{ id: 'fresh@s.whatsapp.net' }],
+        }),
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result: Map<string, string[]> = await (wa as any).fetchRealGroupMembers(sock, ['g1@g.us'])
+
+      expect(result.get('g1@g.us')).toEqual(['fresh@s.whatsapp.net'])
+      expect(cache.get('g1@g.us')).toMatchObject({ members: ['fresh@s.whatsapp.net'] })
+    })
+
+    it('persists the accumulated cache to disk after a fetch pass', async () => {
+      const { default: WhatsAppManager } = await import('../main/whatsapp')
+      const wa = WhatsAppManager.getInstance()
+
+      const sock = {
+        groupMetadata: vi.fn().mockResolvedValue({ subject: 'G1', participants: [{ id: 'a@s.whatsapp.net' }] }),
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (wa as any).fetchRealGroupMembers(sock, ['g1@g.us'])
+
+      expect(writeFileMock).toHaveBeenCalled()
+    })
+
+    it('listGroups() surfaces a group across two passes even when the second pass fails to re-resolve it', async () => {
+      // Pass 1: real fetch succeeds, populates the cache.
+      const staleWrittenAt = Date.now() - 25 * 60 * 60 * 1000 // force past-cache-fresh on both calls
+      readFileMock.mockResolvedValue(JSON.stringify({ writtenAt: staleWrittenAt, groups: [] }))
+
+      const { default: WhatsAppManager } = await import('../main/whatsapp')
+      const wa = WhatsAppManager.getInstance()
+      const groupMetadata = vi.fn().mockResolvedValue({ subject: 'Real Group', participants: [{ id: 'a@s.whatsapp.net' }] })
+      const groupFetchAllParticipating = vi.fn().mockResolvedValue({
+        'g1@g.us': { id: 'g1@g.us', subject: 'Real Group' },
+      })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(wa as any).socket = { groupFetchAllParticipating, groupMetadata }
+
+      const pass1 = await wa.listGroups()
+      expect(pass1).toEqual([{ id: 'g1@g.us', name: 'Real Group', members: ['a@s.whatsapp.net'] }])
+
+      // Pass 2: force the cache stale again (so it re-fetches instead of serving cache-fresh),
+      // but this time the live per-group call fails — the group must still be reported,
+      // sourced from what pass 1 cached, not dropped.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(wa as any).groupCacheWrittenAt = staleWrittenAt
+      groupMetadata.mockRejectedValue(Object.assign(new Error('rate-overlimit'), {}))
+
+      const pass2 = await wa.listGroups()
+      expect(pass2).toEqual([{ id: 'g1@g.us', name: 'Real Group', members: ['a@s.whatsapp.net'] }])
+    })
+  })
 })
