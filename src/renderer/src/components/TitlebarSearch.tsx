@@ -18,7 +18,9 @@ interface ChapterResult {
 }
 
 function initial(name: string): string {
-  return name.trim()[0]?.toUpperCase() ?? '?'
+  const trimmed = name.trim()
+  if (trimmed.startsWith('+')) return '•'
+  return trimmed[0]?.toUpperCase() ?? '?'
 }
 
 function yearRange(ch: Chapter): string {
@@ -92,7 +94,7 @@ export function TitlebarSearch({ onNavigateContact }: Props) {
     >
       <style>{`
         .loop-titlebar-search::placeholder {
-          color: rgba(26,16,12,0.38);
+          color: var(--text-muted);
           opacity: 1;
         }
       `}</style>
@@ -110,8 +112,8 @@ export function TitlebarSearch({ onNavigateContact }: Props) {
           height: 28,
           borderRadius: 999,
           border: focused
-            ? '1px solid #B8624A'
-            : '1px solid rgba(26,16,12,0.12)',
+            ? '1px solid var(--accent)'
+            : '1px solid var(--border)',
           // MAV-253: was an ad hoc translucent tint (rgba(26,16,12,0.07)) that
           // drifted visually from the toolbar's flat --bg background instead
           // of reading as a deliberate sunken field. --surface is the next
@@ -121,7 +123,7 @@ export function TitlebarSearch({ onNavigateContact }: Props) {
           padding: '0 12px',
           fontFamily: SANS,
           fontSize: 12,
-          color: '#1A100C',
+          color: 'var(--text-primary)',
           boxSizing: 'border-box',
           boxShadow: focused
             ? '0 0 0 3px rgba(184,98,74,0.15)'
@@ -138,12 +140,12 @@ export function TitlebarSearch({ onNavigateContact }: Props) {
             left: '50%',
             transform: 'translateX(-50%)',
             width: 320,
-            background: '#FFFFFF',
+            background: 'var(--surface)',
             borderRadius: 10,
             boxShadow: '0 4px 24px rgba(26,16,12,0.14), 0 1px 4px rgba(26,16,12,0.08)',
             zIndex: 200,
             overflow: 'hidden',
-            border: '1px solid rgba(26,16,12,0.08)',
+            border: '1px solid var(--border)',
           }}
         >
           {!hasResults && (
@@ -153,7 +155,7 @@ export function TitlebarSearch({ onNavigateContact }: Props) {
                 textAlign: 'center',
                 fontFamily: SANS,
                 fontSize: 13,
-                color: '#7A6056',
+                color: 'var(--text-muted)',
                 fontStyle: 'italic',
               }}
             >
@@ -171,7 +173,7 @@ export function TitlebarSearch({ onNavigateContact }: Props) {
                   fontWeight: 600,
                   letterSpacing: '0.1em',
                   textTransform: 'uppercase',
-                  color: '#7A6056',
+                  color: 'var(--text-muted)',
                 }}
               >
                 People
@@ -200,8 +202,8 @@ export function TitlebarSearch({ onNavigateContact }: Props) {
                       width: 28,
                       height: 28,
                       borderRadius: '50%',
-                      background: '#B8624A',
-                      color: '#FFFFFF',
+                      background: 'var(--accent)',
+                      color: 'var(--text-on-accent)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -218,7 +220,7 @@ export function TitlebarSearch({ onNavigateContact }: Props) {
                         fontFamily: SERIF,
                         fontSize: 13,
                         fontWeight: 500,
-                        color: '#1A100C',
+                        color: 'var(--text-primary)',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
@@ -231,7 +233,7 @@ export function TitlebarSearch({ onNavigateContact }: Props) {
                         style={{
                           fontFamily: SANS,
                           fontSize: 11,
-                          color: '#7A6056',
+                          color: 'var(--text-muted)',
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
@@ -256,7 +258,7 @@ export function TitlebarSearch({ onNavigateContact }: Props) {
                   fontWeight: 600,
                   letterSpacing: '0.1em',
                   textTransform: 'uppercase',
-                  color: '#7A6056',
+                  color: 'var(--text-muted)',
                 }}
               >
                 Chapters
@@ -277,7 +279,7 @@ export function TitlebarSearch({ onNavigateContact }: Props) {
                       fontFamily: SERIF,
                       fontSize: 13,
                       fontWeight: 500,
-                      color: '#1A100C',
+                      color: 'var(--text-primary)',
                     }}
                   >
                     {chapter.name}
@@ -287,7 +289,7 @@ export function TitlebarSearch({ onNavigateContact }: Props) {
                       style={{
                         fontFamily: SANS,
                         fontSize: 11,
-                        color: '#7A6056',
+                        color: 'var(--text-muted)',
                         marginLeft: 2,
                       }}
                     >
