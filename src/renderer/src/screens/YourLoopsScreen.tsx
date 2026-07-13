@@ -590,23 +590,40 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory, on
           <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
             This usually takes 1–2 minutes.<br />Your chapters will appear when it's done.
           </div>
-          <button
-            type="button"
-            onClick={onRetryChapterDetection}
-            style={{
+          {/* MAV-75: a stale scan can sit in this state indefinitely if WhatsApp
+              drops mid-scan — gate the retry trigger on live connection health
+              (connectionState, pushed from the real socket) rather than the
+              persisted whatsappConnected flag, which only reflects the last
+              known-good connect and would let the user fire a detect() call
+              with no socket to serve it. */}
+          {connectionState.status === 'connected' ? (
+            <button
+              type="button"
+              onClick={onRetryChapterDetection}
+              style={{
+                marginTop: 20,
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 13,
+                fontWeight: 600,
+                color: 'var(--accent)',
+                WebkitAppRegion: 'no-drag',
+              } as React.CSSProperties}
+            >
+              Taking longer than expected? Try again
+            </button>
+          ) : (
+            <div style={{
               marginTop: 20,
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
               fontFamily: 'var(--font-sans)',
               fontSize: 13,
-              fontWeight: 600,
-              color: 'var(--accent)',
-              WebkitAppRegion: 'no-drag',
-            } as React.CSSProperties}
-          >
-            Taking longer than expected? Try again
-          </button>
+              color: 'var(--text-muted)',
+            }}>
+              Reconnecting to WhatsApp before Loop can keep reading — hang tight.
+            </div>
+          )}
         </div>
         <div style={{ position: 'absolute', top: 20, right: 20 }}>
           <IconButton
