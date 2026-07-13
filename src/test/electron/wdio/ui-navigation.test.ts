@@ -64,7 +64,7 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
     if (injectErr) throw new Error(`Navigation state injection failed: ${injectErr}`)
 
     await browser.execute(() => { window.location.reload() })
-    await browser.pause(4000)
+    await browser.pause(6000)
 
     // Diagnostic: confirm what actually landed in persisted state at runtime.
     const chaptersJson = await browser.executeAsync(async (done) => {
@@ -104,9 +104,11 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
   it('tapping chapter atom opens Chapter Detail screen', async () => {
     const atom = await browser.$(`[data-chapter-id="${CH_ID}"]`)
     await atom.click()
-    await browser.pause(2000)
+    // Chapter Detail's data-fetch effect + spring nav transition can take
+    // longer than a fixed short pause under system load — wait on the real
+    // element instead of a bare timeout so this isn't racy.
     const crewMember = await browser.$('[data-testid="crew-member"]')
-    await crewMember.waitForExist({ timeout: 5000 })
+    await crewMember.waitForExist({ timeout: 8000 })
     log(`Chapter Detail opened, crew member visible`)
   })
 
@@ -120,9 +122,8 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
   it('tapping crew member opens Story screen', async () => {
     const crewMember = await browser.$('[data-testid="crew-member"]')
     await crewMember.click()
-    await browser.pause(2000)
     const heading = await browser.$('[data-testid="story-contact-name"]')
-    await heading.waitForExist({ timeout: 5000 })
+    await heading.waitForExist({ timeout: 10000 })
     const headingText = await heading.getText()
     expect(headingText).toContain(C_NAME.split(' ')[0])
     log('Story screen opened')
@@ -130,7 +131,7 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
 
   it('Story screen shows Open WhatsApp CTA', async () => {
     const cta = await browser.$('[data-testid="open-whatsapp-cta"]')
-    await cta.waitForExist({ timeout: 3000 })
+    await cta.waitForExist({ timeout: 8000 })
     const displayed = await cta.isDisplayed()
     expect(displayed).toBe(true)
     log('Open WhatsApp CTA is visible')
@@ -145,7 +146,7 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
 
     const cta = await browser.$('[data-testid="open-whatsapp-cta"]')
     await cta.click()
-    await browser.pause(1500)
+    await browser.pause(3000)
 
     const stateAfter = await browser.executeAsync(async (cId, done) => {
       const s = await window.loop.state.get()
@@ -157,21 +158,19 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
 
   it('back from Story returns to Chapter Detail (not Your Loops)', async () => {
     const firstBack = await browser.$('[aria-label="Back"]')
-    await firstBack.waitForExist({ timeout: 3000 })
+    await firstBack.waitForExist({ timeout: 8000 })
     await firstBack.click()
-    await browser.pause(2000)
     const crewMember = await browser.$('[data-testid="crew-member"]')
-    await crewMember.waitForExist({ timeout: 5000 })
+    await crewMember.waitForExist({ timeout: 10000 })
     log('Back from Story → Chapter Detail confirmed')
   })
 
   it('back from Chapter Detail returns to Your Loops', async () => {
     const firstBack = await browser.$('[aria-label="Back"]')
-    await firstBack.waitForExist({ timeout: 3000 })
+    await firstBack.waitForExist({ timeout: 8000 })
     await firstBack.click()
-    await browser.pause(2000)
     const atom = await browser.$(`[data-chapter-id="${CH_ID}"]`)
-    await atom.waitForExist({ timeout: 5000 })
+    await atom.waitForExist({ timeout: 10000 })
     log('Back from Chapter Detail → Your Loops confirmed')
   })
 
@@ -192,10 +191,9 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
     }, CH_ID, C_ID)
 
     await browser.execute(() => { window.location.reload() })
-    await browser.pause(4000)
 
     const atom = await browser.$(`[data-atom-state="fading"]`)
-    await atom.waitForExist({ timeout: 5000 })
+    await atom.waitForExist({ timeout: 12000 })
     log('Fading atom state confirmed')
   })
 
@@ -217,10 +215,9 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
       done(null)
     }, CH_ID, C_ID)
     await browser.execute(() => { window.location.reload() })
-    await browser.pause(4000)
 
     const atom = await browser.$(`[data-atom-state="dead-thread"]`)
-    await atom.waitForExist({ timeout: 5000 })
+    await atom.waitForExist({ timeout: 12000 })
     log('Dead-thread atom state confirmed')
   })
 
@@ -243,10 +240,9 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
       done(null)
     }, C_ID, bd.toISOString())
     await browser.execute(() => { window.location.reload() })
-    await browser.pause(4000)
 
     const atom = await browser.$(`[data-atom-state="birthday-live"]`)
-    await atom.waitForExist({ timeout: 5000 })
+    await atom.waitForExist({ timeout: 12000 })
     log('Birthday-live atom state confirmed')
   })
 
@@ -273,10 +269,9 @@ describe('Core loop: Your Loops → Chapter Detail → Story (MAV-95)', () => {
       done(null)
     }, C_ID)
     await browser.execute(() => { window.location.reload() })
-    await browser.pause(4000)
 
     const card = await browser.$('[data-testid="opening-moment-card"]')
-    await card.waitForExist({ timeout: 5000 })
+    await card.waitForExist({ timeout: 12000 })
     log('Opening Moment card visible')
   })
 })
