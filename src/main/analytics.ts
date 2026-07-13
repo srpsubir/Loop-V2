@@ -47,7 +47,9 @@ export function initSentry(enabled = true): void {
     dsn: process.env.SENTRY_DSN ?? '',
     enabled,
     tracesSampleRate: 0,
-    autoSessionTracking: false,
+    // v6 removed `autoSessionTracking` — disable session tracking by dropping
+    // the MainProcessSession integration instead (see @sentry/electron CHANGELOG).
+    integrations: (defaults) => defaults.filter((i) => i.name !== 'MainProcessSession'),
     sendDefaultPii: false,
     beforeSend(event) {
       delete event.user   // never send identity

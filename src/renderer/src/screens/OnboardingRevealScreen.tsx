@@ -11,7 +11,9 @@ const SANS = '"Inter", -apple-system, BlinkMacSystemFont, sans-serif'
 const SIX_WEEKS_MS = 42 * 24 * 60 * 60 * 1000
 
 function initial(name: string): string {
-  return name.trim()[0]?.toUpperCase() ?? '?'
+  const trimmed = name.trim()
+  if (trimmed.startsWith('+')) return '•'
+  return trimmed[0]?.toUpperCase() ?? '?'
 }
 
 function daysSince(dateStr: string | null): number | null {
@@ -64,7 +66,7 @@ export function OnboardingRevealScreen({ onContinue }: Props) {
     <div style={{
       width: '100%',
       height: '100%',
-      background: '#F4E7E2',
+      background: 'var(--bg)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -85,7 +87,7 @@ export function OnboardingRevealScreen({ onContinue }: Props) {
           fontWeight: 600,
           letterSpacing: '0.12em',
           textTransform: 'uppercase',
-          color: '#7A6056',
+          color: 'var(--text-muted)',
           margin: 0,
           textAlign: 'center',
         }}>
@@ -96,7 +98,7 @@ export function OnboardingRevealScreen({ onContinue }: Props) {
           fontFamily: SERIF,
           fontSize: 30,
           fontWeight: 600,
-          color: '#1A100C',
+          color: 'var(--text-primary)',
           lineHeight: 1.3,
           textAlign: 'center',
           maxWidth: 480,
@@ -113,7 +115,7 @@ export function OnboardingRevealScreen({ onContinue }: Props) {
         <p style={{
           fontFamily: SANS,
           fontSize: 15,
-          color: '#6B5447',
+          color: 'var(--text-secondary)',
           lineHeight: 1.55,
           textAlign: 'center',
           maxWidth: 420,
@@ -135,9 +137,9 @@ export function OnboardingRevealScreen({ onContinue }: Props) {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 16,
-                background: '#FFFFFF',
+                background: 'var(--surface)',
                 borderRadius: 12,
-                borderLeft: '4px solid #B8624A',
+                borderLeft: '4px solid var(--accent)',
                 padding: 16,
                 boxShadow: '0 1px 3px rgba(26,16,12,0.07), 0 4px 14px rgba(26,16,12,0.07)',
               }}>
@@ -146,8 +148,8 @@ export function OnboardingRevealScreen({ onContinue }: Props) {
                   width: 44,
                   height: 44,
                   borderRadius: '50%',
-                  background: '#B8624A',
-                  color: '#FFFFFF',
+                  background: 'var(--accent)',
+                  color: 'var(--text-on-accent)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -162,7 +164,7 @@ export function OnboardingRevealScreen({ onContinue }: Props) {
                     fontFamily: SERIF,
                     fontSize: 17,
                     fontWeight: 600,
-                    color: '#1A100C',
+                    color: 'var(--text-primary)',
                     lineHeight: 1.25,
                   }}>
                     {row.contact.name.split(' ')[0]}
@@ -171,7 +173,7 @@ export function OnboardingRevealScreen({ onContinue }: Props) {
                     fontFamily: SANS,
                     fontSize: 13,
                     fontStyle: 'italic',
-                    color: '#6B5447',
+                    color: 'var(--text-secondary)',
                     marginTop: 3,
                     lineHeight: 1.4,
                   }}>
@@ -195,8 +197,8 @@ export function OnboardingRevealScreen({ onContinue }: Props) {
             height: 48,
             borderRadius: 999,
             border: 'none',
-            background: pressed ? '#A6543E' : '#B8624A',
-            color: '#FFFFFF',
+            background: pressed ? 'var(--accent-hover)' : 'var(--accent)',
+            color: 'var(--text-on-accent)',
             fontFamily: SANS,
             fontSize: 15,
             fontWeight: 600,
@@ -212,7 +214,7 @@ export function OnboardingRevealScreen({ onContinue }: Props) {
         <p style={{
           fontFamily: SANS,
           fontSize: 12,
-          color: '#7A6056',
+          color: 'var(--text-muted)',
           textAlign: 'center',
           margin: '14px 0 0',
         }}>

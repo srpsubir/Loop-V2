@@ -16,7 +16,8 @@
     "test:e2e": "npm run build && vitest run --config vitest.e2e.config.ts",
     "test:ipc": "npm run build && wdio run wdio.conf.ts",
     "lint:colors": "node scripts/check-color-tokens.mjs",
-    "test:all": "npm run test && npm run lint:colors && npm run test:e2e && npm run test:ipc"
+    "typecheck": "tsc -b tsconfig.node.json tsconfig.web.json --noEmit",
+    "test:all": "npm run test && npm run lint:colors && npm run typecheck && npm run test:e2e && npm run test:ipc"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.96.0",

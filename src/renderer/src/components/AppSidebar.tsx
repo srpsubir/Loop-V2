@@ -12,6 +12,10 @@ type SidebarSection = 'your-loops' | 'people' | 'chapters' | 'settings'
 
 interface Props {
   currentScreen: string
+  // Which sidebar section the user actually navigated from, for screens (like
+  // 'story') reachable from more than one section — without this, the story
+  // screen always highlighted "Chapters" even when opened from People.
+  storyFrom?: SidebarSection
   onNavigate: (section: SidebarSection) => void
 }
 
@@ -22,15 +26,16 @@ const NAV_ITEMS: { id: SidebarSection; label: string }[] = [
   { id: 'settings', label: 'Settings' },
 ]
 
-function activeSection(screen: string): SidebarSection {
+function activeSection(screen: string, storyFrom?: SidebarSection): SidebarSection {
   if (screen === 'settings') return 'settings'
-  if (screen === 'chapters' || screen === 'chapter-detail' || screen === 'story') return 'chapters'
+  if (screen === 'story') return storyFrom ?? 'chapters'
+  if (screen === 'chapters' || screen === 'chapter-detail' || screen === 'chapter-naming' || screen === 'chapter-crew-picker') return 'chapters'
   if (screen === 'people') return 'people'
   return 'your-loops'
 }
 
-export function AppSidebar({ currentScreen, onNavigate }: Props) {
-  const active = activeSection(currentScreen)
+export function AppSidebar({ currentScreen, storyFrom, onNavigate }: Props) {
+  const active = activeSection(currentScreen, storyFrom)
   const [hov, setHov] = useState<SidebarSection | null>(null)
 
   return (

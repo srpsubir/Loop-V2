@@ -3,22 +3,6 @@
 import React, { useState } from 'react'
 import { Button } from '../components'
 
-const TOKEN_CSS = `
-:root {
-  --bg: #F9F5EE; --surface: #EFE6D6; --surface-raised: #E8DBCA;
-  --text-primary: #2A1F1B; --text-secondary: #6B5447; --text-muted: #7A6056;
-  --text-on-accent: #F9F5EE;
-  --accent: #B8624A; --accent-hover: #A6543E;
-  --border: #DDD0C0; --border-light: #EDE3D5;
-  --font-serif: "Lora", Georgia, serif;
-  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
-  --radius-md: 12px; --radius-lg: 18px; --radius-full: 999px;
-  --shadow-sm: 0 1px 2px rgba(42,31,27,0.05), 0 1px 3px rgba(42,31,27,0.04);
-  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
-  --duration-fast: 120ms;
-  --weight-semibold: 600;
-}`
-
 const ITEMS: { heading: string; body: string }[] = [
   {
     heading: 'What Loop reads',
@@ -63,8 +47,6 @@ export function PrivacyNoticeScreen({ onAccept }: PrivacyNoticeScreenProps) {
         overflowY: 'auto',
       }}
     >
-      <style dangerouslySetInnerHTML={{ __html: TOKEN_CSS }} />
-
       <div style={{ width: '100%', maxWidth: 480 }}>
         {/* Header */}
         <div style={{ marginBottom: 32, textAlign: 'center' }}>

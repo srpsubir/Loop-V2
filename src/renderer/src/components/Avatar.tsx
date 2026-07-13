@@ -17,7 +17,15 @@ function nameToHue(name: string): string {
   return palette[idx]
 }
 
-function initials(name: string): string {
+// Masked-phone/contact placeholders (e.g. "+56 9123 45678", produced when a
+// real display name isn't known yet — see jidToName() in CrewDetectionScreen
+// and the equivalent in ChapterInferenceScreen) always start with "+"; real
+// human contact names never do. Running a masked string through the
+// whitespace-split initials algorithm below produces garbage (e.g. "+9"),
+// since it just takes the first character of each token — use a neutral
+// placeholder instead.
+export function safeInitials(name: string): string {
+  if (name.startsWith('+')) return '•'
   return name
     .split(' ')
     .slice(0, 2)
@@ -69,7 +77,7 @@ export function Avatar({ src, name = '', size = 44, ring = 'none', style }: Avat
         ...style,
       }}
     >
-      {initials(name)}
+      {safeInitials(name)}
     </div>
   )
 }

@@ -6,7 +6,9 @@ type CSS = React.CSSProperties
 const WARM_FILTER = 'sepia(.32) saturate(1.05) hue-rotate(-8deg)'
 
 function Avatar({ name, size = 28 }: { name: string; size?: number }) {
-  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
+  const initials = name.startsWith('+')
+    ? '•'
+    : name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
   const tints = ['var(--people)', 'var(--accent-light)', 'var(--positive)', 'var(--people)', 'var(--accent)']
   let h = 0
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0

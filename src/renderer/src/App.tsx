@@ -50,7 +50,7 @@ type Nav =
   | { screen: 'chapters' }
   | { screen: 'chapter-detail'; chapterId: string }
   | { screen: 'chapter-crew-picker'; chapterId: string }
-  | { screen: 'story'; contactId: string; chapterId: string }
+  | { screen: 'story'; contactId: string; chapterId: string; from: 'your-loops' | 'people' | 'chapters' }
   | { screen: 'settings' }
 
 // ─── Welcome screen ───────────────────────────────────────────────────────────
@@ -375,6 +375,7 @@ function AppShell({
     <div style={{ display: 'flex', height: '100%' } as React.CSSProperties}>
       <AppSidebar
         currentScreen={nav.screen}
+        storyFrom={nav.screen === 'story' ? nav.from : undefined}
         onNavigate={(section) => {
           if (section === 'your-loops') onNavigate({ screen: 'your-loops' })
           else if (section === 'people') onNavigate({ screen: 'people' })
@@ -686,7 +687,7 @@ export default function App() {
             <YourLoopsScreen
               onOpenChapter={(chapterId) => setNav({ screen: 'chapter-detail', chapterId })}
               onOpenSettings={() => setNav({ screen: 'settings' })}
-              onOpenStory={(contactId, chapterId) => setNav({ screen: 'story', contactId, chapterId })}
+              onOpenStory={(contactId, chapterId) => setNav({ screen: 'story', contactId, chapterId, from: 'your-loops' })}
               onRetryChapterDetection={() => setNav({ screen: 'chapter-inference' })}
             />
           </ConnectionStateProvider>
@@ -701,7 +702,7 @@ export default function App() {
             onNavigate={(screen, params) => {
               if (screen === 'story' && params && typeof params === 'object') {
                 const { contactId, chapterId } = params as { contactId: string; chapterId: string }
-                setNav({ screen: 'story', contactId, chapterId })
+                setNav({ screen: 'story', contactId, chapterId, from: 'people' })
               }
             }}
           />
@@ -726,7 +727,7 @@ export default function App() {
             <ChapterDetailScreen
               chapterId={nav.chapterId}
               onBack={goYourLoops}
-              onOpenStory={(contactId) => setNav({ screen: 'story', contactId, chapterId: nav.chapterId })}
+              onOpenStory={(contactId) => setNav({ screen: 'story', contactId, chapterId: nav.chapterId, from: 'chapters' })}
               onPickCrew={() => setNav({ screen: 'chapter-crew-picker', chapterId: nav.chapterId })}
             />
           </ConnectionStateProvider>

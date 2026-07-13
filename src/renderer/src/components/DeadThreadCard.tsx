@@ -15,7 +15,9 @@ export function DeadThreadCard({ contact, weeksSince, onTryAgain, onLetItRest }:
   const [hovReachOut, setHovReachOut] = useState(false)
   const [hovLetItRest, setHovLetItRest] = useState(false)
   const firstName = contact.name.split(' ')[0] ?? contact.name
-  const initials = contact.name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
+  const initials = contact.name.startsWith('+')
+    ? '•'
+    : contact.name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
 
   return (
     <section

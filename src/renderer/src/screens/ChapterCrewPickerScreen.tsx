@@ -28,7 +28,7 @@ function relativeTime(isoDate: string | null | undefined): string {
 // ─── Avatar circle ────────────────────────────────────────────────────────────
 
 function Avatar({ name, size = 44 }: { name: string; size?: number }) {
-  const initial = name.charAt(0).toUpperCase()
+  const initial = name.startsWith('+') ? '•' : name.charAt(0).toUpperCase()
   return (
     <div
       style={{
@@ -168,7 +168,7 @@ function TrayAvatar({ name }: { name: string }) {
           fontWeight: 600,
         }}
       >
-        {name.charAt(0).toUpperCase()}
+        {name.startsWith('+') ? '•' : name.charAt(0).toUpperCase()}
       </div>
       <span
         style={{

@@ -14,7 +14,7 @@ export function OnboardingFeltMomentScreen({ onContinue }: Props) {
     <div style={{
       width: '100%',
       height: '100%',
-      background: '#F4E7E2',
+      background: 'var(--bg)',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
@@ -30,7 +30,7 @@ export function OnboardingFeltMomentScreen({ onContinue }: Props) {
         fontSize: 38,
         lineHeight: 1.35,
         letterSpacing: '-0.01em',
-        color: '#1A100C',
+        color: 'var(--text-primary)',
         maxWidth: 580,
         margin: 0,
       }}>
@@ -60,13 +60,13 @@ export function OnboardingFeltMomentScreen({ onContinue }: Props) {
           fontSize: 12,
           letterSpacing: '0.09em',
           textTransform: 'uppercase',
-          color: '#B8624A',
+          color: 'var(--accent)',
           fontWeight: 500,
         }}>
           Continue
         </span>
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-          <path d="M9 3.5v11M4 10l5 5 5-5" stroke="#B8624A" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M9 3.5v11M4 10l5 5 5-5" stroke="var(--accent)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
     </div>

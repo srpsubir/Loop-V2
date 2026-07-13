@@ -39,7 +39,7 @@ function ContactAvatar({ name, size = 44 }: { name: string; size?: number }) {
         lineHeight: 1,
         userSelect: 'none',
       }}>
-        {name[0]?.toUpperCase()}
+        {name.startsWith('+') ? '•' : name[0]?.toUpperCase()}
       </span>
     </div>
   )

@@ -1,4 +1,4 @@
-export { Avatar } from './Avatar'
+export { Avatar, safeInitials } from './Avatar'
 export { Button } from './Button'
 export { IconButton } from './IconButton'
 export { PaperCard } from './PaperCard'

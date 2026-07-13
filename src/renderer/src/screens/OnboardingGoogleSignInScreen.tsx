@@ -14,7 +14,10 @@ export function OnboardingGoogleSignInScreen({ onDone }: Props) {
   // Pull first name from WhatsApp creds — available in memory by this point
   useEffect(() => {
     window.loop.state.get().then((s) => {
-      const name = (s as Record<string, unknown>).whatsappDisplayName as string | undefined
+      // whatsappDisplayName isn't a field on AppState — nothing currently
+      // writes it, so this personalization is inert until that's wired up.
+      // Cast is deliberately widened via unknown; falls back to generic copy.
+      const name = (s as unknown as Record<string, unknown>).whatsappDisplayName as string | undefined
       if (name) setDisplayName(name.split(' ')[0])
     }).catch(() => {})
   }, [])
@@ -152,7 +155,11 @@ export function OnboardingGoogleSignInScreen({ onDone }: Props) {
               fontFamily: SANS,
               fontSize: 15,
               fontWeight: 500,
-              color: 'var(--text-primary)',
+              // Fixed, not themed: this button is always white per Google's
+              // Sign-In branding guidelines, so its label can't use
+              // --text-primary (which flips light in dark mode and would be
+              // near-invisible against the button's fixed white background).
+              color: '#3C4043',
             }}
           >
             {loading ? 'Signing in…' : 'Sign in with Google'}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Settings, X } from 'lucide-react'
-import { IconButton } from '../components'
+import { IconButton, safeInitials } from '../components'
 import { ConnectionStatusBadge } from '../components/ConnectionStatusBadge'
 import { useConnectionState } from '../ConnectionStateContext'
 import { NudgeCard } from '../components/NudgeCard'
@@ -11,6 +11,15 @@ import { OnYourMindSection } from '../components/OnYourMindSection'
 import { SkeletonCard } from '../components/SkeletonPulse'
 import type { AppState, Contact, ContactState, OnThisDayMemory, Chapter } from '@shared/types'
 import { toPng } from 'html-to-image'
+
+// Masked-phone placeholders (see safeInitials() in components/Avatar.tsx) always
+// start with "+" and must never be run through single-letter initials derivation
+// either — crew-stack avatars here use a single letter (not safeInitials' two),
+// so this is a distinct guarded variant, not just a call to safeInitials().
+function crewInitial(name: string): string {
+  if (name.startsWith('+')) return '\u2022'
+  return name.trim().split(/\s+/)[0]?.[0]?.toUpperCase() ?? '?'
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -340,7 +349,7 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory, on
         chapter,
         atomState: deriveAtomState(chapterContacts, state.contacts),
         crewColors: crew.map((c) => tintFor(c.name)),
-        crewInitials: crew.map((c) => c.name.trim().split(/\s+/)[0]?.[0]?.toUpperCase() ?? '?'),
+        crewInitials: crew.map((c) => crewInitial(c.name)),
       }
     })
   }, [state, contacts])
@@ -499,7 +508,7 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory, on
     return contacts
       .filter((c) => c.chapterIds.includes(echoChapter.id))
       .slice(0, 4)
-      .map((c) => c.name.trim().split(/\s+/)[0]?.[0]?.toUpperCase() ?? '?')
+      .map((c) => crewInitial(c.name))
   }, [echoChapter, contacts])
 
   // Opening moment: only when there are zero urgent signals
@@ -690,7 +699,7 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory, on
         <div style={{ padding: '16px 44px 0', flexShrink: 0 }}>
           <NudgeCard
             contact={nudgeContact}
-            contactInitials={nudgeContact.name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
+            contactInitials={safeInitials(nudgeContact.name)}
             nudgeText={`${nudgeContact.name.split(' ')[0]} has been quiet in your life lately.`}
             onMessage={handleNudgeMessage}
             onDismiss={handleNudgeDismiss}

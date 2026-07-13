@@ -749,6 +749,7 @@ class WhatsAppManager extends EventEmitter {
     }
 
     const groupById = new Map(groups.map(g => [g.id, g]))
+    const nowSec = Math.floor(Date.now() / 1000)
 
     const clusters: ContactCluster[] = []
     for (const members of rawClusters) {
@@ -793,7 +794,6 @@ class WhatsAppManager extends EventEmitter {
 
       const eraStart = timestamps.length > 0 ? timestamps[0] : 0
       const lastActivity = Math.max(...sharedGroupIds.map(gid => groupById.get(gid)?.lastMessageAt ?? 0))
-      const nowSec = Math.floor(Date.now() / 1000)
       const eraEnd = (nowSec - lastActivity) > 90 * 86400 ? lastActivity : null
 
       // Cohesion: fraction of contact pairs that share 2+ groups
@@ -835,22 +835,49 @@ class WhatsAppManager extends EventEmitter {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const sock = this.socket as any
+
+      // Fetch directly from WA servers, not this.chatStore — chatStore only
+      // populates passively as chats sync/receive messages and is unreliable
+      // right after a fresh session (same reasoning as listGroupsWithMeta()).
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const allChats: any[] = Array.from(this.chatStore.values())
+      let groupMap: Record<string, any> = {}
+      try {
+        const timeout = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('groupFetchAllParticipating timeout')), 20000)
+        )
+        groupMap = await Promise.race([sock.groupFetchAllParticipating(), timeout])
+      } catch (err) {
+        console.error('[WA] listGroups: groupFetchAllParticipating failed:', err)
+        return []
+      }
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const groups = allChats.filter((c: any) => c.id?.endsWith('@g.us'))
+      const candidateEntries: any[] = []
+      for (const meta of Object.values(groupMap).slice(0, 200)) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const m = meta as any
+        const groupId: string = m.id
+        const resolvedName: string = m.subject ?? ''
+        if (!resolvedName || resolvedName === groupId) continue
+        if (m.isCommunity || m.isCommunityAnnounce) continue
+        if (groupId.endsWith('@newsletter')) continue
+        candidateEntries.push(m)
+      }
+
+      // groupFetchAllParticipating()'s bulk `participants` field is unreliable
+      // right after a fresh session — fetch real per-group membership instead,
+      // rate-limited (see fetchRealGroupMembers doc comment).
+      const realMembersByGroup = await this.fetchRealGroupMembers(
+        sock,
+        candidateEntries.map((m) => m.id as string)
+      )
 
       const results = []
-      for (const group of groups.slice(0, 100)) {
-        let members: string[] = []
-        try {
-          const meta = await sock.groupMetadata(group.id)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          members = (meta?.participants ?? []).map((p: any) => p.id as string)
-        } catch { /* skip */ }
-        if (group.name && group.name !== group.id) {
-          results.push({ id: group.id, name: group.name, members })
-        }
+      for (const m of candidateEntries) {
+        const groupId: string = m.id
+        const members = realMembersByGroup.get(groupId) ?? []
+        if (members.length === 0) continue // fetch failed or timed out — skip, don't guess
+        results.push({ id: groupId, name: m.subject as string, members })
       }
       return results
     } catch {

@@ -147,28 +147,40 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
 
   // ── Chapter detection ─────────────────────────────────────────────────────
 
-  let detecting = false
+  // Concurrent callers (e.g. React StrictMode's dev-mode double-invoke of
+  // ChapterInferenceScreen's mount effect) must all await the SAME in-flight
+  // detection pass, not get short-circuited to an empty array — a caller that
+  // got [] back here would render "no chapters" permanently, since this
+  // screen only fetches once on mount and never re-reads state.json after.
+  let detectPromise: Promise<import('../shared/types').ChapterCandidate[]> | null = null
   ipcMain.handle('chapters:detect', async () => {
-    if (detecting) return []
-    detecting = true
-    try {
-      const timeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('chapters:detect timed out after 30s')), 30_000)
-      )
-      const { clusters, groups } = await Promise.race([wa.buildContactClusters(), timeout])
-      const { top, rest } = clustersToCandidates(clusters, groups)
-      await patchState({ detectedChapters: top, pendingChapters: rest })
-      track('chapters_detected', {
-        count_shown: top.length,
-        count_total: top.length + rest.length,
-        used_clusters: clusters.length >= 3,
-        cluster_count: clusters.length,
-      })
-      getWindow()?.webContents.send('state:changed')
-      return top
-    } finally {
-      detecting = false
-    }
+    if (detectPromise) return detectPromise
+    detectPromise = (async () => {
+      try {
+        // Must exceed WhatsAppManager.GROUP_META_TOTAL_BUDGET_MS (90s) — the
+        // rate-limited per-group metadata fetch inside listGroupsWithMeta() can
+        // legitimately run that long on accounts with many groups. A shorter
+        // timeout here made every real detection pass reject before that fetch
+        // could finish, silently regressing chapter detection to "always empty".
+        const timeout = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('chapters:detect timed out after 100s')), 100_000)
+        )
+        const { clusters, groups } = await Promise.race([wa.buildContactClusters(), timeout])
+        const { top, rest } = clustersToCandidates(clusters, groups)
+        await patchState({ detectedChapters: top, pendingChapters: rest })
+        track('chapters_detected', {
+          count_shown: top.length,
+          count_total: top.length + rest.length,
+          used_clusters: clusters.length >= 3,
+          cluster_count: clusters.length,
+        })
+        getWindow()?.webContents.send('state:changed')
+        return top
+      } finally {
+        detectPromise = null
+      }
+    })()
+    return detectPromise
   })
 
   ipcMain.handle('chapters:confirm', async (_e, confirmedJids: string[]) => {

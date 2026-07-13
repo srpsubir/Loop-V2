@@ -12,6 +12,7 @@ interface ContactTierIndicatorProps {
 }
 
 function toInitials(name: string): string {
+  if (name.startsWith('+')) return '•'
   return name
     .split(/\s+/)
     .filter(Boolean)

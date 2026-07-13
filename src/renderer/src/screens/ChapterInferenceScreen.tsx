@@ -4,29 +4,18 @@ import type { ChapterCandidate } from '@shared/types'
 
 type CSS = React.CSSProperties
 
-const TOKEN_CSS = `
-:root {
-  --bg: #F9F5EE; --surface: #EFE6D6; --surface-raised: #E8DBCA;
-  --text-primary: #2A1F1B; --text-secondary: #6B5447; --text-muted: #A38F85;
-  --text-on-accent: #F9F5EE;
-  --accent: #B8624A; --accent-hover: #A6543E; --terracotta-faint: #F5EAD8;
-  --rose: #C49A8A; --terracotta-light: #D4856E; --sage: #6A9470;
-  --positive: #6A9470; --positive-faint: #EAF2EB;
-  --border: #DDD0C0; --border-light: #EDE3D5;
-  --font-serif: "Lora", Georgia, serif;
-  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
-  --radius-md: 12px; --radius-lg: 18px; --radius-full: 999px;
-  --shadow-sm: 0 1px 2px rgba(42,31,27,0.05), 0 1px 3px rgba(42,31,27,0.04);
-  --shadow-md: 0 1px 2px rgba(42,31,27,0.05), 0 4px 12px rgba(42,31,27,0.07);
-  --shadow-lg: 0 2px 4px rgba(42,31,27,0.06), 0 8px 24px rgba(42,31,27,0.10);
-  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
-  --duration-fast: 120ms; --duration-base: 200ms;
-}`
-
 // ─── Design primitives ────────────────────────────────────────────────────────
 
 function Avatar({ name, size = 32 }: { name: string; size?: number }) {
-  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
+  // Masked/anonymised contact placeholders (e.g. "+70 ...8070", produced for both real
+  // phone-number JIDs and WhatsApp's newer privacy-preserving @lid JIDs) always start
+  // with "+" - running them through the human-name initials algorithm below produces
+  // garbage ("+.") since it just takes the first character of each whitespace-split
+  // token. Use a neutral placeholder instead of deriving fake initials from punctuation.
+  const isMaskedContact = name.startsWith('+')
+  const initials = isMaskedContact
+    ? '\u2022'
+    : name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
   const tints = ['#C49A8A', '#D4856E', '#6A9470', '#C49A8A', '#B8624A']
   let h = 0
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0
@@ -177,9 +166,7 @@ function ChapterInferenceView({ chapters, onConfirm, onSkip }: {
   const count = confirmed.size
 
   return (
-    <div data-screen-label="ChapterInference" style={{ minHeight: '100%', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
-      <style dangerouslySetInnerHTML={{ __html: TOKEN_CSS }} />
-
+    <div data-screen-label="ChapterInference" style={{ height: '100%', overflowY: 'auto', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
       <div style={{ maxWidth: 760, width: '100%', margin: '0 auto', padding: '52px 40px 120px' }}>
         <header style={{ marginBottom: 44 }}>
           <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 38, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1.15, margin: '0 0 12px' }}>
@@ -239,7 +226,6 @@ export function ChapterInferenceScreen({ onComplete, onSkip }: {
   if (loading) {
     return (
       <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
-        <style dangerouslySetInnerHTML={{ __html: TOKEN_CSS }} />
         <div style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--text-muted)', fontStyle: 'italic' }}>
           Reading your groups…
         </div>

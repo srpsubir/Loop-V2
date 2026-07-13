@@ -4,7 +4,7 @@
 
 1. Run `npm run test` — all 114 vitest unit tests must pass (6 files, node + jsdom environments)
 2. For any change touching IPC handlers or navigation routing: run `npm run test:ipc` — all wdio tests must pass
-3. No TypeScript errors: `npx tsc --noEmit` must exit clean
+3. No TypeScript errors: `npm run typecheck` must exit clean. **Do not run bare `npx tsc --noEmit`** — the root `tsconfig.json` has `"files": []` and delegates to project references, so the bare command silently checks zero files and always exits 0. This let a real scoping bug (`nowSec` used outside its block in `whatsapp.ts`) ship undetected for two weeks. `npm run typecheck` runs `tsc -b tsconfig.node.json tsconfig.web.json --noEmit`, which actually resolves both projects.
 
 ## Test pyramid
 

@@ -32,45 +32,16 @@ interface CrewDetectionScreenProps {
 
 function jidToName(jid: string): string {
   const phone = jid.replace(/@.*$/, '').replace(/[^0-9]/g, '')
-  if (phone.length < 6) return jid
+  // Too short to be a real phone/lid number — return a masked placeholder
+  // (not the raw jid) so this still reads as "unknown contact" rather than
+  // leaking an internal id string, and so Avatar's "+" guard catches it.
+  if (phone.length < 6) return '+••••'
   return `+${phone.slice(0, 2)} ${phone.slice(2, 6)} ${phone.slice(6)}`
 }
 
 function slugify(s: string): string {
   return s.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 48)
 }
-
-// ─── Mock data (fallback when WhatsApp IPC unavailable) ───────────────────────
-
-const MOCK_CHAPTERS: Chapter[] = [
-  { id: 'ch-1', name: 'Edinburgh years', active: false, startYear: 2012, endYear: 2016 },
-  { id: 'ch-2', name: 'London days',     active: false, startYear: 2016, endYear: 2020 },
-  { id: 'ch-3', name: 'Working years',   active: true,  startYear: 2020 },
-]
-
-const MOCK_GROUPS: WAGroupRow[] = [
-  {
-    id: 'g1', name: 'Edinburgh Flat 2014 🏠', memberCount: 6, chapterId: null,
-    memberNames: ['Priya Raman', 'Marcus Bell', 'Jo Okafor', 'Lena Müller', 'Tom Reid', 'Caitlin Ross'],
-  },
-  {
-    id: 'g2', name: "Deloitte Cohort '16", memberCount: 9, chapterId: null,
-    memberNames: ['Sarah Chen', 'James Oduya', 'Fatima Hassan', 'Daniel Park', 'Mei Lin',
-                  'Ravi Kapoor', 'Claire Morin', 'Ben Ashford', 'Yuki Tanaka'],
-  },
-  {
-    id: 'g3', name: 'Camden crew', memberCount: 7, chapterId: null,
-    memberNames: ['Mike Adeyemi', 'Clara Svensson', 'Rishi Patel', 'Nina Kowalski', 'Tom Okeke', 'Sam Davies', 'Freya Hansen'],
-  },
-  {
-    id: 'g4', name: 'Berlin squad 🇩🇪', memberCount: 4, chapterId: null,
-    memberNames: ['Kai Schmidt', 'Ana Pereira', 'Felix Bauer', 'Mia Wolf'],
-  },
-  {
-    id: 'g5', name: 'Family', memberCount: 6, chapterId: null,
-    memberNames: ['Mum', 'Dad', 'Sam', 'Gran', 'Uncle Pete', 'Auntie Kath'],
-  },
-]
 
 // ─── ChapterPill ──────────────────────────────────────────────────────────────
 
@@ -246,7 +217,7 @@ function AvatarCell({ member, onToggle }: { member: CrewMember; onToggle: () => 
 
 export function CrewDetectionScreen({ onComplete, onSkip }: CrewDetectionScreenProps) {
   const [step, setStep]         = useState(0)
-  const [chapters, setChapters] = useState<Chapter[]>(MOCK_CHAPTERS)
+  const [chapters, setChapters] = useState<Chapter[]>([])
   const [groups, setGroups]     = useState<WAGroupRow[]>([])
   const [members, setMembers]   = useState<CrewMember[]>([])
   const [loading, setLoading]   = useState(false)
@@ -255,7 +226,7 @@ export function CrewDetectionScreen({ onComplete, onSkip }: CrewDetectionScreenP
   useEffect(() => {
     window.loop.state.get()
       .then(s => { if (s.chapters?.length) setChapters(s.chapters) })
-      .catch(() => { /* keep MOCK_CHAPTERS */ })
+      .catch(() => { /* no chapters yet — real empty state, not fabricated */ })
   }, [])
 
   // ── Step 0 → 1: scan groups ───────────────────────────────────────────────
@@ -271,9 +242,9 @@ export function CrewDetectionScreen({ onComplete, onSkip }: CrewDetectionScreenP
         memberNames: g.members,
         chapterId: null,
       }))
-      setGroups(rows.length ? rows : MOCK_GROUPS)
+      setGroups(rows)
     } catch {
-      setGroups(MOCK_GROUPS)
+      setGroups([])
     }
     setLoading(false)
     setStep(1)
@@ -422,17 +393,26 @@ export function CrewDetectionScreen({ onComplete, onSkip }: CrewDetectionScreenP
           }}>
             Assign each group to a chapter. Anyone in an assigned group will show up in Your Loop.
           </p>
-          <PaperCard raised padding={0} style={{ overflow: 'visible' }}>
-            {groups.map((group, i) => (
-              <GroupRow
-                key={group.id}
-                group={group}
-                chapters={chapters}
-                onAssign={assignChapter}
-                isLast={i === groups.length - 1}
-              />
-            ))}
-          </PaperCard>
+          {groups.length === 0 ? (
+            <div style={{
+              fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)',
+              fontStyle: 'italic', padding: '8px 0',
+            }}>
+              Loop couldn't find any groups on this account. Your WhatsApp session may still be syncing — try again in a moment.
+            </div>
+          ) : (
+            <PaperCard raised padding={0} style={{ overflow: 'visible' }}>
+              {groups.map((group, i) => (
+                <GroupRow
+                  key={group.id}
+                  group={group}
+                  chapters={chapters}
+                  onAssign={assignChapter}
+                  isLast={i === groups.length - 1}
+                />
+              ))}
+            </PaperCard>
+          )}
         </div>
       </div>
       <div style={{

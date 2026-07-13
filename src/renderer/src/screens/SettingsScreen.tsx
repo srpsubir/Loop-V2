@@ -61,7 +61,9 @@ function IconBtn({ icon, label, onClick, size = 36 }: {
 }
 
 function AvatarEl({ name, size = 46, ring = 'none' }: { name: string; size?: number; ring?: 'none' | 'sage' }) {
-  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
+  const initials = name.startsWith('+')
+    ? '•'
+    : name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
   const tints = ['var(--rose)', 'var(--terracotta-light)', 'var(--sage)', 'var(--rose)', 'var(--accent)']
   let h = 0
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0
