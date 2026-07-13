@@ -25,6 +25,29 @@ export interface WAMessage {
   text: string | null
 }
 
+// MAV-256: persistent cache for listGroups()'s broad group listing — before
+// this, every call re-ran the full rate-limited per-group fetch from scratch,
+// even seconds after an identical fetch (e.g. back-to-back onboarding steps).
+// Separate from groups-discovered.json (see EVAL_DUMP_PATH below): that file
+// is written by the narrower, always-fresh listGroupsWithMeta() candidate set
+// used for chapter detection, and mixing the two shapes/filters into one
+// cache would make listGroups() silently under-report groups on a hit.
+interface CachedGroup {
+  id: string
+  name: string
+  members: string[]
+  lastMessageAt: number
+  createdAt: number | null
+}
+
+interface GroupCacheFile {
+  writtenAt: number
+  groups: CachedGroup[]
+}
+
+const GROUP_CACHE_PATH = join(LOOP_DIR, 'groups-cache.json')
+const EVAL_DUMP_PATH = join(LOOP_DIR, 'groups-discovered.json')
+
 // Louvain modularity optimisation (Blondel et al. 2008).
 // graph: node → (neighbor → weight). Returns node → communityLabel.
 // Maximises Q = fraction of intra-community edges minus random-graph expectation.
@@ -110,6 +133,18 @@ class WhatsAppManager extends EventEmitter {
   private static readonly MAX_RECONNECT_ATTEMPTS = 8
   private static readonly MAX_CIRCUIT_BREAKER_RETRIES = 3
   private static readonly CIRCUIT_BREAKER_BACKOFF = [800, 2000, 5000]
+
+  // MAV-256: in-memory mirror of GROUP_CACHE_PATH, lazily loaded once per
+  // process and kept warm afterward by passive groups.upsert/groups.update/
+  // group-participants.update listeners (registered in start()) plus full
+  // rewrites whenever listGroups()/listGroupsWithMeta() do a real fetch.
+  private groupCache = new Map<string, CachedGroup>()
+  private groupCacheWrittenAt: number | null = null
+  private groupCacheLoaded = false
+  // Freshness window: group membership doesn't need to be more current than
+  // this for the app's actual use cases (occasional chapter detection / group
+  // scan, not live chat) — picked as "a day" per MAV-256, not tuned further.
+  private static readonly GROUP_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000
 
   static getInstance(): WhatsAppManager {
     if (!WhatsAppManager.instance) WhatsAppManager.instance = new WhatsAppManager()
@@ -312,6 +347,17 @@ class WhatsAppManager extends EventEmitter {
       sock.ev.on('creds.update', async () => {
         await this.saveCreds?.()
       })
+
+      // MAV-256: keep the group cache warm incrementally between full
+      // fetches. These only fire for changes that happen while connected —
+      // they cannot backfill history on a fresh connection, so listGroups()
+      // must still be able to do a real fetch on a cache miss; this is a
+      // top-up, not a replacement for that fetch. Handlers are extracted
+      // methods (rather than inline closures) so they're unit-testable
+      // without going through the full start()/makeWASocket() flow.
+      sock.ev.on('groups.upsert', this.handleGroupsUpsert.bind(this))
+      sock.ev.on('groups.update', this.handleGroupsUpdate.bind(this))
+      sock.ev.on('group-participants.update', this.handleGroupParticipantsUpdate.bind(this))
     } catch (err) {
       console.error('[WhatsApp] Failed to start:', err)
       this.setStatus('disconnected')
@@ -331,6 +377,15 @@ class WhatsAppManager extends EventEmitter {
     this.currentQR = null
     this.hasConnectedOnce = false
     this.storeReady = false
+    // MAV-256: a full disconnect/logout can be followed by linking a
+    // different WhatsApp account — don't let that account inherit this one's
+    // cached group data.
+    this.groupCache.clear()
+    this.groupCacheWrittenAt = null
+    this.groupCacheLoaded = false
+    try {
+      await fs.unlink(GROUP_CACHE_PATH)
+    } catch { /* fine if it never existed */ }
     await this.clearAuth()
   }
 
@@ -460,6 +515,100 @@ class WhatsAppManager extends EventEmitter {
     })
   }
 
+  // ─── MAV-256: group cache ───────────────────────────────────────────────────
+
+  private async loadGroupCache(): Promise<void> {
+    if (this.groupCacheLoaded) return
+    this.groupCacheLoaded = true
+    try {
+      const raw = await fs.readFile(GROUP_CACHE_PATH, 'utf-8')
+      const parsed: unknown = JSON.parse(raw)
+      // Back-compat: the pre-MAV-256 file was a bare array with no freshness
+      // metadata (it was write-only, never read back). Load its contents but
+      // treat them as stale so the first real call still does a fresh fetch.
+      if (Array.isArray(parsed)) {
+        for (const g of parsed as CachedGroup[]) this.groupCache.set(g.id, g)
+        this.groupCacheWrittenAt = null
+        return
+      }
+      const file = parsed as GroupCacheFile
+      for (const g of file.groups ?? []) this.groupCache.set(g.id, g)
+      this.groupCacheWrittenAt = file.writtenAt ?? null
+    } catch {
+      // No cache file yet, or unreadable/corrupt — proceed with an empty
+      // cache, same as a fresh install. Not fatal; the cache is a perf
+      // optimisation on top of the real fetch path, never a source of truth.
+    }
+  }
+
+  private async saveGroupCache(): Promise<void> {
+    this.groupCacheWrittenAt = Date.now()
+    const file: GroupCacheFile = {
+      writtenAt: this.groupCacheWrittenAt,
+      groups: [...this.groupCache.values()],
+    }
+    try {
+      await fs.writeFile(GROUP_CACHE_PATH, JSON.stringify(file, null, 2))
+    } catch { /* non-fatal — see loadGroupCache() */ }
+  }
+
+  private isGroupCacheFresh(): boolean {
+    return (
+      this.groupCacheWrittenAt !== null &&
+      Date.now() - this.groupCacheWrittenAt < WhatsAppManager.GROUP_CACHE_MAX_AGE_MS &&
+      this.groupCache.size > 0
+    )
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private handleGroupsUpsert(metas: any[]): void {
+    for (const m of metas) {
+      const existing = this.groupCache.get(m.id)
+      this.groupCache.set(m.id, {
+        id: m.id,
+        name: m.subject ?? existing?.name ?? '',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        members: (m.participants ?? []).map((p: any) => p.id as string),
+        lastMessageAt: existing?.lastMessageAt ?? 0,
+        createdAt: m.creation ?? existing?.createdAt ?? null,
+      })
+    }
+    this.saveGroupCache().catch(() => {})
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private handleGroupsUpdate(partials: any[]): void {
+    for (const p of partials) {
+      // A partial update for a group we haven't cached yet carries no
+      // reliable member list — wait for a real fetch instead of guessing.
+      const existing = this.groupCache.get(p.id)
+      if (!existing) continue
+      this.groupCache.set(p.id, { ...existing, name: p.subject ?? existing.name })
+    }
+    this.saveGroupCache().catch(() => {})
+  }
+
+  private handleGroupParticipantsUpdate({
+    id,
+    participants,
+    action,
+  }: {
+    id: string
+    participants: string[]
+    action: string
+  }): void {
+    const existing = this.groupCache.get(id)
+    if (!existing) return // not cached yet — the next full fetch will pick it up
+    const members =
+      action === 'add'
+        ? [...new Set([...existing.members, ...participants])]
+        : action === 'remove'
+          ? existing.members.filter((m) => !participants.includes(m))
+          : existing.members
+    this.groupCache.set(id, { ...existing, members })
+    this.saveGroupCache().catch(() => {})
+  }
+
   async listGroupsWithMeta(): Promise<{
     id: string
     name: string
@@ -562,10 +711,17 @@ class WhatsAppManager extends EventEmitter {
         })
       }
 
-      // Persist for eval pipeline — overwrite on each scan so it stays fresh
+      // Persist for eval pipeline — overwrite on each scan so it stays fresh.
+      // Deliberately NOT the same file/shape as the MAV-256 group cache below:
+      // this method's candidateEntries filter (GARBAGE_NAME_RE, <=50 members)
+      // is strictly narrower than listGroups()'s, so writing this narrower
+      // result set into the shared cache would make listGroups() silently
+      // under-report groups on a cache hit. This method also always does a
+      // real fetch regardless of cache state (chapter-inference — its only
+      // caller via buildContactClusters() — represents a deliberate,
+      // explicit user request for fresh results every time it's reached).
       try {
-        const cachePath = join(LOOP_DIR, 'groups-discovered.json')
-        await fs.writeFile(cachePath, JSON.stringify(results, null, 2))
+        await fs.writeFile(EVAL_DUMP_PATH, JSON.stringify(results, null, 2))
       } catch { /* non-fatal */ }
 
       return results
@@ -832,6 +988,15 @@ class WhatsAppManager extends EventEmitter {
 
   async listGroups(): Promise<{ id: string; name: string; members: string[] }[]> {
     if (!this.socket) return []
+
+    // MAV-256: serve from cache when fresh — skips the rate-limited fetch
+    // entirely (previously always 60-120s+, hitting rate-overlimit on most
+    // groups, even for back-to-back calls seconds apart).
+    await this.loadGroupCache()
+    if (this.isGroupCacheFresh()) {
+      return [...this.groupCache.values()].map(({ id, name, members }) => ({ id, name, members }))
+    }
+
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const sock = this.socket as any
@@ -879,6 +1044,16 @@ class WhatsAppManager extends EventEmitter {
         if (members.length === 0) continue // fetch failed or timed out — skip, don't guess
         results.push({ id: groupId, name: m.subject as string, members })
       }
+
+      // MAV-256: refresh the cache with this real result set so the next
+      // call (within GROUP_CACHE_MAX_AGE_MS, or kept fresh incrementally by
+      // the groups.upsert/update and group-participants.update listeners
+      // registered in start()) can skip the fetch entirely.
+      for (const r of results) {
+        this.groupCache.set(r.id, { id: r.id, name: r.name, members: r.members, lastMessageAt: 0, createdAt: null })
+      }
+      await this.saveGroupCache()
+
       return results
     } catch {
       return []

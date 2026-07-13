@@ -83,7 +83,7 @@ export function PeopleScreen({ onNavigate }: PeopleScreenProps) {
           fontFamily: SERIF,
           fontSize: 22,
           fontWeight: 400,
-          color: '#1A100C',
+          color: 'var(--text-primary)',
           margin: '0 0 20px 0',
         }}>
           Your People
@@ -100,7 +100,7 @@ export function PeopleScreen({ onNavigate }: PeopleScreenProps) {
               <div
                 key={contact.id}
                 style={{
-                  background: '#FFFFFF',
+                  background: 'var(--surface)',
                   borderRadius: 12,
                   padding: '14px 18px',
                   boxShadow: '0 1px 4px rgba(26,16,12,0.07)',
@@ -113,21 +113,21 @@ export function PeopleScreen({ onNavigate }: PeopleScreenProps) {
                   width: 44,
                   height: 44,
                   borderRadius: '50%',
-                  background: '#B8624A',
-                  border: '2px solid #B8624A',
-                  outline: '2px solid #B8624A',
+                  background: 'var(--accent)',
+                  border: '2px solid var(--accent)',
+                  outline: '2px solid var(--accent)',
                   outlineOffset: 2,
                   flexShrink: 0,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#FFFFFF',
+                  color: 'var(--text-on-accent)',
                   fontFamily: SANS,
                   fontWeight: 600,
                   fontSize: 16,
                   userSelect: 'none',
                 }}>
-                  {contact.name.trim()[0]?.toUpperCase()}
+                  {contact.name.trim().startsWith('+') ? '•' : contact.name.trim()[0]?.toUpperCase()}
                 </div>
 
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -135,7 +135,7 @@ export function PeopleScreen({ onNavigate }: PeopleScreenProps) {
                     fontFamily: SERIF,
                     fontSize: 16,
                     fontWeight: 600,
-                    color: '#1A100C',
+                    color: 'var(--text-primary)',
                     lineHeight: 1.3,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -146,7 +146,7 @@ export function PeopleScreen({ onNavigate }: PeopleScreenProps) {
                   <div style={{
                     fontFamily: SANS,
                     fontSize: 12,
-                    color: '#7A6056',
+                    color: 'var(--text-muted)',
                     marginTop: 2,
                   }}>
                     {lastSpokeLabel(days)}
@@ -156,7 +156,7 @@ export function PeopleScreen({ onNavigate }: PeopleScreenProps) {
                       fontFamily: SANS,
                       fontSize: 13,
                       fontStyle: 'italic',
-                      color: '#B8624A',
+                      color: 'var(--accent)',
                       marginTop: 3,
                     }}>
                       {storyPreview}
@@ -168,8 +168,8 @@ export function PeopleScreen({ onNavigate }: PeopleScreenProps) {
                   type="button"
                   onClick={() => onNavigate('story', { contactId: contact.id, chapterId: contact.chapterIds[0] ?? '' })}
                   style={{
-                    background: '#B8624A',
-                    color: '#FFFFFF',
+                    background: 'var(--accent)',
+                    color: 'var(--text-on-accent)',
                     border: 'none',
                     borderRadius: 999,
                     padding: '7px 14px',
@@ -204,7 +204,7 @@ export function PeopleScreen({ onNavigate }: PeopleScreenProps) {
                 tabIndex={0}
                 onKeyDown={(e) => e.key === 'Enter' && onNavigate('story', { contactId: contact.id, chapterId: contact.chapterIds[0] ?? '' })}
                 style={{
-                  background: '#EDD9D2',
+                  background: 'var(--surface)',
                   borderRadius: 12,
                   padding: '12px 16px',
                   boxShadow: '0 1px 3px rgba(26,16,12,0.04)',
@@ -218,19 +218,19 @@ export function PeopleScreen({ onNavigate }: PeopleScreenProps) {
                   width: 34,
                   height: 34,
                   borderRadius: '50%',
-                  background: '#EDD9D2',
-                  border: '1.5px solid rgba(26,16,12,0.10)',
+                  background: 'var(--surface-raised)',
+                  border: '1.5px solid var(--border)',
                   flexShrink: 0,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#6B5447',
+                  color: 'var(--text-secondary)',
                   fontFamily: SANS,
                   fontWeight: 500,
                   fontSize: 13,
                   userSelect: 'none',
                 }}>
-                  {contact.name.trim()[0]?.toUpperCase()}
+                  {contact.name.trim().startsWith('+') ? '•' : contact.name.trim()[0]?.toUpperCase()}
                 </div>
 
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -238,7 +238,7 @@ export function PeopleScreen({ onNavigate }: PeopleScreenProps) {
                     fontFamily: SERIF,
                     fontSize: 14,
                     fontWeight: 400,
-                    color: '#1A100C',
+                    color: 'var(--text-primary)',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
@@ -248,14 +248,14 @@ export function PeopleScreen({ onNavigate }: PeopleScreenProps) {
                   <div style={{
                     fontFamily: SANS,
                     fontSize: 12,
-                    color: '#7A6056',
+                    color: 'var(--text-muted)',
                     marginTop: 1,
                   }}>
                     {lastSpokeLabel(days)}
                   </div>
                 </div>
 
-                <ChevronRight size={15} strokeWidth={2} color="#7A6056" style={{ flexShrink: 0 }} />
+                <ChevronRight size={15} strokeWidth={2} color="var(--text-muted)" style={{ flexShrink: 0 }} />
               </div>
             )
           })}
@@ -264,11 +264,11 @@ export function PeopleScreen({ onNavigate }: PeopleScreenProps) {
             <div style={{
               fontFamily: SANS,
               fontSize: 14,
-              color: '#7A6056',
+              color: 'var(--text-muted)',
               fontStyle: 'italic',
               paddingTop: 8,
             }}>
-              No people added yet. Mark someone as Close or Warm from their Story.
+              No people added yet. Mark someone as Close or Warm from their world.
             </div>
           )}
         </div>
