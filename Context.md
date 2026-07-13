@@ -1,5 +1,23 @@
 # Loop — Session Context
-_Updated: 2026-07-13_
+_Updated: 2026-07-13 (continued)_
+
+---
+
+## 2026-07-13 (cont'd) — Post-audit follow-through: tests, MAV-256, remaining gaps closed
+
+Everything flagged as "NOT done" in the section below has now been addressed, in order:
+
+1. **`test:e2e`/`test:ipc` run for the first time this session.** Initially 11/13 failing in the wdio suite — root-caused to genuine machine resource contention (low free RAM, stray leftover `--loop-e2e-test` processes), not an app regression; fixed by replacing flaky fixed-duration `browser.pause()` calls with `waitForExist()` polling. All four gates (typecheck, unit, e2e, ipc) now verified clean together. Commit `978c8d5`.
+2. **MAV-256 implemented**: `listGroups()` now checks a persistent `groups-cache.json` (24h staleness) before doing a real fetch, kept warm via `groups.upsert`/`groups.update`/`group-participants.update` listeners. `chapters:detect()` deliberately left doing a real fetch always (every call site there is an explicit "give me fresh results" action). `disconnect()` clears the cache. 9 new unit tests. Commit `8551157`.
+3. **Dead button found and fixed**: "Add someone not on this list" in `ChapterCrewPickerScreen.tsx` had no `onClick` handler at all — found via source read while prepping the interactions pass. Implemented a minimal inline add-person flow. Commit `19504cc`. **Live-verified working** (added a real test contact, confirmed correct rendering; test contact then removed from `LoopData/contacts/`).
+4. **`PeopleScreen.tsx`'s entire contact-card block found broken in dark mode** — a bug the original sweep missed because there was no real contact data to reveal it until onboarding started working end-to-end. Fixed. Commit `8551157` (bundled with MAV-256).
+5. **Off-token `#C4613C` accent color** (StayCloseScreen, StoryScreen) — fixed to `var(--accent)`, restoring the dark-mode contrast boost. Commit `e626b2b`.
+6. **Search bar dropdown found to have never respected dark mode at all** (`TitlebarSearch.tsx`: hardcoded `#FFFFFF` dropdown background, a placeholder color fixed via raw `<style>` tag that would be invisible on a dark input) — plus the same ungated garbled-avatar-initials bug in a spot the original 10-file sweep missed (this file's `initial()` helper doesn't use the `.split()` pattern that sweep grepped for). Fixed. Commit `70ff6e5`. **Functionally live-verified working** — typed "+56", got a real matching dropdown result. (Two earlier live-test attempts had failed and one accidentally leaked keystrokes into an unrelated Chrome window — root cause was Terminal being OS-frontmost the whole time, not an app bug; fixed by explicitly `osascript`-activating the Loop process before typing.)
+7. **Content/tone fixes (all 8 findings from the earlier review) — fork in progress.** Covers: the "Relationship strength"/CRM-like labeling on Stay Close, raw-phone-number nudge copy, a stray "their Story" naming instance, unexplained raw WhatsApp group names on first view, the onboarding same-question-twice issue, a singular/plural grammar bug, the Google Sign-In fallback headline (confirmed landed: "One more thing." → "Almost there."), and "closed" → warmer wording for chapter status. Not yet committed as of this snapshot — check `git log` for a commit after `70ff6e5` to confirm it landed.
+8. **Delete-all-data dialog**: still deliberately never opened live — the auto-mode classifier correctly blocked a coordinate-based click near it as indistinguishable from the destructive action itself, and that caution was accepted rather than pushed past. Source-confirmed correctly tokenized (dark-mode safe) via direct code read instead.
+9. User freed ~3.8GB of disk space (npm/Xcode/various caches) mid-session at Claude's suggestion after disk pressure was noticed.
+
+**Next step once the content/tone fork lands**: verify (typecheck/test/lint:colors), commit, and confirm with the user whether anything else remains before calling this fully closed.
 
 ---
 
