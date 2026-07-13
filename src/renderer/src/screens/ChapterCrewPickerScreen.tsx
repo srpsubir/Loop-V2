@@ -195,6 +195,8 @@ export function ChapterCrewPickerScreen({ chapterId, onSave, onBack }: Props) {
   const [appState, setAppState] = useState<AppState | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
+  const [addingNew, setAddingNew] = useState(false)
+  const [newName, setNewName] = useState('')
 
   useEffect(() => {
     async function load() {
@@ -219,6 +221,26 @@ export function ChapterCrewPickerScreen({ chapterId, onSave, onBack }: Props) {
     }
     load()
   }, [chapterId])
+
+  const handleAddNew = async () => {
+    const name = newName.trim()
+    if (!name) { setAddingNew(false); return }
+    const id = `${name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}-${Date.now().toString(36)}`
+    const contact: Contact = {
+      id,
+      name,
+      chapterIds: [chapterId],
+      tier: 'warm',
+      createdAt: new Date().toISOString(),
+    }
+    try {
+      await window.loop.contacts.save(contact)
+    } catch { /* best-effort, still reflect locally */ }
+    setContacts((prev) => [...prev, contact])
+    setSelected((prev) => new Set(prev).add(id))
+    setNewName('')
+    setAddingNew(false)
+  }
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -400,24 +422,69 @@ export function ChapterCrewPickerScreen({ chapterId, onSave, onBack }: Props) {
           </div>
         )}
 
-        {/* Add someone link */}
-        <button
-          type="button"
-          style={{
-            marginTop: 16,
-            background: 'none',
-            border: 'none',
-            fontFamily: 'var(--font-sans)',
-            fontSize: 13,
-            color: 'var(--text-secondary)',
-            cursor: 'pointer',
-            padding: '4px 16px',
-            textAlign: 'left',
-            borderRadius: 'var(--radius-full)',
-          }}
-        >
-          + Add someone not on this list
-        </button>
+        {/* Add someone */}
+        {addingNew ? (
+          <div style={{ marginTop: 16, display: 'flex', gap: 8, padding: '0 16px', alignItems: 'center' }}>
+            <input
+              autoFocus
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleAddNew()
+                if (e.key === 'Escape') { setAddingNew(false); setNewName('') }
+              }}
+              placeholder="Their name"
+              style={{
+                flex: 1,
+                fontFamily: 'var(--font-sans)',
+                fontSize: 13,
+                color: 'var(--text-primary)',
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-full)',
+                padding: '7px 14px',
+                outline: 'none',
+              }}
+            />
+            <button
+              type="button"
+              onClick={handleAddNew}
+              style={{
+                background: 'var(--accent)',
+                color: 'var(--text-on-accent)',
+                border: 'none',
+                borderRadius: 'var(--radius-full)',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 13,
+                fontWeight: 600,
+                padding: '7px 16px',
+                cursor: 'pointer',
+              }}
+            >
+              Add
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setAddingNew(true)}
+            style={{
+              marginTop: 16,
+              background: 'none',
+              border: 'none',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 13,
+              color: 'var(--text-secondary)',
+              cursor: 'pointer',
+              padding: '4px 16px',
+              textAlign: 'left',
+              borderRadius: 'var(--radius-full)',
+            }}
+          >
+            + Add someone not on this list
+          </button>
+        )}
       </div>
 
       {/* Sticky footer */}
