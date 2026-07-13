@@ -110,7 +110,7 @@ function StrengthBadge({ strength }: { strength?: 'high' | 'medium' | 'low' }) {
     return (
       <span style={{
         fontFamily: 'var(--font-sans)', fontSize: 10, fontWeight: 500,
-        color: '#fff', background: '#C4613C',
+        color: 'var(--text-on-accent)', background: 'var(--accent)',
         borderRadius: 100, padding: '2px 7px', flexShrink: 0,
       }}>Strong</span>
     )
@@ -119,8 +119,8 @@ function StrengthBadge({ strength }: { strength?: 'high' | 'medium' | 'low' }) {
     return (
       <span style={{
         fontFamily: 'var(--font-sans)', fontSize: 10, fontWeight: 500,
-        color: '#C4613C', background: 'transparent',
-        border: '1px solid #C4613C',
+        color: 'var(--accent)', background: 'transparent',
+        border: '1px solid var(--accent)',
         borderRadius: 100, padding: '2px 7px', flexShrink: 0,
       }}>Moderate</span>
     )
@@ -237,7 +237,7 @@ function PickerStep({
                 value={sortMode}
                 onChange={(e) => setSortMode(e.target.value as SortMode)}
                 style={{
-                  fontFamily: 'var(--font-sans)', fontSize: 11, color: '#C4613C',
+                  fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--accent)',
                   background: 'transparent', border: 'none', outline: 'none',
                   cursor: 'pointer', appearance: 'none', paddingRight: 14,
                 }}
@@ -246,7 +246,7 @@ function PickerStep({
                 <option value="recency">Recency</option>
                 <option value="name">Name</option>
               </select>
-              <ChevronDown size={11} strokeWidth={2} color="#C4613C" style={{ marginLeft: -12, pointerEvents: 'none' }} />
+              <ChevronDown size={11} strokeWidth={2} color="var(--accent)" style={{ marginLeft: -12, pointerEvents: 'none' }} />
             </div>
           </div>
           <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-muted)' }}>
@@ -315,12 +315,12 @@ function PickerStep({
                       gap: 12,
                       padding: '10px 20px',
                       paddingLeft: isSelected ? 17 : 20,
-                      borderLeft: isSelected ? '3px solid #C4613C' : '3px solid transparent',
+                      borderLeft: isSelected ? '3px solid var(--accent)' : '3px solid transparent',
                       background: isSelected ? 'rgba(196,97,60,0.04)' : 'transparent',
                       border: 'none',
                       borderLeftWidth: 3,
                       borderLeftStyle: 'solid',
-                      borderLeftColor: isSelected ? '#C4613C' : 'transparent',
+                      borderLeftColor: isSelected ? 'var(--accent)' : 'transparent',
                       cursor: 'pointer',
                       textAlign: 'left',
                       transition: 'background 120ms',
@@ -377,8 +377,8 @@ function PickerStep({
               disabled={count === 0}
               style={{
                 fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600,
-                color: '#fff',
-                background: count > 0 ? '#C4613C' : 'var(--text-muted)',
+                color: 'var(--text-on-accent)',
+                background: count > 0 ? 'var(--accent)' : 'var(--text-muted)',
                 border: 'none', borderRadius: 6,
                 padding: '8px 18px', cursor: count > 0 ? 'pointer' : 'default',
               }}
