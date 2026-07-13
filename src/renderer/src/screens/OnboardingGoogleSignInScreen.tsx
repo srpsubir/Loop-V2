@@ -22,7 +22,7 @@ export function OnboardingGoogleSignInScreen({ onDone }: Props) {
     }).catch(() => {})
   }, [])
 
-  const headline = displayName ? `Almost there, ${displayName}.` : 'One more thing.'
+  const headline = displayName ? `Almost there, ${displayName}.` : 'Almost there.'
 
   const handleGoogleSignIn = async () => {
     if (loading) return

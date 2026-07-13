@@ -173,7 +173,7 @@ function ChapterInferenceView({ chapters, onConfirm, onSkip }: {
             Loop found your chapters
           </h1>
           <p style={{ fontFamily: 'var(--font-sans)', fontSize: 16, lineHeight: 1.65, color: 'var(--text-secondary)', margin: 0, maxWidth: 500 }}>
-            These are the chapters of your life, read from your conversations. Confirm the ones that feel right.
+            These are named from your group chats for now — you'll get to make them feel like yours next. Confirm the ones that feel right.
           </p>
         </header>
 

@@ -79,8 +79,9 @@ function IntentStep({ onContinue }: { onContinue: () => void }) {
           maxWidth: 380,
           margin: '0 auto 36px',
         }}>
-          Pick a few people you care about.
-          Loop will gently remind you if it has been a while.
+          You already told us who matters. Here they are — add anyone else
+          you don't want to lose touch with, and Loop will gently remind you
+          if it's been a while.
         </p>
         <button
           onClick={onContinue}
@@ -105,6 +106,10 @@ function IntentStep({ onContinue }: { onContinue: () => void }) {
 
 // ─── Strength badge ───────────────────────────────────────────────────────────
 
+// Presence, not a score: only surface a gentle signal for people you talk to
+// a lot — no badge at all for everyone else. A three-tier "Strong/Moderate/
+// Light" label on every contact read too much like a CRM metric (see
+// Product-vision.md's explicit "never looks like a CRM with scores").
 function StrengthBadge({ strength }: { strength?: 'high' | 'medium' | 'low' }) {
   if (strength === 'high') {
     return (
@@ -112,27 +117,10 @@ function StrengthBadge({ strength }: { strength?: 'high' | 'medium' | 'low' }) {
         fontFamily: 'var(--font-sans)', fontSize: 10, fontWeight: 500,
         color: 'var(--text-on-accent)', background: 'var(--accent)',
         borderRadius: 100, padding: '2px 7px', flexShrink: 0,
-      }}>Strong</span>
+      }}>Talks often</span>
     )
   }
-  if (strength === 'medium') {
-    return (
-      <span style={{
-        fontFamily: 'var(--font-sans)', fontSize: 10, fontWeight: 500,
-        color: 'var(--accent)', background: 'transparent',
-        border: '1px solid var(--accent)',
-        borderRadius: 100, padding: '2px 7px', flexShrink: 0,
-      }}>Moderate</span>
-    )
-  }
-  return (
-    <span style={{
-      fontFamily: 'var(--font-sans)', fontSize: 10, fontWeight: 500,
-      color: '#9B8B82', background: 'transparent',
-      border: '1px solid #9B8B82',
-      borderRadius: 100, padding: '2px 7px', flexShrink: 0,
-    }}>Light</span>
-  )
+  return null
 }
 
 // ─── Step 2: Picker ───────────────────────────────────────────────────────────
@@ -242,8 +230,8 @@ function PickerStep({
                   cursor: 'pointer', appearance: 'none', paddingRight: 14,
                 }}
               >
-                <option value="strength">Relationship strength</option>
-                <option value="recency">Recency</option>
+                <option value="strength">Closest first</option>
+                <option value="recency">Recently in touch</option>
                 <option value="name">Name</option>
               </select>
               <ChevronDown size={11} strokeWidth={2} color="var(--accent)" style={{ marginLeft: -12, pointerEvents: 'none' }} />
@@ -383,7 +371,7 @@ function PickerStep({
                 padding: '8px 18px', cursor: count > 0 ? 'pointer' : 'default',
               }}
             >
-              Save {count > 0 ? `${count} close ` : ''}contacts
+              Save {count > 0 ? `${count} close ${count === 1 ? 'contact' : 'contacts'}` : 'contacts'}
             </button>
           </div>
         </div>

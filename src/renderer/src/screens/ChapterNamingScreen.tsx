@@ -105,7 +105,7 @@ export function ChapterNamingScreen({ candidate, index, total, onConfirm, onSkip
             color: 'var(--text-muted)',
           }}>
             {candidate.memberCount} {candidate.memberCount === 1 ? 'person' : 'people'}
-            {candidate.active ? ', ongoing' : ', closed'}
+            {candidate.active ? ', ongoing' : ', past'}
           </div>
         </div>
 

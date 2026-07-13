@@ -700,7 +700,11 @@ export function YourLoopsScreen({ onOpenChapter, onOpenSettings, onOpenStory, on
           <NudgeCard
             contact={nudgeContact}
             contactInitials={safeInitials(nudgeContact.name)}
-            nudgeText={`${nudgeContact.name.split(' ')[0]} has been quiet in your life lately.`}
+            nudgeText={
+              nudgeContact.name.trim().startsWith('+')
+                ? 'Someone you\'re close to has been quiet in your life lately.'
+                : `${nudgeContact.name.split(' ')[0]} has been quiet in your life lately.`
+            }
             onMessage={handleNudgeMessage}
             onDismiss={handleNudgeDismiss}
           />

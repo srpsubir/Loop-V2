@@ -351,7 +351,7 @@ export function StoryScreen({ contactId, onBack }: StoryScreenProps) {
                     Close ✓
                   </span>
                   <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: '#9B8B82' }}>
-                    Staying close to {contact?.name.split(' ')[0]}
+                    {contact?.name.trim().startsWith('+') ? 'Staying close to them' : `Staying close to ${contact?.name.split(' ')[0]}`}
                   </span>
                 </div>
               )}
