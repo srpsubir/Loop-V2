@@ -348,6 +348,68 @@ describe('WhatsAppManager', () => {
     })
   })
 
+  // MAV-259: an already-resolved group (via a prior active fetch or a passive
+  // groups.upsert/update event) shouldn't spend a fresh network call every
+  // pass — that budget should go to genuine misses instead.
+  describe('fetchRealGroupMembers() skips groups already well-resolved in cache (MAV-259)', () => {
+    it('skips the active fetch for a group with a plausible cached member count', async () => {
+      const { default: WhatsAppManager } = await import('../main/whatsapp')
+      const wa = WhatsAppManager.getInstance()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cache = (wa as any).groupCache as Map<string, { id: string; name: string; members: string[]; lastMessageAt: number; createdAt: number | null }>
+      cache.set('g1@g.us', {
+        id: 'g1@g.us',
+        name: 'G1',
+        members: ['a@s.whatsapp.net', 'b@s.whatsapp.net', 'c@s.whatsapp.net'],
+        lastMessageAt: 0,
+        createdAt: null,
+      })
+
+      const groupMetadata = vi.fn().mockResolvedValue({ subject: 'G1', participants: [{ id: 'x@s.whatsapp.net' }] })
+      const sock = { groupMetadata }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result: Map<string, string[]> = await (wa as any).fetchRealGroupMembers(sock, ['g1@g.us'])
+
+      expect(groupMetadata).not.toHaveBeenCalled()
+      expect(result.get('g1@g.us')).toEqual(['a@s.whatsapp.net', 'b@s.whatsapp.net', 'c@s.whatsapp.net'])
+    })
+
+    it('still actively fetches a group whose cached entry is too small to trust', async () => {
+      const { default: WhatsAppManager } = await import('../main/whatsapp')
+      const wa = WhatsAppManager.getInstance()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cache = (wa as any).groupCache as Map<string, { id: string; name: string; members: string[]; lastMessageAt: number; createdAt: number | null }>
+      cache.set('g1@g.us', { id: 'g1@g.us', name: 'G1', members: ['a@s.whatsapp.net'], lastMessageAt: 0, createdAt: null })
+
+      const groupMetadata = vi.fn().mockResolvedValue({
+        subject: 'G1',
+        participants: [{ id: 'a@s.whatsapp.net' }, { id: 'b@s.whatsapp.net' }, { id: 'c@s.whatsapp.net' }],
+      })
+      const sock = { groupMetadata }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result: Map<string, string[]> = await (wa as any).fetchRealGroupMembers(sock, ['g1@g.us'])
+
+      expect(groupMetadata).toHaveBeenCalledWith('g1@g.us')
+      expect(result.get('g1@g.us')).toEqual(['a@s.whatsapp.net', 'b@s.whatsapp.net', 'c@s.whatsapp.net'])
+    })
+
+    it('actively fetches a genuinely first-seen group with no cache entry at all', async () => {
+      const { default: WhatsAppManager } = await import('../main/whatsapp')
+      const wa = WhatsAppManager.getInstance()
+
+      const groupMetadata = vi.fn().mockResolvedValue({
+        subject: 'New Group',
+        participants: [{ id: 'a@s.whatsapp.net' }, { id: 'b@s.whatsapp.net' }, { id: 'c@s.whatsapp.net' }],
+      })
+      const sock = { groupMetadata }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result: Map<string, string[]> = await (wa as any).fetchRealGroupMembers(sock, ['never-seen@g.us'])
+
+      expect(groupMetadata).toHaveBeenCalledWith('never-seen@g.us')
+      expect(result.get('never-seen@g.us')).toEqual(['a@s.whatsapp.net', 'b@s.whatsapp.net', 'c@s.whatsapp.net'])
+    })
+  })
+
   // WhatsApp's rate limiter can return a response that *resolves* (no thrown
   // error) but is truncated — e.g. only the requester's own participant entry
   // — under load. That doesn't hit the catch block's cache-fallback logic at

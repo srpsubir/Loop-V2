@@ -457,6 +457,14 @@ class WhatsAppManager extends EventEmitter {
   // candidate, so it's a reasonable bar for "plausibly a genuinely tiny group"
   // vs. "likely a truncated rate-limited response."
   private static readonly SUSPICIOUS_MEMBER_THRESHOLD = 2
+  // MAV-259: deliberately above SUSPICIOUS_MEMBER_THRESHOLD — a cache entry
+  // has to be genuinely plausible, not just "not-suspicious," before it's
+  // trusted to skip a fresh active fetch. Lets the passive groups.upsert/
+  // groups.update/group-participants.update listeners (already wired in
+  // start()) actually reduce active-fetch load: an already-resolved group
+  // stops competing with genuine misses for the same rate-limited batch
+  // budget, instead of being redundantly re-fetched every pass.
+  private static readonly SKIP_ACTIVE_FETCH_MIN_MEMBERS = 3
 
   // MAV-257: WhatsApp's own rate limiter (`rate-overlimit`, not a timeout)
   // consistently lets through only ~1/3 of groups per pass — confirmed via
@@ -495,6 +503,18 @@ class WhatsAppManager extends EventEmitter {
       console.log(`[WA] fetching group metadata: batch ${batchNum}/${totalBatches} (${batch.length} groups)`)
 
       await Promise.all(batch.map(async (groupId) => {
+        // MAV-259: a group already resolved (via a prior active fetch or a
+        // passive groups.upsert/update event) with a plausible member count
+        // doesn't need to spend a network call/batch slot this pass — carry
+        // it forward and let the budget concentrate on genuine misses. An
+        // empty or 1-2-member cached entry is indistinguishable from "not
+        // yet known" and must still attempt a real fetch.
+        const cachedBeforeFetch = this.groupCache.get(groupId)
+        if (cachedBeforeFetch && cachedBeforeFetch.members.length >= WhatsAppManager.SKIP_ACTIVE_FETCH_MIN_MEMBERS) {
+          membersByGroup.set(groupId, cachedBeforeFetch.members)
+          return
+        }
+
         try {
           const timeout = new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error('groupMetadata timeout')), WhatsAppManager.GROUP_META_PER_CALL_TIMEOUT_MS)
