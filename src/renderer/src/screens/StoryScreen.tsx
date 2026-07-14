@@ -343,14 +343,14 @@ export function StoryScreen({ contactId, onBack }: StoryScreenProps) {
                     fontFamily: 'var(--font-sans)',
                     fontSize: 11,
                     fontWeight: 500,
-                    color: '#fff',
+                    color: 'var(--text-on-accent)',
                     background: 'var(--accent)',
                     borderRadius: 100,
                     padding: '4px 10px',
                   }}>
                     Close ✓
                   </span>
-                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: '#9B8B82' }}>
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--text-muted)' }}>
                     {contact?.name.trim().startsWith('+') ? 'Staying close to them' : `Staying close to ${contact?.name.split(' ')[0]}`}
                   </span>
                 </div>
