@@ -452,6 +452,11 @@ class WhatsAppManager extends EventEmitter {
   private static readonly GROUP_META_BATCH_DELAY_MS = 1500
   private static readonly GROUP_META_PER_CALL_TIMEOUT_MS = 8_000
   private static readonly GROUP_META_TOTAL_BUDGET_MS = 90_000
+  // One below chapters.ts's MIN_MEMBERS=3 gate — a real fetch returning this
+  // few participants is already too small to ever produce a usable chapter
+  // candidate, so it's a reasonable bar for "plausibly a genuinely tiny group"
+  // vs. "likely a truncated rate-limited response."
+  private static readonly SUSPICIOUS_MEMBER_THRESHOLD = 2
 
   // MAV-257: WhatsApp's own rate limiter (`rate-overlimit`, not a timeout)
   // consistently lets through only ~1/3 of groups per pass — confirmed via
@@ -497,17 +502,53 @@ class WhatsAppManager extends EventEmitter {
           const meta = await Promise.race([sock.groupMetadata(groupId), timeout])
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const participants = (meta?.participants ?? []).map((p: any) => p.id as string)
-          membersByGroup.set(groupId, participants)
           const existing = this.groupCache.get(groupId)
-          this.groupCache.set(groupId, {
-            id: groupId,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            name: (meta as any)?.subject ?? existing?.name ?? '',
-            members: participants,
-            lastMessageAt: existing?.lastMessageAt ?? 0,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            createdAt: (meta as any)?.creation ?? existing?.createdAt ?? null,
-          })
+
+          // A groupMetadata() call can resolve without throwing yet still be
+          // truncated — WhatsApp's rate limiter sometimes returns only the
+          // requester's own participant entry under load instead of a real
+          // error. That doesn't hit the catch block below, so without this
+          // check a truncated-but-"successful" response would silently
+          // overwrite a previously-good, fuller cached member list. Cross-check
+          // against Baileys' own meta.size (participant count) when present,
+          // and never let an implausibly small result regress a cache entry
+          // that already has more members than this fetch returned.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const declaredSize = typeof (meta as any)?.size === 'number' ? (meta as any).size : undefined
+          const suspiciouslySmall = participants.length <= WhatsAppManager.SUSPICIOUS_MEMBER_THRESHOLD
+          const disagreesWithDeclaredSize = declaredSize !== undefined && declaredSize > participants.length
+          const regressesKnownGoodCache = existing !== undefined && existing.members.length > participants.length
+          const looksTruncated = suspiciouslySmall && (disagreesWithDeclaredSize || regressesKnownGoodCache)
+
+          if (looksTruncated && existing && existing.members.length > 0) {
+            console.warn(
+              `[WA] groupMetadata for ${groupId} returned ${participants.length} participants` +
+              `${declaredSize !== undefined ? ` (declared size ${declaredSize})` : ''} — looks truncated, keeping ` +
+              `previously-cached ${existing.members.length} instead of overwriting`
+            )
+            membersByGroup.set(groupId, existing.members)
+          } else {
+            // First-ever sighting of this group, or a result that isn't
+            // suspicious — accept it. An incomplete first sighting is still
+            // better than leaving the group unresolved entirely.
+            if (looksTruncated) {
+              console.warn(
+                `[WA] groupMetadata for ${groupId} returned only ${participants.length} participants` +
+                `${declaredSize !== undefined ? ` (declared size ${declaredSize})` : ''} and no prior cache exists — ` +
+                `accepting anyway as a first sighting`
+              )
+            }
+            membersByGroup.set(groupId, participants)
+            this.groupCache.set(groupId, {
+              id: groupId,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              name: (meta as any)?.subject ?? existing?.name ?? '',
+              members: participants,
+              lastMessageAt: existing?.lastMessageAt ?? 0,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              createdAt: (meta as any)?.creation ?? existing?.createdAt ?? null,
+            })
+          }
         } catch (err) {
           console.warn(`[WA] groupMetadata failed for ${groupId}, skipping:`, err instanceof Error ? err.message : err)
           // Don't let a rate-limited/failed fetch erase a group resolved on

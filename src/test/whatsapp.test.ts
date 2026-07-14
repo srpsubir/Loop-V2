@@ -347,4 +347,96 @@ describe('WhatsAppManager', () => {
       expect(pass2).toEqual([{ id: 'g1@g.us', name: 'Real Group', members: ['a@s.whatsapp.net'] }])
     })
   })
+
+  // WhatsApp's rate limiter can return a response that *resolves* (no thrown
+  // error) but is truncated — e.g. only the requester's own participant entry
+  // — under load. That doesn't hit the catch block's cache-fallback logic at
+  // all, so without an explicit plausibility check a "successful" truncated
+  // fetch would silently overwrite a previously-good, fuller cached member
+  // list with a wrong, tiny one.
+  describe('fetchRealGroupMembers() rejects implausibly truncated "successful" responses', () => {
+    it('does not overwrite a good cached entry when the fresh fetch disagrees with declared size', async () => {
+      const { default: WhatsAppManager } = await import('../main/whatsapp')
+      const wa = WhatsAppManager.getInstance()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cache = (wa as any).groupCache as Map<string, { id: string; name: string; members: string[]; lastMessageAt: number; createdAt: number | null }>
+      const realMembers = Array.from({ length: 8 }, (_, i) => `m${i}@s.whatsapp.net`)
+      cache.set('g1@g.us', { id: 'g1@g.us', name: 'G1', members: realMembers, lastMessageAt: 0, createdAt: null })
+
+      const sock = {
+        groupMetadata: vi.fn().mockResolvedValue({
+          subject: 'G1',
+          size: 8,
+          participants: [{ id: 'me@s.whatsapp.net' }], // truncated to just the requester
+        }),
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result: Map<string, string[]> = await (wa as any).fetchRealGroupMembers(sock, ['g1@g.us'])
+
+      expect(result.get('g1@g.us')).toEqual(realMembers)
+      expect(cache.get('g1@g.us')).toMatchObject({ members: realMembers })
+    })
+
+    it('does not overwrite a good cached entry when the fresh fetch regresses the known member count, even with no declared size', async () => {
+      const { default: WhatsAppManager } = await import('../main/whatsapp')
+      const wa = WhatsAppManager.getInstance()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cache = (wa as any).groupCache as Map<string, { members: string[] }>
+      const realMembers = Array.from({ length: 5 }, (_, i) => `m${i}@s.whatsapp.net`)
+      cache.set('g1@g.us', { id: 'g1@g.us', name: 'G1', members: realMembers, lastMessageAt: 0, createdAt: null } as never)
+
+      const sock = {
+        groupMetadata: vi.fn().mockResolvedValue({
+          subject: 'G1',
+          // no `size` field at all — must still catch the regression via the cache comparison
+          participants: [{ id: 'me@s.whatsapp.net' }],
+        }),
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result: Map<string, string[]> = await (wa as any).fetchRealGroupMembers(sock, ['g1@g.us'])
+
+      expect(result.get('g1@g.us')).toEqual(realMembers)
+    })
+
+    it('accepts a small result as a first sighting when no prior cache entry exists', async () => {
+      const { default: WhatsAppManager } = await import('../main/whatsapp')
+      const wa = WhatsAppManager.getInstance()
+
+      const sock = {
+        groupMetadata: vi.fn().mockResolvedValue({
+          subject: 'Brand New Group',
+          size: 8,
+          participants: [{ id: 'me@s.whatsapp.net' }],
+        }),
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result: Map<string, string[]> = await (wa as any).fetchRealGroupMembers(sock, ['new@g.us'])
+
+      expect(result.get('new@g.us')).toEqual(['me@s.whatsapp.net'])
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect((wa as any).groupCache.get('new@g.us')).toMatchObject({ members: ['me@s.whatsapp.net'] })
+    })
+
+    it('updates the cache normally when the fresh participant count is plausible (agrees with declared size)', async () => {
+      const { default: WhatsAppManager } = await import('../main/whatsapp')
+      const wa = WhatsAppManager.getInstance()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cache = (wa as any).groupCache as Map<string, { members: string[] }>
+      cache.set('g1@g.us', { id: 'g1@g.us', name: 'G1', members: ['old1@s.whatsapp.net', 'old2@s.whatsapp.net'], lastMessageAt: 0, createdAt: null } as never)
+
+      const freshMembers = Array.from({ length: 6 }, (_, i) => `n${i}@s.whatsapp.net`)
+      const sock = {
+        groupMetadata: vi.fn().mockResolvedValue({
+          subject: 'G1',
+          size: 6,
+          participants: freshMembers.map((id) => ({ id })),
+        }),
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result: Map<string, string[]> = await (wa as any).fetchRealGroupMembers(sock, ['g1@g.us'])
+
+      expect(result.get('g1@g.us')).toEqual(freshMembers)
+      expect(cache.get('g1@g.us')).toMatchObject({ members: freshMembers })
+    })
+  })
 })
