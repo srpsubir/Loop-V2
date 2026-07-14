@@ -6,7 +6,7 @@ type CSS = React.CSSProperties
 
 // ─── Design primitives ────────────────────────────────────────────────────────
 
-function Avatar({ name, size = 32 }: { name: string; size?: number }) {
+function Avatar({ name, size = 32, ring = false }: { name: string; size?: number; ring?: boolean }) {
   // Masked/anonymised contact placeholders (e.g. "+70 ...8070", produced for both real
   // phone-number JIDs and WhatsApp's newer privacy-preserving @lid JIDs) always start
   // with "+" - running them through the human-name initials algorithm below produces
@@ -19,8 +19,11 @@ function Avatar({ name, size = 32 }: { name: string; size?: number }) {
   const tints = ['#C49A8A', '#D4856E', '#6A9470', '#C49A8A', '#B8624A']
   let h = 0
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0
+  // Stacked avatars need a ring matching the page background to read as
+  // separate circles instead of merging into one blob at 31% overlap.
+  const boxShadow = ring ? '0 0 0 2px var(--bg), var(--shadow-sm)' : 'var(--shadow-sm)'
   return (
-    <div style={{ width: size, height: size, borderRadius: 'var(--radius-full)', flex: 'none', background: tints[h % tints.length], color: '#F9F5EE', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: Math.round(size * 0.38), letterSpacing: '0.01em', boxShadow: 'var(--shadow-sm)' }}>{initials}</div>
+    <div style={{ width: size, height: size, borderRadius: 'var(--radius-full)', flex: 'none', background: tints[h % tints.length], color: '#F9F5EE', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: Math.round(size * 0.38), letterSpacing: '0.01em', boxShadow }}>{initials}</div>
   )
 }
 
@@ -30,12 +33,12 @@ function AvatarStack({ names }: { names: string[] }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center' }}>
       {show.map((n, i) => (
-        <div key={n} style={{ marginLeft: i ? -10 : 0, position: 'relative', zIndex: show.length - i }}>
-          <Avatar name={n} size={32} />
+        <div key={n} style={{ marginLeft: i ? -8 : 0, position: 'relative', zIndex: show.length - i }}>
+          <Avatar name={n} size={32} ring={i > 0} />
         </div>
       ))}
       {rest > 0 && (
-        <div style={{ marginLeft: -10, width: 32, height: 32, borderRadius: 'var(--radius-full)', background: 'var(--surface-raised)', zIndex: 0, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>+{rest}</div>
+        <div style={{ marginLeft: -8, width: 32, height: 32, borderRadius: 'var(--radius-full)', background: 'var(--surface-raised)', boxShadow: '0 0 0 2px var(--bg)', zIndex: 0, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>+{rest}</div>
       )}
     </div>
   )

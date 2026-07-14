@@ -81,8 +81,12 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --parchment-bg:      #1C1008;
-    --parchment-surface: #251610;
-    --parchment-raised:  #2E1C13;
+    /* Option A (2026-07-14 design review): raised surface/raised floor so
+       cards separate from the near-black base instead of nearly merging
+       into it. Doubles the bg→surface→raised contrast step; --parchment-bg
+       and --terracotta are deliberately untouched. */
+    --parchment-surface: #2E1D14;
+    --parchment-raised:  #3A2518;
     --terracotta:        #C8724E;
     --terracotta-light:  #D48A6A;
     --terracotta-faint:  #2E1E14;
@@ -104,8 +108,8 @@
 
 :root[data-theme="dark"] {
   --parchment-bg:      #1C1008;
-  --parchment-surface: #251610;
-  --parchment-raised:  #2E1C13;
+  --parchment-surface: #2E1D14;
+  --parchment-raised:  #3A2518;
   --terracotta:        #C8724E;
   --terracotta-light:  #D48A6A;
   --terracotta-faint:  #2E1E14;
