@@ -170,7 +170,11 @@ function ChapterInferenceView({ chapters, onConfirm, onSkip }: {
 
   return (
     <div data-screen-label="ChapterInference" style={{ height: '100%', overflowY: 'auto', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ maxWidth: 760, width: '100%', margin: '0 auto', padding: '52px 40px 120px' }}>
+      {/* Bottom padding must clear the fixed footer below (~88px of its own
+          padding+button height) with real margin — 120px was cutting into
+          the last card's avatar row on shorter windows (found live,
+          2026-07-14). */}
+      <div style={{ maxWidth: 760, width: '100%', margin: '0 auto', padding: '52px 40px 168px' }}>
         <header style={{ marginBottom: 44 }}>
           <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 38, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1.15, margin: '0 0 12px' }}>
             Loop found your chapters
