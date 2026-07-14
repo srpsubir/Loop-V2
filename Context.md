@@ -3,6 +3,26 @@ _Updated: 2026-07-14_
 
 ---
 
+## 2026-07-14 (cont'd) — Shipped v1.1.2 as stable checkpoint; second verification pass deferred
+
+**Decision**: ship the current state as `v1.1.2` (tagged, `package.json` bumped from 1.1.1) rather than keep chasing a fully clean live verification of the group-metadata fix in the same session. Rationale (founder's call): too much changed today to hold the whole release hostage to one hard-to-isolate live test, but a real second pass is still owed before wider confidence — not skipped, deferred.
+
+**What's in this checkpoint**: everything from the "Real cold-start test" section above, plus this session's later work:
+- `b943bb2` — deleted dead `WelcomeScreen` + `OnboardingBeat3Screen` (confirmed unreachable)
+- `a2af9bb` — dark-mode Option A (raised surface/raised floor) + avatar-stack spacing fix (chapter-candidate row)
+- `202750b` — chapter-card footer-overlap bug (found live, sticky footer covered last card)
+- `bd41c1a` / `8900f53` — rescan-verification harness work; confirmed WebDriver/Electron automation structurally cannot reach the real WhatsApp session (isolated profile by design) — any future live verification needs a human click or a new non-WebDriver mechanism, not more harness tuning
+- `MAV-258` filed — Loop has no manual "rescan groups" trigger outside onboarding; this is *why* today's live verification kept getting contaminated by forced app restarts
+- `npm run test:all` clean at ship time: unit 210/210, e2e 10 passed/6 skipped, ipc 13/13, typecheck clean, lint:colors clean
+
+**Beeper cross-validation (real signal, not just theoretical)**: of 10 most-recent low-member-count cached groups checked against Beeper Desktop directly, 2 showed genuine undercounts consistent with the truncation bug — "Plans today" (cached 3, actually ≥5) and "Athens Weekend Crew" (cached 3, actually ≥4). Confirms `0814d92` was fixing a real, live issue, not a theoretical one.
+
+**Open item carried into next pass — `0814d92` (truncated group-metadata fix)**:
+- Code has been independently reviewed and confirmed correct twice (direct review; separately while investigating the MAV-257 accumulation logic).
+- A same-session two-pass live test was attempted multiple times today and never came back fully clean — every attempt got contaminated by an app quit/restart in between (which the disconnect-on-logout cache-clear, or an untracked intermediate quit, disturbs). Final attempt: 45/49 groups matched with **zero regressions** among matched entries (the actual thing `0814d92` protects against held), but **4 groups with real prior data (7, 13, 28, 3 members) went missing between the pass-1 snapshot and the final read** — root cause not found; `loadGroupCache()`/`saveGroupCache()` code reads as correct (full load-merge-write, no filtering), so the leading theory is an untracked app quit/relaunch in between rather than a bug in the merge logic itself, but this was **not confirmed**, only inferred.
+- **Next-pass checklist**: (1) get one truly uninterrupted two-scan session — no app quit/restart of any kind between scans, verified by watching the process the whole time, not inferring from logs after the fact; (2) if the 4-group disappearance reproduces under a verified-clean two-pass session, that's a real bug in the persistence layer and needs its own investigation separate from `0814d92`; (3) if it doesn't reproduce, close `0814d92` and this note out for good.
+- Consider building `MAV-258` (manual rescan trigger) first — it would make this verification trivial to run cleanly, instead of fighting the onboarding-only flow every time.
+
 ## 2026-07-14 — Real cold-start test: 2 launch-blocking bugs found live, both fixed. Linear cleaned up.
 
 This section covers everything since the last snapshot: closing out the CPO memo's action items (MAV-75/192/193/199/257), a security/privacy audit, a coverage-completeness re-check, and — the headline event — an actual full cold-start test against the real account, which is the only reason the two most serious bugs below were ever found.
