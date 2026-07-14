@@ -29,10 +29,14 @@ export function OnboardingGoogleSignInScreen({ onDone }: Props) {
     setLoading(true)
     try {
       const result = await window.loop.account.signInWithGoogle()
-      await window.loop.state.patch({
-        emailCaptured: true,
-        ...(result ? { email: result.email, googleId: result.googleId } : {}),
-      })
+      // account:signInWithGoogle's IPC handler already persists email/googleId
+      // itself (main-process write, bypassing the renderer allowlist by
+      // design). Re-sending them here used to include disallowed keys in this
+      // renderer-side patch, which silently rejects the *entire* patch
+      // (RENDERER_PATCH_ALLOWLIST) — including emailCaptured, so a genuinely
+      // successful sign-in was never remembered and this screen would
+      // resurface on every future launch. Patch only the one allowlisted key.
+      await window.loop.state.patch({ emailCaptured: true })
       onDone(result?.email ?? null)
     } catch {
       onDone(null)
