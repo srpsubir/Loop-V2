@@ -380,7 +380,6 @@ export function SettingsScreen({ onBack, onConnect }: SettingsScreenProps) {
             )}
           </Section>
 
-
           <Section
             label="People"
             footnote="Removing someone only removes them from Loop. Your actual conversations are never touched."
