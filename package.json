@@ -15,6 +15,7 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "npm run build && vitest run --config vitest.e2e.config.ts",
     "test:ipc": "npm run build && wdio run wdio.conf.ts",
+    "verify:rescan": "npm run build && wdio run wdio.rescan.conf.ts",
     "lint:colors": "node scripts/check-color-tokens.mjs",
     "typecheck": "tsc -b tsconfig.node.json tsconfig.web.json --noEmit",
     "test:all": "npm run test && npm run lint:colors && npm run typecheck && npm run test:e2e && npm run test:ipc"
