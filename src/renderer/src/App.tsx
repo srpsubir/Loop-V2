@@ -20,7 +20,6 @@ import { OnboardingFeltMomentScreen } from './screens/OnboardingFeltMomentScreen
 import { OnboardingNormaliseScreen } from './screens/OnboardingNormaliseScreen'
 import { OnboardingRevealScreen } from './screens/OnboardingRevealScreen'
 import { OnboardingNameYourPeopleScreen } from './screens/OnboardingNameYourPeopleScreen'
-import { OnboardingBeat3Screen } from './screens/OnboardingBeat3Screen'
 import { ChapterCrewPickerScreen } from './screens/ChapterCrewPickerScreen'
 import { PeopleScreen } from './screens/PeopleScreen'
 import { ChaptersScreen } from './screens/ChaptersScreen'
@@ -32,10 +31,8 @@ import { ConnectionStateProvider } from './ConnectionStateContext'
 // ─── Nav state ────────────────────────────────────────────────────────────────
 
 type Nav =
-  | { screen: 'welcome' }
   | { screen: 'onboarding-felt-moment' }
   | { screen: 'onboarding-normalise' }
-  | { screen: 'onboarding-beat3' }
   | { screen: 'onboarding-name-your-people' }
   | { screen: 'onboarding-reveal' }
   | { screen: 'privacy-notice' }
@@ -52,140 +49,6 @@ type Nav =
   | { screen: 'chapter-crew-picker'; chapterId: string }
   | { screen: 'story'; contactId: string; chapterId: string; from: 'your-loops' | 'people' | 'chapters' }
   | { screen: 'settings' }
-
-// ─── Welcome screen ───────────────────────────────────────────────────────────
-
-function WelcomeScreen({ onConnect }: { onConnect: () => void }) {
-  return (
-    <div
-      style={{
-        height: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--bg)',
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          width: '100%',
-          maxWidth: 480,
-          padding: '0 32px',
-        }}
-      >
-        {/* Mark + wordmark */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, marginBottom: 32 }}>
-          <svg width={88} height={88} viewBox="0 0 120 120" fill="none" role="img" aria-label="Loop">
-            <path d="M67 40 C 92 40, 96 74, 72 82 C 48 90, 30 74, 33 54 C 36 36, 58 28, 74 36 C 92 45, 92 78, 66 84 C 44 89, 26 76, 26 76" stroke="#B8624A" strokeWidth="7.5" strokeLinecap="round" fill="none"></path>
-          </svg>
-          <span
-            style={{
-              fontFamily: 'var(--font-serif)',
-              fontSize: 36,
-              fontWeight: 600,
-              color: '#2A1F1B',
-              letterSpacing: '-0.01em',
-              lineHeight: 1,
-            }}
-          >
-            Loop
-          </span>
-        </div>
-
-        {/* Tagline */}
-        <p
-          style={{
-            fontFamily: 'var(--font-serif)',
-            fontStyle: 'italic',
-            fontSize: 22,
-            color: '#2A1F1B',
-            textAlign: 'center',
-            lineHeight: 1.4,
-            marginBottom: 12,
-          }}
-        >
-          Every chapter of your life, and the people you lived it with.
-        </p>
-
-        {/* Bridge line */}
-        <p
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 13,
-            color: '#A38F85',
-            textAlign: 'center',
-            lineHeight: 1.5,
-            marginBottom: 40,
-          }}
-        >
-          Our lives happen in conversations with our people.
-        </p>
-
-        {/* Steps */}
-        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', gap: 40, width: '100%', marginBottom: 28 }}>
-          {[
-            'Connect WhatsApp',
-            'Loop maps the chapters of your life',
-            'Your people, still in every chapter',
-          ].map((label, i) => (
-            <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, maxWidth: 120 }}>
-              <div
-                style={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: '50%',
-                  border: '1.5px solid #B8624A',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 11,
-                  fontWeight: 500,
-                  color: '#B8624A',
-                  flexShrink: 0,
-                }}
-              >
-                {i + 1}
-              </div>
-              <span
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 13,
-                  fontWeight: 300,
-                  color: '#A38F85',
-                  textAlign: 'center',
-                  lineHeight: 1.5,
-                }}
-              >
-                {label}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        {/* Privacy */}
-        <p
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 12,
-            color: '#BBA99E',
-            textAlign: 'center',
-            marginBottom: 36,
-            letterSpacing: '0.01em',
-          }}
-        >
-          Your messages never leave your Mac.
-        </p>
-
-        {/* CTA */}
-        <Button onClick={onConnect}>Connect WhatsApp</Button>
-      </div>
-    </div>
-  )
-}
 
 // ─── WhatsApp connect screen ──────────────────────────────────────────────────
 
@@ -442,7 +305,7 @@ export default function App() {
             setNav({ screen: 'your-loops' })
           }
         } catch {
-          // Main handlers not yet registered — stay on welcome
+          // Main handlers not yet registered — stay on the initial onboarding screen
         }
       }
     }
@@ -509,18 +372,6 @@ export default function App() {
     case 'onboarding-normalise':
       screenContent = (
         <OnboardingNormaliseScreen
-          // Skips 'onboarding-beat3' (MAV-215 contact picker): it shows placeholder
-          // names as if selectable real contacts, before WhatsApp is connected, and
-          // its output (manuallySelected) has no consumer yet. Re-wire once MAV-215
-          // sources it from real post-connect contacts instead of PLACEHOLDER_PEOPLE.
-          onContinue={() => setNav({ screen: 'onboarding-name-your-people' })}
-        />
-      )
-      break
-
-    case 'onboarding-beat3':
-      screenContent = (
-        <OnboardingBeat3Screen
           onContinue={() => setNav({ screen: 'onboarding-name-your-people' })}
         />
       )
@@ -545,23 +396,6 @@ export default function App() {
 
     case 'onboarding-reveal':
       screenContent = <OnboardingRevealScreen onContinue={goEmailCapture} />
-      break
-
-    case 'welcome':
-      screenContent = (
-        <WelcomeScreen
-          onConnect={async () => {
-            try {
-              const state = await window.loop.state.get()
-              if (!state.privacyAcceptedAt) {
-                setNav({ screen: 'privacy-notice' })
-                return
-              }
-            } catch { /* main not ready yet — show notice to be safe */ }
-            setNav({ screen: 'whatsapp-connect' })
-          }}
-        />
-      )
       break
 
     case 'privacy-notice':

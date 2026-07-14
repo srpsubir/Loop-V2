@@ -38,7 +38,7 @@ describe('Loop Electron app (real)', () => {
   let win: Page
 
   beforeAll(async () => {
-    // Reset to fresh state so app always starts on WelcomeScreen
+    // Reset to fresh state so app always starts at the first onboarding screen
     try { savedState = await fs.readFile(STATE_FILE, 'utf-8') } catch {}
     // MAV-252: LoopData dir may not exist yet at a fresh Application Support
     // location (first run there) — ensureLoopDir() in store.ts isn't reachable
