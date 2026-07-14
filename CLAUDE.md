@@ -23,7 +23,7 @@ Read `Context.md` at session start. Decisions marked "settled" are final — exe
 
 ## Architecture constraints
 
-- `ChapterInferenceScreen` is the only caller of `chapters.detect()` — any change to chapter detection flow must go through it or explicitly justify the divergence
+- `ChapterInferenceScreen` is the only caller of `chapters.detect()` that feeds the onboarding decision flow (confirm → name → reveal) — any change to *that* flow must go through it or explicitly justify the divergence. **Deliberate, narrow exception (MAV-258, 2026-07-14):** `SettingsScreen`'s "Rescan my groups" also calls `chapters.detect()` directly, but only as a silent background refresh (toast on completion, no confirm/naming walkthrough) for already-onboarded returning users — a materially different action from first-time chapter discovery, not a second entry point into onboarding.
 - `Scanner.run()` scans contacts only (stories, occasions, dead threads). It does NOT trigger chapter detection — keep these flows separate
 - State lives in `<userData>/LoopData/state.json` (`~/Library/Application Support/loop/LoopData/state.json` in dev) — never mutate it outside `store.ts`. Moved off `~/Documents/Loop` in MAV-252 because iCloud Desktop/Documents sync silently hangs or empties file reads when unhealthy, which broke WhatsApp QR linking. `store.ts` migrates legacy `~/Documents/Loop` data automatically on first launch post-fix.
 - IPC handlers live in `src/main/ipc.ts` — one place, no handler registration elsewhere

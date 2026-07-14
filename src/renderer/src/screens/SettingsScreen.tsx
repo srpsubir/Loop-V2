@@ -1,6 +1,6 @@
 // MAV-45 — settings screen (CD design + full IPC wiring)
 import React, { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, MessageCircle, Trash2, Folder } from 'lucide-react'
+import { ArrowLeft, MessageCircle, Trash2, Folder, RefreshCw } from 'lucide-react'
 import type { AppState, Contact } from '@shared/types'
 
 const MONO = '"SFMono-Regular","SF Mono",ui-monospace,Menlo,monospace'
@@ -233,6 +233,7 @@ export function SettingsScreen({ onBack, onConnect }: SettingsScreenProps) {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [toast, setToast] = useState<ToastState>(null)
   const [telemetryEnabled, setTelemetryEnabled] = useState(true)
+  const [rescanning, setRescanning] = useState(false)
   useEffect(() => {
     Promise.all([
       window.loop.state.get(),
@@ -262,6 +263,38 @@ export function SettingsScreen({ onBack, onConnect }: SettingsScreenProps) {
       setToast({ message: 'Disconnected. Loop keeps what it already remembers.', tone: 'neutral' })
     } else {
       onConnect?.()
+    }
+  }
+
+  // MAV-258: once onboarding is done, there was previously no way to refresh
+  // WhatsApp group/chapter candidates short of resetting chapterDetectionComplete
+  // and restarting the app — which forces a full WhatsApp reconnect and (per
+  // WhatsAppManager.disconnect()'s deliberate MAV-256 design) wipes the group
+  // cache in the process. That made every "did the fix actually work" check
+  // destroy its own evidence. This calls the same chapters:detect() IPC used
+  // by onboarding, but as a silent background refresh — no confirm/naming
+  // walkthrough, no reconnect, no cache wipe. Deliberate, narrow exception to
+  // "ChapterInferenceScreen is the only caller of chapters.detect()" in
+  // Loop/CLAUDE.md: that rule protects the *onboarding decision flow* (confirm
+  // → name → reveal) from getting a second entry point, not the underlying
+  // detection call itself. A returning user rescanning already has their
+  // chapters confirmed; forcing them back through onboarding UI would be worse
+  // UX than the gap this closes.
+  const handleRescanGroups = async () => {
+    if (rescanning) return
+    setRescanning(true)
+    try {
+      const candidates = await window.loop.chapters.detect()
+      setToast({
+        message: candidates.length > 0
+          ? `Rescanned — found ${candidates.length} chapter candidate${candidates.length === 1 ? '' : 's'}.`
+          : 'Rescanned — no new chapters to suggest right now.',
+        tone: 'positive',
+      })
+    } catch {
+      setToast({ message: "Couldn't rescan right now. Try again in a bit.", tone: 'neutral' })
+    } finally {
+      setRescanning(false)
     }
   }
 
@@ -295,6 +328,9 @@ export function SettingsScreen({ onBack, onConnect }: SettingsScreenProps) {
 
   return (
     <div data-screen-label="Settings" style={{ height: '100%', overflowY: 'auto', background: 'var(--bg)' }}>
+      <style>{`
+        @keyframes loopRescanSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `}</style>
       {/* MAV-194: left-pad 80px to clear macOS traffic lights in hiddenInset titlebar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 24px 0 80px' }}>
         <IconBtn label="Back" onClick={onBack} icon={<ArrowLeft size={19} strokeWidth={2} />} />
@@ -326,6 +362,22 @@ export function SettingsScreen({ onBack, onConnect }: SettingsScreenProps) {
                 {connected ? 'Disconnect' : 'Connect'}
               </Btn>
             </div>
+            {connected && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '12px 14px', borderTop: '1px solid var(--border-light)' }}>
+                <div style={{ width: 42, height: 42, borderRadius: 'var(--radius-full)', flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface)', color: 'var(--text-muted)' }}>
+                  <RefreshCw size={18} strokeWidth={2} style={rescanning ? { animation: 'loopRescanSpin 900ms linear infinite' } : undefined} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 15, fontWeight: 500, color: 'var(--text-primary)' }}>Rescan my groups</div>
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.5, color: 'var(--text-muted)', marginTop: 3 }}>
+                    Refresh chapter candidates from your WhatsApp groups.
+                  </div>
+                </div>
+                <Btn variant="secondary" size="sm" onClick={handleRescanGroups}>
+                  {rescanning ? 'Rescanning…' : 'Rescan'}
+                </Btn>
+              </div>
+            )}
           </Section>
 
 
