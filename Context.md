@@ -1,5 +1,51 @@
 # Loop — Session Context
-_Updated: 2026-07-13 (continued)_
+_Updated: 2026-07-14_
+
+---
+
+## 2026-07-14 — Real cold-start test: 2 launch-blocking bugs found live, both fixed. Linear cleaned up.
+
+This section covers everything since the last snapshot: closing out the CPO memo's action items (MAV-75/192/193/199/257), a security/privacy audit, a coverage-completeness re-check, and — the headline event — an actual full cold-start test against the real account, which is the only reason the two most serious bugs below were ever found.
+
+### Linear housekeeping (all via MCP, all confirmed not guessed)
+- **MAV-159** (orbital-bubble home screen redesign) — **canceled**. Founder confirmed directly: intentionally moved away from, it "was shitty," current list layout is the real intended design. Stale ticket, not a regression.
+- **MAV-158** (935MB SLM download prompt) — **marked Done**. Grepped the codebase: zero references to `ModelUpgradeCard`/`UpgradeStatus` anywhere. Already resolved, ticket was stale.
+- **MAV-192, MAV-193, MAV-199** — **marked Done**. All three were already fixed by earlier work this session (`validateSessionState()` in `index.ts`, the scanning state in `YourLoopsScreen.tsx`, `requestSingleInstanceLock()`), just never closed in Linear. No new code needed.
+- **MAV-75** (Baileys connection resilience) — **marked Done**. Most of the ticket's scope was already implemented from earlier session fixes. One real gap found and fixed: `YourLoopsScreen`'s scan-retry button was gated on the stale persisted `whatsappConnected` flag instead of live `connectionState` — could trigger a re-scan with no real socket to serve it. Commit `0337d5a`.
+- **MAV-257** (filed this session — per-group WhatsApp fetch drops ~2/3 of groups non-deterministically) — genuinely fixed, cache now accumulates across passes instead of dropping unresolved groups. Commit `dee28f4`.
+- **Correction on file**: the CPO memo's claim that 8 Linear tickets (iOS widgets/watchOS/Live Activities) were "untouched Loop scope" was **wrong** — verified via `get_issue`, those belong to a completely different project ("ADHD App — V1") in the same Linear team. Not Loop's backlog at all.
+
+### Security/privacy audit (fork, read-only, no code changes)
+Clean bill of health overall. The `sendMessage` guard from the earlier-session safety incident was independently re-verified sound (single choke point, no bypass path found). One real Medium-severity finding, **not yet fixed**: `src/renderer/src/screens/EmailCaptureScreen.tsx` has a dead-but-dangerous MailerLite integration — sends real email to a third party via a client-bundled API key (`VITE_MAILERLITE_KEY`). Currently inert on two levels (screen unreachable from `App.tsx`'s nav, env var not set), but a real landmine if ever re-wired without re-reading this finding. **Action item: delete this file** (coverage-map fork separately flagged it as likely-orphaned dead code — two independent forks agree it should go).
+
+### Coverage-completeness re-check (fork)
+Corrected the CPO memo's rough "20% touched" estimate — actual screen-level coverage was **70-75%**, not 20%. But confirmed the memo's deeper point was still right in kind: the highest-consequence, hardest-to-reach paths were exactly the ones left unverified — real QR-scan UI, real Google OAuth completion, Delete-all-data's actual path, telemetry toggle, cover-photo file picker, a genuine empty-chapter-state account. Also found dead code worth cleanup later: `WelcomeScreen` (unreachable), `OnboardingBeat3Screen` (explicitly skipped, dead), `EmailCaptureScreen.tsx` (see above).
+
+### The real cold-start test — the main event
+Wiped `~/Library/Application Support/loop/LoopData` entirely (real Baileys session included, with the founder's explicit "full-reset" choice over a lower-risk simulated option) and relaunched clean. Founder scanned a real QR code with their phone.
+
+**Worked, live-verified for the first time this session:**
+- Real QR scan → real WhatsApp connection
+- Real chapter detection (auto-triggered post-connect)
+- Real group scan / crew build
+- Content/tone fixes rendering correctly with real data ("These are named from your group chats for now...", "Someone you're close to has been quiet in your life lately" for a nameless contact)
+
+**Broken, found only because of this real test — both fixed:**
+1. **Google OAuth was completely non-functional, in every context this app has ever run in.** Root cause: `npm run dev` never loads `.env` into `process.env`, and `npm run dist`'s env export only affects the *build-time* shell, never the packaged app's runtime. `GOOGLE_CLIENT_ID`/`SECRET` were always undefined; `_doGoogleSignIn()` silently returned `null` before ever opening a browser — zero error, zero log line, just "nothing happens" when clicked. Fixed via build-time credential injection in `electron.vite.config.ts` (Vite `define`, reads `.env` at config-eval time so it works identically for dev and packaged builds). Founder explicitly approved baking `GOOGLE_CLIENT_SECRET` into the compiled bundle (standard/expected for Google's Desktop OAuth client type per RFC 8252 — protected by PKCE, not secrecy — the earlier security audit had already independently flagged this exact token exchange as "standard, not a leak"). **Live-verified end to end**: real browser opened, founder completed a real Google sign-in. Commit `e8e540d`.
+2. **Found immediately from testing fix #1**: `emailCaptured` never actually persisted after a genuinely successful sign-in. `email`/`googleId` were correctly saved by the IPC handler's own main-process write, but the renderer's *own* follow-up `state.patch({emailCaptured: true, email, googleId})` call included `email`/`googleId` — which aren't in `RENDERER_PATCH_ALLOWLIST` — and the allowlist check rejects a patch **entirely** if any key isn't allowlisted, not just the bad keys. So the whole patch silently no-opped, including the valid `emailCaptured: true`. Would have shown the sign-in screen again on every future launch despite a real successful sign-in. Fixed: renderer no longer re-sends fields the main process already persisted. Commit `f792974`.
+
+### WhatsApp group member-count investigation (founder-initiated: "why do so many groups show 2 members when I know they have more")
+Beeper MCP cross-validation was requested but the Beeper server was never actually connected this session despite the founder believing access was granted (verified: zero `mcp__beeper__*` tools available at any point checked). Investigation proceeded from Loop's own cache data instead. Found: 12/50 cached groups showed ≤2 members, every one including only the founder's own JID — implausible for groups named "Wayfair Interview," "3 Musketeers," etc.
+
+**Root cause, distinct from MAV-257**: `fetchRealGroupMembers()` treated any *non-throwing* `groupMetadata()` response as fully successful with no plausibility check — no cross-validation against Baileys' own `meta.size` field. WhatsApp's rate limiter apparently sometimes returns a "successful" but truncated response under load (the requester's own entry being cheaply available from local state even when the full roster isn't). This is a different failure mode than the `rate-overlimit` *exception* MAV-257 already handles — a truncated non-throwing response never hits that catch block. Worse: the truncated result was written to the cache **unconditionally**, silently regressing a previously-good cached member list to the bad truncated one.
+
+**Fixed** (commit `0814d92`): a result is now checked for plausibility before being accepted (too few members vs. `meta.size`, or fewer than an existing better-cached entry) — suspicious results with a usable prior cache are discarded in favor of the stale-but-good cache; suspicious results with no prior cache are still accepted (first sighting beats nothing) but logged. **Not yet live-verified** — needs another real scan pass to confirm the 12 previously-truncated groups now resolve correctly or at least stop regressing.
+
+### Open, not yet done
+- **Delete `EmailCaptureScreen.tsx`** (dead MailerLite landmine, flagged by two independent forks) — not yet actioned.
+- **Live re-verification of the truncated-response fix** (`0814d92`) against the real account — not yet done.
+- **Two design-consultation forks killed by the founder, need a retry**: (1) color-palette critique produced 3 concrete options (A: raise surface floor, B: brighten accent — recommended pick, C: both + lift base off near-black) — founder wanted Magic Patterns prototypes of all 3 to compare visually, two attempts at generating these were killed as "stuck." (2) A live screenshot flagged the Chapter Inference screen's avatar-stack circles as "too smushed together" (`marginLeft: -10px` on 32px circles, ~31% overlap) — two attempts at this fix were also killed as "stuck." Founder said to redo both after the OAuth test; both were just re-launched as fresh forks, results pending as of this snapshot.
+- Search bar was live-verified working functionally this session (typed "+56", got a real matching result) — the earlier "audit not done" caveat about it is resolved.
 
 ---
 
