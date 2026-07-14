@@ -169,35 +169,44 @@ function ChapterInferenceView({ chapters, onConfirm, onSkip }: {
   const count = confirmed.size
 
   return (
-    <div data-screen-label="ChapterInference" style={{ height: '100%', overflowY: 'auto', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
-      {/* Bottom padding must clear the fixed footer below (~88px of its own
-          padding+button height) with real margin — 120px was cutting into
-          the last card's avatar row on shorter windows (found live,
-          2026-07-14). */}
-      <div style={{ maxWidth: 760, width: '100%', margin: '0 auto', padding: '52px 40px 168px' }}>
-        <header style={{ marginBottom: 44 }}>
-          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 38, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1.15, margin: '0 0 12px' }}>
-            Loop found your chapters
-          </h1>
-          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 16, lineHeight: 1.65, color: 'var(--text-secondary)', margin: 0, maxWidth: 500 }}>
-            These are named from your group chats for now — you'll get to make them feel like yours next. Confirm the ones that feel right.
-          </p>
-        </header>
+    <div data-screen-label="ChapterInference" style={{ height: '100%', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
+      {/* The footer used to be `position: fixed` overlaying this whole screen,
+          with a bottom-padding magic number on the scroll content meant to
+          "clear" it. That only worked when content was tall enough to
+          actually scroll — with few candidates (e.g. an odd count leaving a
+          lone card in the last row), content can be shorter than the
+          viewport, so there's nothing to scroll past and the fixed footer
+          permanently covers the last row regardless of any padding value
+          (found live, 2026-07-14, 5-candidate case). Fix: footer is now a
+          real flex sibling that always docks at the bottom — the scroll
+          area above it just takes the remaining space, so no content length
+          can ever conflict with it again. */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+        <div style={{ maxWidth: 760, width: '100%', margin: '0 auto', padding: '52px 40px 32px' }}>
+          <header style={{ marginBottom: 44 }}>
+            <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 38, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1.15, margin: '0 0 12px' }}>
+              Loop found your chapters
+            </h1>
+            <p style={{ fontFamily: 'var(--font-sans)', fontSize: 16, lineHeight: 1.65, color: 'var(--text-secondary)', margin: 0, maxWidth: 500 }}>
+              These are named from your group chats for now — you'll get to make them feel like yours next. Confirm the ones that feel right.
+            </p>
+          </header>
 
-        {chapters.length === 0 ? (
-          <div style={{ padding: '40px 0', fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--text-muted)', fontStyle: 'italic' }}>
-            No chapters detected yet. Your groups may not have enough history, or WhatsApp may still be loading.
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20 }}>
-            {chapters.map((c) => (
-              <ChapterCard key={c.id} chapter={c} confirmed={confirmed.has(c.id)} onToggle={() => toggle(c.id)} />
-            ))}
-          </div>
-        )}
+          {chapters.length === 0 ? (
+            <div style={{ padding: '40px 0', fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+              No chapters detected yet. Your groups may not have enough history, or WhatsApp may still be loading.
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20 }}>
+              {chapters.map((c) => (
+                <ChapterCard key={c.id} chapter={c} confirmed={confirmed.has(c.id)} onToggle={() => toggle(c.id)} />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 10, padding: '16px 40px 28px', background: 'linear-gradient(to top, var(--bg) 70%, transparent)' }}>
+      <div style={{ flex: 'none', zIndex: 10, padding: '16px 40px 28px', background: 'linear-gradient(to top, var(--bg) 70%, transparent)' }}>
         <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', gap: 16, alignItems: 'center' }}>
           <Btn variant="primary" disabled={count === 0} onClick={() => onConfirm([...confirmed])}>
             {count === 0 ? 'These are my chapters' : `These are my chapters (${count})`}
