@@ -33,7 +33,17 @@ export const config: Options.Testrunner = {
   connectionRetryTimeout: 150000,
   connectionRetryCount: 3,
 
-  services: ['electron'],
+  // Default cdpBridgeTimeout is a hardcoded 10s (@wdio/cdp-bridge's
+  // REQUEST_TIMEOUT) — the service waits for the app's *first* window to
+  // fire Runtime.executionContextCreated before the session is even usable,
+  // independent of waitforTimeout/mochaOpts.timeout/connectionRetryTimeout
+  // above (none of those touch this). This app's main process does real
+  // work (LoopData reads, WhatsApp reconnect kickoff) before the renderer's
+  // default execution context exists, and 10s isn't reliably enough headroom
+  // on a cold launch — this was the actual "Timeout exceeded to get the
+  // ContextId" failure, not the WhatsApp-reconnect wait in the spec itself
+  // (that has its own 90s waitUntil and was never reached).
+  services: [['electron', { cdpBridgeTimeout: 60_000 }]],
   framework: 'mocha',
   reporters: ['spec'],
   mochaOpts: { ui: 'bdd', timeout: 150_000 },
