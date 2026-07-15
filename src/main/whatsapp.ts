@@ -838,22 +838,30 @@ class WhatsAppManager extends EventEmitter {
 
   // Maps a whatsmeow WebMessageInfo (protojson, from a history-sync-chunk
   // event's chats[].messages[]) into a MessageRecord, or null if it lacks
-  // the minimum fields needed to key/dedup a row (chat_id, id). WebMessageInfo
-  // shares the same field names as Baileys' WAMessage (both are generated
-  // from the same underlying WhatsApp WebMessageInfo protobuf spec), so this
-  // mapping is unchanged from the pre-MAV-265 Baileys version.
+  // the minimum fields needed to key/dedup a row (chat_id, id). This is
+  // protojson-marshaled output of whatsmeow's WebMessageInfo proto — NOT
+  // the same casing as Baileys' WAMessage despite the shared underlying
+  // WhatsApp schema. protojson preserves each field's literal proto
+  // `name=` tag rather than a uniform camelCase convention: MessageKey's
+  // fields are `remoteJID`/`ID` (capital JID/ID, per
+  // go.mau.fi/whatsmeow/proto/waCommon.MessageKey's struct tags), not
+  // `remoteJid`/`id`. The original mapping assumed Baileys' lowercase
+  // casing without verifying against a real payload — confirmed via a live
+  // relink that this silently mapped every single history-sync message to
+  // null (mappedRecords=0 across every RECENT/INITIAL_BOOTSTRAP chunk,
+  // despite rawMessages correctly showing hundreds per chunk).
   // Deliberately does NOT apply getMessages()'s text-only filter — a
   // chat that's mostly voice notes/photos would otherwise be systematically
   // under-counted, biasing the frequency signal downstream. Every message is
   // inserted (text = null when not text-representable).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private mapHistorySyncMessage(m: any): MessageRecord | null {
-    const chatId: string = m.key?.remoteJid ?? ''
-    const id: string = m.key?.id ?? ''
+    const chatId: string = m.key?.remoteJID ?? ''
+    const id: string = m.key?.ID ?? ''
     if (!chatId || !id) return null
     const fromMe: boolean = m.key?.fromMe ?? false
     // key.participant is the real sender only for group messages; for DMs,
-    // key.remoteJid (== chatId) is both the chat and the sender when !fromMe.
+    // key.remoteJID (== chatId) is both the chat and the sender when !fromMe.
     const senderJid: string = fromMe ? 'me' : (m.key?.participant ?? chatId)
     const timestamp: number = Number(m.messageTimestamp ?? 0)
     const text: string | null = m.message?.conversation ?? m.message?.extendedTextMessage?.text ?? null
@@ -868,18 +876,28 @@ class WhatsAppManager extends EventEmitter {
     chats?: { chatId: string; name?: string; messages: any[] }[]
     isLast?: boolean
     progress?: number
+    syncType?: string
   }): void {
     const records: MessageRecord[] = []
+    let rawMessageCount = 0
     for (const chat of p.chats ?? []) {
       for (const m of chat.messages ?? []) {
+        rawMessageCount++
         const r = this.mapHistorySyncMessage(m)
         if (r) records.push(r)
       }
     }
     this.messageStore.insertMessages(records)
-    if (p.isLast) {
-      console.log(`[WhatsApp] history-sync-chunk: callback flush complete (${records.length} messages this chunk, progress=${p.progress})`)
-    }
+    // Logs every chunk (not just isLast) and distinguishes "sidecar sent us
+    // zero chats/messages" from "sidecar sent messages but
+    // mapHistorySyncMessage() dropped them all" — the field-casing bug this
+    // caught once (remoteJid vs remoteJID) would have been invisible under
+    // the old isLast-only "N messages" log, which collapsed both cases into
+    // indistinguishable "0 messages" output.
+    console.log(
+      `[WhatsApp] history-sync-chunk: syncType=${p.syncType} progress=${p.progress} isLast=${p.isLast} ` +
+      `chats=${p.chats?.length ?? 0} rawMessages=${rawMessageCount} mappedRecords=${records.length}`
+    )
   }
 
   // MAV-265: sidecar's messages-upsert payload (sidecar/events.go) is a

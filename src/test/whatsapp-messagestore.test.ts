@@ -54,8 +54,8 @@ describe('WhatsAppManager <-> MessageStore (MAV-263, ported to whatsmeow MAV-265
       chats: [{
         chatId: 'chatA@s.whatsapp.net',
         messages: [
-          { key: { remoteJid: 'chatA@s.whatsapp.net', id: 'h1', fromMe: false }, messageTimestamp: 1, message: { conversation: 'hi' } },
-          { key: { remoteJid: 'chatA@s.whatsapp.net', id: 'h2', fromMe: true }, messageTimestamp: 2, message: { conversation: 'yo' } },
+          { key: { remoteJID: 'chatA@s.whatsapp.net', ID: 'h1', fromMe: false }, messageTimestamp: 1, message: { conversation: 'hi' } },
+          { key: { remoteJID: 'chatA@s.whatsapp.net', ID: 'h2', fromMe: true }, messageTimestamp: 2, message: { conversation: 'yo' } },
         ],
       }],
       isLast: true,
@@ -110,7 +110,7 @@ describe('WhatsAppManager <-> MessageStore (MAV-263, ported to whatsmeow MAV-265
     expect(row.sender_jid).toBe('447700900001@s.whatsapp.net')
   })
 
-  it('handleSidecarHistorySyncChunk() resolves group sender from key.participant, not key.remoteJid', async () => {
+  it('handleSidecarHistorySyncChunk() resolves group sender from key.participant, not key.remoteJID', async () => {
     const { default: MessageStore } = await import('../main/messageStore')
     const store = MessageStore.getInstance()
     await store.init(':memory:')
@@ -123,7 +123,7 @@ describe('WhatsAppManager <-> MessageStore (MAV-263, ported to whatsmeow MAV-265
       chats: [{
         chatId: 'group1@g.us',
         messages: [{
-          key: { remoteJid: 'group1@g.us', id: 'g1', fromMe: false, participant: '447700900001@s.whatsapp.net' },
+          key: { remoteJID: 'group1@g.us', ID: 'g1', fromMe: false, participant: '447700900001@s.whatsapp.net' },
           messageTimestamp: 5,
           message: { conversation: 'group msg' },
         }],
