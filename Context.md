@@ -1,5 +1,56 @@
 # Loop — Session Context
-_Updated: 2026-07-14_
+_Updated: 2026-07-15_
+
+---
+
+## 2026-07-15 (cont'd) — MAV-263 implemented + live-verified. Real data pipe works; frequency-signal depth still thin.
+
+MAV-263 shipped (per Linear comment + `Loop/CLAUDE.md` architecture section, both now reflect it as done — this happened outside this thread, between the artifact publish and this check-in). `messageStore.ts` (SQLite) live, both Baileys listeners wired, `buildTieStrengthMap()` reads real counts, `disconnect()` clears the store, `syncFullHistory: true`. `npm run test:all` green (232 unit tests + e2e + ipc).
+
+**Live verification (fresh logout + QR relink, done for real):** `messages.db` has 1,007 rows across 600 chats, timestamps span 2017-06-13 → now. Dedup via PK works, no corrupt-DB path hit.
+
+**New finding, open, not yet solved**: per-chat backfill depth is shallow — 561/600 chats got exactly 1 message, the rest capped at exactly 15. `messaging-history.set` fired as a single chunk (`isLatest: true` immediately) — Baileys' historical-sync payload appears to cap recent-messages-per-chat regardless of `syncFullHistory: true`. This is upstream Baileys behavior, not a bug in `messageStore.ts`'s insert/count logic (no artificial limit there).
+
+**Why this still matters for MAV-262**: the original ask (test whether frequency/social-graph-strength dynamics alone can signal chapter transitions) needs a frequency *trend* over time, not a recency snapshot. 1–15 messages/chat is closer to what the old fake proxy already approximated than to real trend data. The infra is now correct and unblocked; the product hypothesis is still untested. Depth will build up naturally via live `messages.upsert` traffic — this needs elapsed real time (weeks), not more engineering.
+
+## 2026-07-15 — MAV-262 product-thinking investigation → MAV-263 filed (persistent message store, SQLite). Eng spec written, NOT yet approved.
+
+This session was product/architecture investigation, not implementation — no code changed. Full thread: chapters≠groups product question → life-chapter taxonomy research → clustering-mechanism research → discovery that chapter detection runs on fake data → root-caused why → eng spec for the real fix.
+
+### MAV-262 (filed by founder, 2026-07-14, worked this session) — "chapters are not 1:1 with WhatsApp groups"
+Founder's core objection: Loop's chapter detection treats one WhatsApp group as one chapter, structurally (`Chapter.id` derives from `waJid`). Real chapters can span multiple groups, a group can be noise (not a chapter at all), and — per the founder's explicit instruction — **chapters cannot be born with zero groups** (this rules out a "create from scratch" path considered and then cut).
+
+**Locked design direction for MAV-262** (not yet built): detection should surface pre-assembled candidate chapters (system does the clustering), user approves/edits/rejects — not manual assembly from parts (too much user load). `Chapter` needs its own identity independent of any single `waJid`, with a many-to-one group→chapter join.
+
+### Life-chapter taxonomy (research, via fork)
+Grounded in narrative identity theory (McAdams — chapters are marked by "nuclear episodes": highs/lows/turning points, not any fixed category), life-course theory (Elder — role transitions: education, employment, family), event segmentation theory (Zacks — a real boundary needs *goal + cast + setting* to change together, not just one), and shipped precedent (Facebook's own "Life Events" taxonomy: work, education, relationships, relocation, health).
+
+**7 dimensions identified**: geography, institution (school/employer), social-circle turnover, relationship/family role, identity/internal turning points, health, employment-status-vs-institution. **Detectability from WhatsApp data**: geography/social-circle/institution/relationship are weakly-to-directly inferable from activity patterns; identity turning points and health are **structurally invisible** to any messaging signal — McAdams' own point is these often leave no external footprint. Key implication: the confirm-screen should ask the user to name *why* a detected boundary happened, since Loop can see *that* something changed but not *why*.
+
+### Clustering-mechanism research (via fork)
+Surveyed Apple Photos (two-pass clustering — weak transfer, needs location/face data we don't have), Google's significant-location/gap-segmentation algorithm (**closest real analog** — swap GPS point for message timestamp), Louvain community detection (mature but unstable on dynamic/temporal graphs — exactly why pure member-overlap churn isn't sufficient alone), changepoint detection (PELT — right tool for "one group secretly contains two eras"), and entity resolution/record linkage (Splink-style — the right *frame*: many groups → one resolved chapter entity, cheapest to implement). **Correction on record**: no real evidence Facebook algorithmically detects life events from graph structure — that's folklore, not documented engineering.
+
+### The big finding: chapter detection runs on fabricated data today
+`buildTieStrengthMap()` (`src/main/whatsapp.ts:411-435`) assigns a **hardcoded** `messageCount` (150/30/5 by recency bucket) — not measured. Traces back to the "Chapter detection infinite hang" fix (`5d37be1`, 2026-06-30): the original code called `fetchMessagesFromWA()` per contact sequentially and hung; the fix removed the real-data call instead of fixing the fetch pattern, and nobody flagged that the fix also deleted the one signal the whole chapter-layer vision depends on.
+
+**Root cause of "why can't we get this data"**: Baileys (`@whiskeysockets/baileys@7.0.0-rc13`) already delivers historical (`messaging-history.set`) and live (`messages.upsert`) messages **event-driven, for free, zero extra network calls**. Confirmed via direct code read: Loop's `whatsapp.ts` has never listened to either event — only `chats.set/upsert`, `connection.update`, `creds.update`, `groups.*`. This was never a Baileys/platform ceiling, just an unwired listener.
+
+### MAV-263 filed — persistent local message store
+https://linear.app/maverick-silver/issue/MAV-263 (High priority, related to MAV-262 and MAV-256). Eng spec at `.claude/specs/persistent-message-store/design.md` — **written, NOT yet approved, implementation blocked on sign-off.**
+
+Spec covers: SQLite (`better-sqlite3`) table for messages (chat_id, sender_jid, from_me, timestamp, **full text** — founder explicitly chose full text + SQLite over an initial metadata-only/NDJSON draft, judging the native-module cost as low and well-precedented), wiring the two new event listeners + handlers in `whatsapp.ts`, replacing `buildTieStrengthMap()`'s fake proxy with real counts, clearing the store on `disconnect()` (same pattern as existing `groupCache` clear), flipping `syncFullHistory: false → true`, and the `electron-rebuild`/`asarUnpack` packaging requirements for the arm64 DMG build.
+
+**Known, accepted limitation**: `messaging-history.set` only fires once at initial pairing — it will **not** backfill the currently-linked account on a normal reconnect. Founder explicitly accepted doing a deliberate logout + fresh QR relink to get real historical data once this ships; not a blocker, a planned step.
+
+### Also this session
+- Confirmed via WebFetch: an artifact URL the founder referenced ("Loop — Launch Confidence Map") is an **unrelated** screen-by-screen bug/test-status audit from a different session — does not relate to or validate this message-persistence work. Flagged directly rather than assumed.
+- New standing memory: never use "sit with this" or similar reflective-pause filler — founder flagged it as condescending mid-problem-solving, not just vague. No more "want more time?" check-ins; end on content or a real decision fork only.
+
+### Next steps
+1. **Awaiting explicit "approved" on `.claude/specs/persistent-message-store/design.md`** before any implementation starts.
+2. Once approved: implement `messageStore.ts`, wire the two Baileys listeners, flip `syncFullHistory`, add `electron-rebuild`/`asarUnpack` config, update `buildTieStrengthMap()`, add test coverage per the spec's Section 6 file list.
+3. After that ships: founder does the deliberate logout/relink to get real historical backfill, then the actual MAV-262 frequency-dynamics clustering test (the original ask — "construct chapters from real data and show me") becomes possible for the first time.
+4. MAV-262 itself (the actual chapter-redesign clustering/confirm-UX work) is still unbuilt — this session only produced the taxonomy, the mechanism research, and the data-layer prerequisite (MAV-263). No chapter-detection code has changed yet.
 
 ---
 

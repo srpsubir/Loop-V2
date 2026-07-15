@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { createMockSidecarProcess, sentCommands, type MockSidecarProcess } from './mocks/sidecarProcess'
 
 const readdirMock = vi.fn()
 const unlinkMock = vi.fn()
 const readFileMock = vi.fn()
 const writeFileMock = vi.fn()
+const rmMock = vi.fn()
 
 vi.mock('fs', () => {
   const promises = {
@@ -12,50 +14,70 @@ vi.mock('fs', () => {
     unlink: unlinkMock,
     readFile: readFileMock,
     writeFile: writeFileMock,
+    rm: rmMock,
   }
   return { default: { promises }, promises }
 })
+
+// MAV-265/task #8: `sendMessage()`/`fetchRealGroupMembers()` now go through
+// `sendCommandAwaitAck()`, which requires a "connected" sidecar
+// (`sidecarProcess` set + `sidecarConnected: true`) or it rejects immediately
+// with "WhatsApp not connected" — poke both private fields directly, same
+// style the pre-migration tests used for `(wa as any).socket`.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function connectMockSidecar(wa: any): MockSidecarProcess {
+  const proc = createMockSidecarProcess()
+  wa.sidecarProcess = proc
+  wa.sidecarConnected = true
+  return proc
+}
+
+// Feeds one sidecar event straight into handleSidecarLine(), bypassing the
+// stdout/readline plumbing entirely — these tests inject sidecarProcess
+// directly rather than going through start()'s spawn(), so nothing is
+// actually reading proc.stdout. (whatsapp-connection.test.ts exercises the
+// real stdout/readline path via a mocked child_process.spawn().)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function dispatch(wa: any, event: string, payload: any = {}): void {
+  wa.handleSidecarLine(JSON.stringify({ v: 1, type: 'event', event, payload }))
+}
+
+// Waits for the sidecar command to actually hit stdin. loadGroupCache()'s
+// mocked fs.readFile() await, plus the outer async fn's own resolution,
+// take more than one microtask tick — a bare `await Promise.resolve()`
+// intermittently races ahead of the write. A macrotask tick guarantees the
+// entire microtask queue drains first.
+function flushToCommand(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0))
+}
 
 describe('WhatsAppManager', () => {
   beforeEach(() => {
     vi.resetModules()
     readdirMock.mockReset()
-    unlinkMock.mockReset()
+    unlinkMock.mockReset().mockResolvedValue(undefined)
     readFileMock.mockReset().mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }))
     writeFileMock.mockReset().mockResolvedValue(undefined)
+    rmMock.mockReset().mockResolvedValue(undefined)
   })
 
-  it('disconnect() clears all auth files so next start() always generates a fresh QR', async () => {
-    readdirMock.mockResolvedValue(['creds.json', 'app-state-sync-key.json'])
-    unlinkMock.mockResolvedValue(undefined)
-
+  // MAV-265: disconnect() now wipes the whatsmeow session db (clearWhatsmeowSession(),
+  // 3 unlink attempts for the main file + -wal/-shm sidecars) plus the MAV-256
+  // group-cache-file unlink — the Baileys AUTH_DIR readdir/unlink path is gone
+  // entirely (see AUTH_DIR's comment in whatsapp.ts: kept only for task #6's
+  // decommissionBaileysAuth(), which fires on 'connected', not disconnect()).
+  it('disconnect() clears the whatsmeow session db and the group cache file', async () => {
     const { default: WhatsAppManager } = await import('../main/whatsapp')
     const wa = WhatsAppManager.getInstance()
 
     await wa.disconnect()
 
-    expect(readdirMock).toHaveBeenCalled()
-    // 2 auth files + 1 MAV-256 group-cache-file unlink attempt (see next test)
-    expect(unlinkMock).toHaveBeenCalledTimes(3)
+    // whatsmeow-session.db, .db-wal, .db-shm + groups-cache.json = 4 unlink calls
+    expect(unlinkMock).toHaveBeenCalledTimes(4)
   })
 
-  it('disconnect() still clears auth even if auth dir is empty', async () => {
-    readdirMock.mockResolvedValue([])
-    unlinkMock.mockResolvedValue(undefined)
-
-    const { default: WhatsAppManager } = await import('../main/whatsapp')
-    const wa = WhatsAppManager.getInstance()
-
-    await wa.disconnect()
-
-    // MAV-256: disconnect() also attempts to delete the group cache file so a
-    // subsequently-linked account never inherits a previous account's cache —
-    // that's the one call here, since the auth dir itself was empty.
-    expect(unlinkMock).toHaveBeenCalledTimes(1)
-  })
-
-  it('disconnect() does not throw if auth dir does not exist', async () => {
-    readdirMock.mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }))
+  it('disconnect() does not throw if the whatsmeow session db does not exist', async () => {
+    unlinkMock.mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }))
 
     const { default: WhatsAppManager } = await import('../main/whatsapp')
     const wa = WhatsAppManager.getInstance()
@@ -65,43 +87,82 @@ describe('WhatsAppManager', () => {
 
   // MAV-255: a fabricated/externally-injected contact with no real WhatsApp
   // conversation must never reach a real send — this is the guard that failed
-  // in the incident that prompted this ticket.
+  // in the incident that prompted this ticket. MAV-265/task #10: re-derived
+  // from messageStore.getMessageCount() instead of Baileys' chatStore (see
+  // hasChatWith()'s comment in whatsapp.ts) and now round-trips through the
+  // sidecar's command-ack/command-error correlation instead of a fire-and-
+  // forget sock.sendMessage() call.
   describe('sendMessage() refuses unverified contacts (MAV-255)', () => {
-    it('throws if there is no existing chat for the JID, even with a live socket', async () => {
+    it('throws if there is no existing chat for the JID, even with a connected sidecar', async () => {
+      const { default: MessageStore } = await import('../main/messageStore')
+      const store = MessageStore.getInstance()
+      await store.init(':memory:')
+
       const { default: WhatsAppManager } = await import('../main/whatsapp')
       const wa = WhatsAppManager.getInstance()
-      const socketSendMessage = vi.fn().mockResolvedValue(undefined)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(wa as any).socket = { sendMessage: socketSendMessage }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(wa as any).chatStore = new Map() // no known chats — simulates fabricated contact data
+      const proc = connectMockSidecar(wa as any)
 
       await expect(wa.sendMessage('447700900001@s.whatsapp.net', 'hi')).rejects.toThrow(
         /no existing whatsapp conversation/i
       )
-      expect(socketSendMessage).not.toHaveBeenCalled()
+      expect(sentCommands(proc)).toHaveLength(0)
     })
 
-    it('sends when the JID has a real, known chat', async () => {
-      const { default: WhatsAppManager } = await import('../main/whatsapp')
-      const wa = WhatsAppManager.getInstance()
-      const socketSendMessage = vi.fn().mockResolvedValue(undefined)
+    it('sends when the JID has a real, known chat, resolving on the sidecar\'s command-ack', async () => {
+      const { default: MessageStore } = await import('../main/messageStore')
+      const store = MessageStore.getInstance()
+      await store.init(':memory:')
       const jid = '447700900003@s.whatsapp.net'
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(wa as any).socket = { sendMessage: socketSendMessage }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(wa as any).chatStore = new Map([[jid, { id: jid }]])
+      store.insertMessages([{ id: 'm1', chatId: jid, senderJid: jid, fromMe: false, timestamp: 1, text: 'hey' }])
 
-      await wa.sendMessage(jid, 'hi')
-      expect(socketSendMessage).toHaveBeenCalledWith(jid, { text: 'hi' })
-    })
-
-    it('hasChatWith() reflects chatStore membership directly', async () => {
       const { default: WhatsAppManager } = await import('../main/whatsapp')
       const wa = WhatsAppManager.getInstance()
-      const jid = '447700900004@s.whatsapp.net'
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(wa as any).chatStore = new Map([[jid, { id: jid }]])
+      const proc = connectMockSidecar(wa as any)
+
+      const sendPromise = wa.sendMessage(jid, 'hi')
+      // sendMessage() awaits the sidecar's ack — simulate it arriving async,
+      // same as the real process would.
+      await flushToCommand()
+      const [cmd] = sentCommands(proc)
+      expect(cmd).toMatchObject({ cmd: 'send-message', payload: { jid, text: 'hi' } })
+      dispatch(wa, 'command-ack', { cmdId: cmd.id, messageId: 'wamid.abc', timestamp: 123 })
+      await expect(sendPromise).resolves.toBeUndefined()
+    })
+
+    it('sendMessage() rejects when the sidecar reports a command-error', async () => {
+      const { default: MessageStore } = await import('../main/messageStore')
+      const store = MessageStore.getInstance()
+      await store.init(':memory:')
+      const jid = '447700900005@s.whatsapp.net'
+      store.insertMessages([{ id: 'm1', chatId: jid, senderJid: jid, fromMe: false, timestamp: 1, text: 'hey' }])
+
+      const { default: WhatsAppManager } = await import('../main/whatsapp')
+      const wa = WhatsAppManager.getInstance()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const proc = connectMockSidecar(wa as any)
+
+      const sendPromise = wa.sendMessage(jid, 'hi')
+      await flushToCommand()
+      const [cmd] = sentCommands(proc)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(wa as any).handleSidecarLine(
+        JSON.stringify({ v: 1, type: 'event', event: 'command-error', payload: { cmdId: cmd.id, cmd: 'send-message', error: 'not-registered' } })
+      )
+
+      await expect(sendPromise).rejects.toThrow(/not-registered/)
+    })
+
+    it('hasChatWith() reflects messageStore membership directly', async () => {
+      const { default: MessageStore } = await import('../main/messageStore')
+      const store = MessageStore.getInstance()
+      await store.init(':memory:')
+      const jid = '447700900004@s.whatsapp.net'
+      store.insertMessages([{ id: 'm1', chatId: jid, senderJid: jid, fromMe: false, timestamp: 1, text: 'hey' }])
+
+      const { default: WhatsAppManager } = await import('../main/whatsapp')
+      const wa = WhatsAppManager.getInstance()
 
       expect(wa.hasChatWith(jid)).toBe(true)
       expect(wa.hasChatWith('447700900099@s.whatsapp.net')).toBe(false)
@@ -110,9 +171,11 @@ describe('WhatsAppManager', () => {
 
   // MAV-256: listGroups() used to re-run the full rate-limited fetch on
   // every single call, even seconds apart, because groups-discovered.json
-  // was write-only. These tests cover the new read-write cache directly.
+  // was write-only. These tests cover the read-write cache, now refreshed
+  // via the sidecar's `list-groups` command (MAV-265/task #10) instead of
+  // Baileys' live groupFetchAllParticipating()/groupMetadata() RPCs.
   describe('listGroups() group cache (MAV-256)', () => {
-    it('serves from cache and skips the real fetch when the cache is fresh', async () => {
+    it('serves from cache and skips the active list-groups fetch when the cache is fresh', async () => {
       readFileMock.mockResolvedValue(JSON.stringify({
         writtenAt: Date.now(),
         groups: [{ id: 'g1@g.us', name: 'Cached Group', members: ['a@s.whatsapp.net'], lastMessageAt: 0, createdAt: null }],
@@ -120,17 +183,16 @@ describe('WhatsAppManager', () => {
 
       const { default: WhatsAppManager } = await import('../main/whatsapp')
       const wa = WhatsAppManager.getInstance()
-      const groupFetchAllParticipating = vi.fn()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(wa as any).socket = { groupFetchAllParticipating }
+      const proc = connectMockSidecar(wa as any)
 
       const result = await wa.listGroups()
 
       expect(result).toEqual([{ id: 'g1@g.us', name: 'Cached Group', members: ['a@s.whatsapp.net'] }])
-      expect(groupFetchAllParticipating).not.toHaveBeenCalled()
+      expect(sentCommands(proc)).toHaveLength(0)
     })
 
-    it('ignores a stale cache (older than 24h) and does a real fetch', async () => {
+    it('ignores a stale cache (older than 24h) and issues an active list-groups command', async () => {
       const staleWrittenAt = Date.now() - 25 * 60 * 60 * 1000
       readFileMock.mockResolvedValue(JSON.stringify({
         writtenAt: staleWrittenAt,
@@ -139,14 +201,17 @@ describe('WhatsAppManager', () => {
 
       const { default: WhatsAppManager } = await import('../main/whatsapp')
       const wa = WhatsAppManager.getInstance()
-      const groupFetchAllParticipating = vi.fn().mockResolvedValue({})
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(wa as any).socket = { groupFetchAllParticipating }
+      const proc = connectMockSidecar(wa as any)
 
-      const result = await wa.listGroups()
+      const resultPromise = wa.listGroups()
+      await flushToCommand()
+      const [cmd] = sentCommands(proc)
+      expect(cmd).toMatchObject({ cmd: 'list-groups' })
+      dispatch(wa, 'command-ack', { cmdId: cmd.id, groups: [] })
 
-      expect(groupFetchAllParticipating).toHaveBeenCalled()
-      expect(result).toEqual([]) // empty groupMap from the mock — no candidates
+      const result = await resultPromise
+      expect(result).toEqual([{ id: 'stale@g.us', name: 'Stale Group', members: ['a@s.whatsapp.net'] }])
     })
 
     it('treats a legacy bare-array cache file (pre-MAV-256 shape) as present but stale', async () => {
@@ -156,22 +221,27 @@ describe('WhatsAppManager', () => {
 
       const { default: WhatsAppManager } = await import('../main/whatsapp')
       const wa = WhatsAppManager.getInstance()
-      const groupFetchAllParticipating = vi.fn().mockResolvedValue({})
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(wa as any).socket = { groupFetchAllParticipating }
+      const proc = connectMockSidecar(wa as any)
 
-      await wa.listGroups()
+      const resultPromise = wa.listGroups()
+      await flushToCommand()
+      const [cmd] = sentCommands(proc)
 
       // Must not crash on the old shape, and must still treat it as stale
       // (no writtenAt in the legacy file) rather than serving it as fresh.
-      expect(groupFetchAllParticipating).toHaveBeenCalled()
+      expect(cmd).toMatchObject({ cmd: 'list-groups' })
+      dispatch(wa, 'command-ack', { cmdId: cmd.id, groups: [] })
+      await resultPromise
     })
 
-    it('returns [] without touching the cache when there is no socket', async () => {
+    it('returns [] without touching the cache when there is no connected sidecar', async () => {
       const { default: WhatsAppManager } = await import('../main/whatsapp')
       const wa = WhatsAppManager.getInstance()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(wa as any).socket = null
+      ;(wa as any).sidecarProcess = null
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(wa as any).sidecarConnected = false
 
       const result = await wa.listGroups()
 
@@ -179,10 +249,11 @@ describe('WhatsAppManager', () => {
       expect(readFileMock).not.toHaveBeenCalled()
     })
 
-    // These call the real private handlers directly (bound via .bind(this) to
-    // sock.ev.on(...) in start(), which isn't itself exercised by this test
-    // file — see other tests' comments re: makeWASocket() not being mocked).
-    it('handleGroupParticipantsUpdate "add" merges new participants into a cached group', async () => {
+    // These call the real private sidecar-event handlers directly, mirroring
+    // what handleSidecarLine() dispatches to for groups-upsert/groups-update/
+    // group-participants-update (sidecar/events.go's JoinedGroup/GroupInfo
+    // mapping) — one event per group now, not Baileys' batched array.
+    it('handleSidecarGroupParticipantsUpdate "join" merges new participants into a cached group', async () => {
       const { default: WhatsAppManager } = await import('../main/whatsapp')
       const wa = WhatsAppManager.getInstance()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -190,12 +261,12 @@ describe('WhatsAppManager', () => {
       cache.set('g1@g.us', { id: 'g1@g.us', name: 'G1', members: ['a@s.whatsapp.net'], lastMessageAt: 0, createdAt: null } as never)
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(wa as any).handleGroupParticipantsUpdate({ id: 'g1@g.us', participants: ['b@s.whatsapp.net'], action: 'add' })
+      ;(wa as any).handleSidecarGroupParticipantsUpdate({ chatId: 'g1@g.us', join: ['b@s.whatsapp.net'] })
 
       expect(cache.get('g1@g.us')).toMatchObject({ members: ['a@s.whatsapp.net', 'b@s.whatsapp.net'] })
     })
 
-    it('handleGroupParticipantsUpdate "remove" drops participants from a cached group', async () => {
+    it('handleSidecarGroupParticipantsUpdate "leave" drops participants from a cached group', async () => {
       const { default: WhatsAppManager } = await import('../main/whatsapp')
       const wa = WhatsAppManager.getInstance()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -203,33 +274,31 @@ describe('WhatsAppManager', () => {
       cache.set('g1@g.us', { id: 'g1@g.us', name: 'G1', members: ['a@s.whatsapp.net', 'b@s.whatsapp.net'], lastMessageAt: 0, createdAt: null } as never)
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(wa as any).handleGroupParticipantsUpdate({ id: 'g1@g.us', participants: ['b@s.whatsapp.net'], action: 'remove' })
+      ;(wa as any).handleSidecarGroupParticipantsUpdate({ chatId: 'g1@g.us', leave: ['b@s.whatsapp.net'] })
 
       expect(cache.get('g1@g.us')).toMatchObject({ members: ['a@s.whatsapp.net'] })
     })
 
-    it('handleGroupParticipantsUpdate is a no-op for a group not yet in the cache', async () => {
+    it('handleSidecarGroupParticipantsUpdate is a no-op for a group not yet in the cache', async () => {
       const { default: WhatsAppManager } = await import('../main/whatsapp')
       const wa = WhatsAppManager.getInstance()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cache = (wa as any).groupCache as Map<string, unknown>
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(wa as any).handleGroupParticipantsUpdate({ id: 'unknown@g.us', participants: ['b@s.whatsapp.net'], action: 'add' })
+      ;(wa as any).handleSidecarGroupParticipantsUpdate({ chatId: 'unknown@g.us', join: ['b@s.whatsapp.net'] })
 
       expect(cache.has('unknown@g.us')).toBe(false)
     })
 
-    it('handleGroupsUpsert adds a new group to the cache with its real participant list', async () => {
+    it('handleSidecarGroupsUpsert adds a new group to the cache with its initial member list', async () => {
       const { default: WhatsAppManager } = await import('../main/whatsapp')
       const wa = WhatsAppManager.getInstance()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cache = (wa as any).groupCache as Map<string, { name: string; members: string[] }>
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(wa as any).handleGroupsUpsert([
-        { id: 'new@g.us', subject: 'New Group', participants: [{ id: 'a@s.whatsapp.net' }, { id: 'b@s.whatsapp.net' }], creation: 12345 },
-      ])
+      ;(wa as any).handleSidecarGroupsUpsert({ chatId: 'new@g.us', name: 'New Group', join: ['a@s.whatsapp.net', 'b@s.whatsapp.net'] })
 
       expect(cache.get('new@g.us')).toMatchObject({
         name: 'New Group',
@@ -237,7 +306,7 @@ describe('WhatsAppManager', () => {
       })
     })
 
-    it('handleGroupsUpdate renames a cached group but ignores updates for uncached groups', async () => {
+    it('handleSidecarGroupsUpdate renames a cached group but ignores updates for uncached groups', async () => {
       const { default: WhatsAppManager } = await import('../main/whatsapp')
       const wa = WhatsAppManager.getInstance()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -245,63 +314,85 @@ describe('WhatsAppManager', () => {
       cache.set('g1@g.us', { id: 'g1@g.us', name: 'Old Name', members: [], lastMessageAt: 0, createdAt: null } as never)
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(wa as any).handleGroupsUpdate([
-        { id: 'g1@g.us', subject: 'New Name' },
-        { id: 'never-cached@g.us', subject: 'Should Be Ignored' },
-      ])
+      ;(wa as any).handleSidecarGroupsUpdate({ chatId: 'g1@g.us', name: 'New Name' })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(wa as any).handleSidecarGroupsUpdate({ chatId: 'never-cached@g.us', name: 'Should Be Ignored' })
 
       expect(cache.get('g1@g.us')).toMatchObject({ name: 'New Name' })
       expect(cache.has('never-cached@g.us')).toBe(false)
     })
   })
 
-  // MAV-257: WhatsApp's own rate limiter lets through only ~1/3 of groups per
-  // pass. fetchRealGroupMembers() used to drop any group whose fetch failed
-  // this specific pass, even if it had real, previously-resolved membership
-  // sitting in the MAV-256 cache — these tests cover the fallback that fixes
-  // it, called directly since fetchRealGroupMembers() is private.
-  describe('fetchRealGroupMembers() accumulates across passes (MAV-257)', () => {
-    it('falls back to cached members when the live fetch fails for a previously-resolved group', async () => {
+  // MAV-265/task #10: fetchRealGroupMembers() no longer takes a `sock`
+  // parameter — it issues (at most) one active `list-groups` sidecar command
+  // for whatever's missing/empty in the cache, mirroring mautrix-whatsapp's
+  // GetJoinedGroups() pattern, rather than Baileys' rate-limited per-group
+  // groupMetadata() RPC. The MAV-257/MAV-259 accumulate-across-passes and
+  // skip-already-resolved behavioral guarantees still apply, just re-pointed
+  // at the new fetch mechanism.
+  describe('fetchRealGroupMembers() via the sidecar\'s list-groups command', () => {
+    it('falls back to cached members for an already-resolved group when a sibling request triggers a failed list-groups fetch', async () => {
       const { default: WhatsAppManager } = await import('../main/whatsapp')
       const wa = WhatsAppManager.getInstance()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cache = (wa as any).groupCache as Map<string, { id: string; name: string; members: string[]; lastMessageAt: number; createdAt: number | null }>
       cache.set('g1@g.us', { id: 'g1@g.us', name: 'G1', members: ['a@s.whatsapp.net', 'b@s.whatsapp.net'], lastMessageAt: 0, createdAt: null })
 
-      const sock = { groupMetadata: vi.fn().mockRejectedValue(Object.assign(new Error('rate-overlimit'), {})) }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result: Map<string, string[]> = await (wa as any).fetchRealGroupMembers(sock, ['g1@g.us'])
+      const proc = connectMockSidecar(wa as any)
+      // g1@g.us is already well-resolved (MAV-259: not "missing"), so on its
+      // own it would never trigger a fetch — request it alongside a genuinely
+      // unresolved group so the batch list-groups command actually fires,
+      // then verify g1's untouched cache entry survives the failure.
+      const resultPromise = (wa as any).fetchRealGroupMembers(['g1@g.us', 'other-missing@g.us'])
+      await flushToCommand()
+      const [cmd] = sentCommands(proc)
+      dispatch(wa, 'command-error', { cmdId: cmd.id, cmd: 'list-groups', error: 'sidecar unreachable' })
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result: Map<string, string[]> = await resultPromise
       expect(result.get('g1@g.us')).toEqual(['a@s.whatsapp.net', 'b@s.whatsapp.net'])
+      expect(result.has('other-missing@g.us')).toBe(false)
     })
 
-    it('leaves a group unresolved (not in the result map) if it failed and was never cached before', async () => {
+    it('leaves a group unresolved (not in the result map) if list-groups fails and it was never cached before', async () => {
       const { default: WhatsAppManager } = await import('../main/whatsapp')
       const wa = WhatsAppManager.getInstance()
-
-      const sock = { groupMetadata: vi.fn().mockRejectedValue(Object.assign(new Error('rate-overlimit'), {})) }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result: Map<string, string[]> = await (wa as any).fetchRealGroupMembers(sock, ['never-seen@g.us'])
+      const proc = connectMockSidecar(wa as any)
 
+      const resultPromise = (wa as any).fetchRealGroupMembers(['never-seen@g.us'])
+      await flushToCommand()
+      const [cmd] = sentCommands(proc)
+      dispatch(wa, 'command-error', { cmdId: cmd.id, cmd: 'list-groups', error: 'sidecar unreachable' })
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result: Map<string, string[]> = await resultPromise
       expect(result.has('never-seen@g.us')).toBe(false)
     })
 
-    it('a successful fetch overwrites the cache with fresh members, not the stale ones', async () => {
+    it('a list-groups response overwrites a previously-empty entry with fresh members', async () => {
       const { default: WhatsAppManager } = await import('../main/whatsapp')
       const wa = WhatsAppManager.getInstance()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cache = (wa as any).groupCache as Map<string, { members: string[] }>
-      cache.set('g1@g.us', { id: 'g1@g.us', name: 'G1', members: ['stale@s.whatsapp.net'], lastMessageAt: 0, createdAt: null } as never)
+      // An empty-members cache entry still counts as "missing" (MAV-259's
+      // plausibility bar), so this alone is enough to trigger the fetch —
+      // unlike the non-empty-cache case above, no sibling group is needed.
+      cache.set('g1@g.us', { id: 'g1@g.us', name: 'G1', members: [], lastMessageAt: 0, createdAt: null } as never)
 
-      const sock = {
-        groupMetadata: vi.fn().mockResolvedValue({
-          subject: 'G1',
-          participants: [{ id: 'fresh@s.whatsapp.net' }],
-        }),
-      }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result: Map<string, string[]> = await (wa as any).fetchRealGroupMembers(sock, ['g1@g.us'])
+      const proc = connectMockSidecar(wa as any)
+      const resultPromise = (wa as any).fetchRealGroupMembers(['g1@g.us'])
+      await flushToCommand()
+      const [cmd] = sentCommands(proc)
+      dispatch(wa, 'command-ack', {
+        cmdId: cmd.id,
+        groups: [{ chatId: 'g1@g.us', name: 'G1', participants: ['fresh@s.whatsapp.net'] }],
+      })
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result: Map<string, string[]> = await resultPromise
       expect(result.get('g1@g.us')).toEqual(['fresh@s.whatsapp.net'])
       expect(cache.get('g1@g.us')).toMatchObject({ members: ['fresh@s.whatsapp.net'] })
     })
@@ -309,50 +400,22 @@ describe('WhatsAppManager', () => {
     it('persists the accumulated cache to disk after a fetch pass', async () => {
       const { default: WhatsAppManager } = await import('../main/whatsapp')
       const wa = WhatsAppManager.getInstance()
-
-      const sock = {
-        groupMetadata: vi.fn().mockResolvedValue({ subject: 'G1', participants: [{ id: 'a@s.whatsapp.net' }] }),
-      }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (wa as any).fetchRealGroupMembers(sock, ['g1@g.us'])
+      const proc = connectMockSidecar(wa as any)
+
+      const resultPromise = (wa as any).fetchRealGroupMembers(['g1@g.us'])
+      await flushToCommand()
+      const [cmd] = sentCommands(proc)
+      dispatch(wa, 'command-ack', {
+        cmdId: cmd.id,
+        groups: [{ chatId: 'g1@g.us', name: 'G1', participants: ['a@s.whatsapp.net'] }],
+      })
+      await resultPromise
 
       expect(writeFileMock).toHaveBeenCalled()
     })
 
-    it('listGroups() surfaces a group across two passes even when the second pass fails to re-resolve it', async () => {
-      // Pass 1: real fetch succeeds, populates the cache.
-      const staleWrittenAt = Date.now() - 25 * 60 * 60 * 1000 // force past-cache-fresh on both calls
-      readFileMock.mockResolvedValue(JSON.stringify({ writtenAt: staleWrittenAt, groups: [] }))
-
-      const { default: WhatsAppManager } = await import('../main/whatsapp')
-      const wa = WhatsAppManager.getInstance()
-      const groupMetadata = vi.fn().mockResolvedValue({ subject: 'Real Group', participants: [{ id: 'a@s.whatsapp.net' }] })
-      const groupFetchAllParticipating = vi.fn().mockResolvedValue({
-        'g1@g.us': { id: 'g1@g.us', subject: 'Real Group' },
-      })
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(wa as any).socket = { groupFetchAllParticipating, groupMetadata }
-
-      const pass1 = await wa.listGroups()
-      expect(pass1).toEqual([{ id: 'g1@g.us', name: 'Real Group', members: ['a@s.whatsapp.net'] }])
-
-      // Pass 2: force the cache stale again (so it re-fetches instead of serving cache-fresh),
-      // but this time the live per-group call fails — the group must still be reported,
-      // sourced from what pass 1 cached, not dropped.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(wa as any).groupCacheWrittenAt = staleWrittenAt
-      groupMetadata.mockRejectedValue(Object.assign(new Error('rate-overlimit'), {}))
-
-      const pass2 = await wa.listGroups()
-      expect(pass2).toEqual([{ id: 'g1@g.us', name: 'Real Group', members: ['a@s.whatsapp.net'] }])
-    })
-  })
-
-  // MAV-259: an already-resolved group (via a prior active fetch or a passive
-  // groups.upsert/update event) shouldn't spend a fresh network call every
-  // pass — that budget should go to genuine misses instead.
-  describe('fetchRealGroupMembers() skips groups already well-resolved in cache (MAV-259)', () => {
-    it('skips the active fetch for a group with a plausible cached member count', async () => {
+    it('skips the active list-groups fetch entirely when every requested group is already well-resolved in cache', async () => {
       const { default: WhatsAppManager } = await import('../main/whatsapp')
       const wa = WhatsAppManager.getInstance()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -365,140 +428,33 @@ describe('WhatsAppManager', () => {
         createdAt: null,
       })
 
-      const groupMetadata = vi.fn().mockResolvedValue({ subject: 'G1', participants: [{ id: 'x@s.whatsapp.net' }] })
-      const sock = { groupMetadata }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result: Map<string, string[]> = await (wa as any).fetchRealGroupMembers(sock, ['g1@g.us'])
-
-      expect(groupMetadata).not.toHaveBeenCalled()
-      expect(result.get('g1@g.us')).toEqual(['a@s.whatsapp.net', 'b@s.whatsapp.net', 'c@s.whatsapp.net'])
-    })
-
-    it('still actively fetches a group whose cached entry is too small to trust', async () => {
-      const { default: WhatsAppManager } = await import('../main/whatsapp')
-      const wa = WhatsAppManager.getInstance()
+      const proc = connectMockSidecar(wa as any)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cache = (wa as any).groupCache as Map<string, { id: string; name: string; members: string[]; lastMessageAt: number; createdAt: number | null }>
-      cache.set('g1@g.us', { id: 'g1@g.us', name: 'G1', members: ['a@s.whatsapp.net'], lastMessageAt: 0, createdAt: null })
+      const result: Map<string, string[]> = await (wa as any).fetchRealGroupMembers(['g1@g.us'])
 
-      const groupMetadata = vi.fn().mockResolvedValue({
-        subject: 'G1',
-        participants: [{ id: 'a@s.whatsapp.net' }, { id: 'b@s.whatsapp.net' }, { id: 'c@s.whatsapp.net' }],
-      })
-      const sock = { groupMetadata }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result: Map<string, string[]> = await (wa as any).fetchRealGroupMembers(sock, ['g1@g.us'])
-
-      expect(groupMetadata).toHaveBeenCalledWith('g1@g.us')
+      expect(sentCommands(proc)).toHaveLength(0)
       expect(result.get('g1@g.us')).toEqual(['a@s.whatsapp.net', 'b@s.whatsapp.net', 'c@s.whatsapp.net'])
     })
 
     it('actively fetches a genuinely first-seen group with no cache entry at all', async () => {
       const { default: WhatsAppManager } = await import('../main/whatsapp')
       const wa = WhatsAppManager.getInstance()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const proc = connectMockSidecar(wa as any)
 
-      const groupMetadata = vi.fn().mockResolvedValue({
-        subject: 'New Group',
-        participants: [{ id: 'a@s.whatsapp.net' }, { id: 'b@s.whatsapp.net' }, { id: 'c@s.whatsapp.net' }],
+      const resultPromise = (wa as any).fetchRealGroupMembers(['never-seen@g.us'])
+      await flushToCommand()
+      const [cmd] = sentCommands(proc)
+      expect(cmd).toMatchObject({ cmd: 'list-groups' })
+      dispatch(wa, 'command-ack', {
+        cmdId: cmd.id,
+        groups: [{ chatId: 'never-seen@g.us', name: 'New Group', participants: ['a@s.whatsapp.net', 'b@s.whatsapp.net', 'c@s.whatsapp.net'] }],
       })
-      const sock = { groupMetadata }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result: Map<string, string[]> = await (wa as any).fetchRealGroupMembers(sock, ['never-seen@g.us'])
 
-      expect(groupMetadata).toHaveBeenCalledWith('never-seen@g.us')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result: Map<string, string[]> = await resultPromise
       expect(result.get('never-seen@g.us')).toEqual(['a@s.whatsapp.net', 'b@s.whatsapp.net', 'c@s.whatsapp.net'])
-    })
-  })
-
-  // WhatsApp's rate limiter can return a response that *resolves* (no thrown
-  // error) but is truncated — e.g. only the requester's own participant entry
-  // — under load. That doesn't hit the catch block's cache-fallback logic at
-  // all, so without an explicit plausibility check a "successful" truncated
-  // fetch would silently overwrite a previously-good, fuller cached member
-  // list with a wrong, tiny one.
-  describe('fetchRealGroupMembers() rejects implausibly truncated "successful" responses', () => {
-    it('does not overwrite a good cached entry when the fresh fetch disagrees with declared size', async () => {
-      const { default: WhatsAppManager } = await import('../main/whatsapp')
-      const wa = WhatsAppManager.getInstance()
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cache = (wa as any).groupCache as Map<string, { id: string; name: string; members: string[]; lastMessageAt: number; createdAt: number | null }>
-      const realMembers = Array.from({ length: 8 }, (_, i) => `m${i}@s.whatsapp.net`)
-      cache.set('g1@g.us', { id: 'g1@g.us', name: 'G1', members: realMembers, lastMessageAt: 0, createdAt: null })
-
-      const sock = {
-        groupMetadata: vi.fn().mockResolvedValue({
-          subject: 'G1',
-          size: 8,
-          participants: [{ id: 'me@s.whatsapp.net' }], // truncated to just the requester
-        }),
-      }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result: Map<string, string[]> = await (wa as any).fetchRealGroupMembers(sock, ['g1@g.us'])
-
-      expect(result.get('g1@g.us')).toEqual(realMembers)
-      expect(cache.get('g1@g.us')).toMatchObject({ members: realMembers })
-    })
-
-    it('does not overwrite a good cached entry when the fresh fetch regresses the known member count, even with no declared size', async () => {
-      const { default: WhatsAppManager } = await import('../main/whatsapp')
-      const wa = WhatsAppManager.getInstance()
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cache = (wa as any).groupCache as Map<string, { members: string[] }>
-      const realMembers = Array.from({ length: 5 }, (_, i) => `m${i}@s.whatsapp.net`)
-      cache.set('g1@g.us', { id: 'g1@g.us', name: 'G1', members: realMembers, lastMessageAt: 0, createdAt: null } as never)
-
-      const sock = {
-        groupMetadata: vi.fn().mockResolvedValue({
-          subject: 'G1',
-          // no `size` field at all — must still catch the regression via the cache comparison
-          participants: [{ id: 'me@s.whatsapp.net' }],
-        }),
-      }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result: Map<string, string[]> = await (wa as any).fetchRealGroupMembers(sock, ['g1@g.us'])
-
-      expect(result.get('g1@g.us')).toEqual(realMembers)
-    })
-
-    it('accepts a small result as a first sighting when no prior cache entry exists', async () => {
-      const { default: WhatsAppManager } = await import('../main/whatsapp')
-      const wa = WhatsAppManager.getInstance()
-
-      const sock = {
-        groupMetadata: vi.fn().mockResolvedValue({
-          subject: 'Brand New Group',
-          size: 8,
-          participants: [{ id: 'me@s.whatsapp.net' }],
-        }),
-      }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result: Map<string, string[]> = await (wa as any).fetchRealGroupMembers(sock, ['new@g.us'])
-
-      expect(result.get('new@g.us')).toEqual(['me@s.whatsapp.net'])
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      expect((wa as any).groupCache.get('new@g.us')).toMatchObject({ members: ['me@s.whatsapp.net'] })
-    })
-
-    it('updates the cache normally when the fresh participant count is plausible (agrees with declared size)', async () => {
-      const { default: WhatsAppManager } = await import('../main/whatsapp')
-      const wa = WhatsAppManager.getInstance()
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cache = (wa as any).groupCache as Map<string, { members: string[] }>
-      cache.set('g1@g.us', { id: 'g1@g.us', name: 'G1', members: ['old1@s.whatsapp.net', 'old2@s.whatsapp.net'], lastMessageAt: 0, createdAt: null } as never)
-
-      const freshMembers = Array.from({ length: 6 }, (_, i) => `n${i}@s.whatsapp.net`)
-      const sock = {
-        groupMetadata: vi.fn().mockResolvedValue({
-          subject: 'G1',
-          size: 6,
-          participants: freshMembers.map((id) => ({ id })),
-        }),
-      }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result: Map<string, string[]> = await (wa as any).fetchRealGroupMembers(sock, ['g1@g.us'])
-
-      expect(result.get('g1@g.us')).toEqual(freshMembers)
-      expect(cache.get('g1@g.us')).toMatchObject({ members: freshMembers })
     })
   })
 })

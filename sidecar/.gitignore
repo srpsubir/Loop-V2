@@ -1,0 +1,4 @@
+loop-sidecar
+loop-sidecar-*
+dist/
+*.db

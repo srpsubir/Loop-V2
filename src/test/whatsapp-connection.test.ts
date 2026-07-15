@@ -1,106 +1,76 @@
 /**
- * MAV-171: WhatsApp connection lifecycle — failure-path test suite
+ * MAV-171, ported to whatsmeow (MAV-265): WhatsApp connection lifecycle —
+ * failure-path test suite.
  *
- * Covers 11 cases: QR emission, connection open, pre-connect closes (silent
- * retry), post-connect disconnect, loggedOut, retry budget exhaustion,
- * waitForStore variants, and disconnect() state reset.
+ * Covers: QR emission, connection open, pre-connect sidecar-process exits
+ * (silent retry), post-connect exits (circuit-breaker reconnect), logged-out,
+ * retry-budget exhaustion (both pre- and post-connect), and disconnect()
+ * state reset.
  *
- * Baileys is mocked entirely — no network I/O occurs.
+ * The Go sidecar itself is mocked entirely via a fake child_process — no
+ * real process is spawned. Two independent triggers exist now, unlike
+ * Baileys' single socket-close event: (1) a `connection-update` event over
+ * the sidecar's stdout (handled directly via handleSidecarLine(), since
+ * these tests never route through the real stdout/readline stream) and (2)
+ * the sidecar OS *process* itself exiting (simulated via the mock child's
+ * real 'exit' event — whatsapp.ts attaches this listener directly to the
+ * child, not via readline, so no stream plumbing is needed for it either).
+ *
+ * MAV-265 note: the pre-migration suite also covered `waitForStore()` /
+ * `storeReady` — those do not exist anywhere in the current WhatsAppManager
+ * (confirmed by reading the full class) and are not part of this migration's
+ * scope to reintroduce; they are omitted here as obsolete, not silently
+ * dropped from coverage of something still real.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { EventEmitter } from 'events'
+import { createMockSidecarProcess, type MockSidecarProcess } from './mocks/sidecarProcess'
 
-// ─── Mock variables ───────────────────────────────────────────────────────────
-// Vitest hoists vi.mock() calls to the top of the file; variables whose names
-// start with "mock" are also hoisted so they can be referenced inside the
-// factory without TDZ errors.
-
-const mockMakeWASocket = vi.fn()
-const mockUseMultiFileAuthState = vi.fn()
-const mockFetchLatestBaileysVersion = vi.fn()
-const mockMakeCacheableSignalKeyStore = vi.fn()
+const mockSpawn = vi.fn()
 const mockFsMkdir = vi.fn()
 const mockFsReaddir = vi.fn()
 const mockFsUnlink = vi.fn()
+const mockFsRm = vi.fn()
 
-// ─── Module mocks ─────────────────────────────────────────────────────────────
-
-vi.mock('@whiskeysockets/baileys', () => ({
-  default: mockMakeWASocket,
-  useMultiFileAuthState: mockUseMultiFileAuthState,
-  DisconnectReason: {
-    loggedOut: 401,
-    connectionClosed: 428,
-    connectionLost: 408,
-    timedOut: 408,
-  },
-  fetchLatestBaileysVersion: mockFetchLatestBaileysVersion,
-  makeCacheableSignalKeyStore: mockMakeCacheableSignalKeyStore,
-}))
+vi.mock('child_process', () => ({ spawn: mockSpawn, default: { spawn: mockSpawn } }))
 
 vi.mock('fs', () => {
   const promises = {
     mkdir: mockFsMkdir,
     readdir: mockFsReaddir,
     unlink: mockFsUnlink,
+    rm: mockFsRm,
   }
   return { default: { promises }, promises }
 })
 
-vi.mock('pino', () => ({
-  default: vi.fn().mockReturnValue({ level: 'silent' }),
-}))
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/** Build a fresh fake Baileys socket with an EventEmitter for .ev. */
-function makeSocket() {
-  const ev = new EventEmitter()
-  const logout = vi.fn().mockResolvedValue(undefined)
-  return { ev, logout }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function dispatch(wa: any, event: string, payload: any = {}): void {
+  wa.handleSidecarLine(JSON.stringify({ v: 1, type: 'event', event, payload }))
 }
 
-/** Build a `connection.update` close payload with the given status code. */
-function closeUpdate(statusCode: number) {
-  return {
-    connection: 'close' as const,
-    lastDisconnect: { error: { output: { statusCode } } },
-  }
+/** Flush pending microtasks — used for fire-and-forget async work (e.g. clearWhatsmeowSession()'s .catch()). */
+async function flushMicrotasks(): Promise<void> {
+  for (let i = 0; i < 5; i++) await Promise.resolve()
 }
-
-/** Flush all pending microtasks so async event-handler code can complete. */
-async function flushMicrotasks() {
-  await Promise.resolve()
-  await Promise.resolve()
-  await Promise.resolve()
-}
-
-// ─── Suite ────────────────────────────────────────────────────────────────────
 
 describe('WhatsApp connection lifecycle', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let wa: any
-  let sock: ReturnType<typeof makeSocket>
+  let proc: MockSidecarProcess
 
   beforeEach(async () => {
     vi.resetModules()
     vi.useFakeTimers()
 
-    // Fresh socket for each test — start() returns this one on first call.
-    sock = makeSocket()
-    mockMakeWASocket.mockReset().mockReturnValue(sock)
-    mockUseMultiFileAuthState.mockReset().mockResolvedValue({
-      state: { creds: {}, keys: {} },
-      saveCreds: vi.fn(),
-    })
-    mockFetchLatestBaileysVersion.mockReset().mockResolvedValue({ version: [2, 3000, 1] })
-    mockMakeCacheableSignalKeyStore.mockReset().mockReturnValue({})
+    mockSpawn.mockReset()
+    proc = createMockSidecarProcess()
+    mockSpawn.mockReturnValue(proc)
     mockFsMkdir.mockReset().mockResolvedValue(undefined)
     mockFsReaddir.mockReset().mockResolvedValue([])
     mockFsUnlink.mockReset().mockResolvedValue(undefined)
+    mockFsRm.mockReset().mockResolvedValue(undefined)
 
-    // Re-import after resetModules() to get a fresh singleton.
     const { default: WhatsAppManager } = await import('../main/whatsapp')
     wa = WhatsAppManager.getInstance()
   })
@@ -109,15 +79,15 @@ describe('WhatsApp connection lifecycle', () => {
     vi.useRealTimers()
   })
 
-  // ── Case 1: QR event ─────────────────────────────────────────────────────────
+  // ── Case 1: QR event ─────────────────────────────────────────────────────
 
-  it('1: QR present in connection.update → status qr_pending + qr event fired', async () => {
+  it('1: qr event → status qr_pending + qr event fired', async () => {
     await wa.start()
 
     const qrHandler = vi.fn()
     wa.on('qr', qrHandler)
 
-    sock.ev.emit('connection.update', { qr: 'fake-qr-string' })
+    dispatch(wa, 'qr', { code: 'fake-qr-string' })
 
     expect(wa.getStatus()).toBe('qr_pending')
     expect(wa.getCurrentQR()).toBe('fake-qr-string')
@@ -125,15 +95,15 @@ describe('WhatsApp connection lifecycle', () => {
     expect(qrHandler).toHaveBeenCalledWith('fake-qr-string')
   })
 
-  // ── Case 2: Connection open ───────────────────────────────────────────────────
+  // ── Case 2: Connection open ───────────────────────────────────────────────
 
-  it('2: connection=open → status connected, hasConnectedOnce=true, connected event fired', async () => {
+  it('2: connection-update:connected → status connected, hasConnectedOnce=true, connected event fired', async () => {
     await wa.start()
 
     const connectedHandler = vi.fn()
     wa.on('connected', connectedHandler)
 
-    sock.ev.emit('connection.update', { connection: 'open' })
+    dispatch(wa, 'connection-update', { state: 'connected' })
 
     expect(wa.getStatus()).toBe('connected')
     expect(wa.isConnected()).toBe(true)
@@ -142,231 +112,177 @@ describe('WhatsApp connection lifecycle', () => {
     expect(wa.hasConnectedOnce).toBe(true)
   })
 
-  // ── Case 3: Pre-connect close with a recognisable transient code ──────────────
-  //   connectionClosed (428) is a recoverable code. Before hasConnectedOnce the
-  //   manager retries silently with an 800 ms initial backoff.
+  // ── Case 3: Sidecar process exits before ever connecting ──────────────────
+  //   Mirrors Baileys' old "pre-connect close" behavior, but the trigger is
+  //   now the OS process dying, not a connection.update close event — the
+  //   sidecar's whatsmeow client handles transient connection drops
+  //   internally without exiting (design.md Section 3).
 
-  it('3: pre-connect close (recoverable code 428) → silent 800 ms retry, no status change or disconnected event', async () => {
+  it('3: sidecar exits pre-connect → silent 800 ms retry, status disconnected (no connection-failed event)', async () => {
     await wa.start()
+    expect(mockSpawn).toHaveBeenCalledTimes(1)
 
-    const disconnectedHandler = vi.fn()
-    wa.on('disconnected', disconnectedHandler)
+    const failedHandler = vi.fn()
+    wa.on('connection-failed', failedHandler)
 
-    sock.ev.emit('connection.update', closeUpdate(428))
+    const proc2 = createMockSidecarProcess()
+    mockSpawn.mockReturnValueOnce(proc2)
 
-    // Status becomes disconnected briefly; the 'disconnected' EVENT is not emitted.
-    expect(wa.getStatus()).toBe('disconnected')
-    expect(disconnectedHandler).not.toHaveBeenCalled()
-
-    // A retry timer must have been scheduled.
-    expect(vi.getTimerCount()).toBeGreaterThan(0)
-
-    // Advance 800 ms — start() fires again → second makeWASocket call.
-    const sock2 = makeSocket()
-    mockMakeWASocket.mockReturnValueOnce(sock2)
-    await vi.advanceTimersByTimeAsync(800)
-    expect(mockMakeWASocket).toHaveBeenCalledTimes(2)
-  })
-
-  // ── Case 4: Pre-connect close with an unknown / non-standard status code ──────
-  //   Post-QR-blink-fix (commit aee2ab7): ALL pre-first-connect closes are
-  //   retried silently regardless of status code. Unknown codes no longer emit
-  //   'disconnected' or flash a failure banner on the QR screen.
-
-  it('4: pre-connect close (unknown code 999) → also silently retried, no status change or disconnected event', async () => {
-    await wa.start()
-
-    const disconnectedHandler = vi.fn()
-    wa.on('disconnected', disconnectedHandler)
-
-    sock.ev.emit('connection.update', closeUpdate(999))
+    proc.emit('exit', 1, null)
 
     expect(wa.getStatus()).toBe('disconnected')
-    expect(disconnectedHandler).not.toHaveBeenCalled()
+    expect(failedHandler).not.toHaveBeenCalled()
     expect(vi.getTimerCount()).toBeGreaterThan(0)
 
-    // Advance 800 ms — retry fires.
-    const sock2 = makeSocket()
-    mockMakeWASocket.mockReturnValueOnce(sock2)
     await vi.advanceTimersByTimeAsync(800)
-    expect(mockMakeWASocket).toHaveBeenCalledTimes(2)
+    expect(mockSpawn).toHaveBeenCalledTimes(2)
   })
 
-  // ── Case 5: Close after a successful connect ──────────────────────────────────
+  // ── Case 4: Pre-connect retry budget exhausted ─────────────────────────────
 
-  it('5: close after successful connect → reconnecting status + event emitted, reconnect at 800 ms', async () => {
+  it('4: pre-connect retry budget exhausted → connection-failed event, status failed, no further retries', async () => {
     await wa.start()
 
-    // Establish the first connection.
-    sock.ev.emit('connection.update', { connection: 'open' })
+    const failedHandler = vi.fn()
+    wa.on('connection-failed', failedHandler)
+
+    // Jump straight to the boundary (MAX_RECONNECT_ATTEMPTS = 8) rather than
+    // looping 9 real exit/backoff cycles — the interesting behavior is what
+    // happens exactly at exhaustion, not re-deriving the backoff curve.
+    wa.reconnectAttempts = 8
+
+    proc.emit('exit', 1, null)
+
+    expect(failedHandler).toHaveBeenCalledOnce()
+    expect(failedHandler).toHaveBeenCalledWith({ reason: 'exhausted' })
+    expect(wa.getStatus()).toBe('failed')
+
+    const callCount = mockSpawn.mock.calls.length
+    await vi.runAllTimersAsync()
+    expect(mockSpawn.mock.calls.length).toBe(callCount)
+  })
+
+  // ── Case 5: Sidecar exits after a successful connect ───────────────────────
+
+  it('5: sidecar exits post-connect → reconnecting status + event emitted, respawn at 800 ms', async () => {
+    await wa.start()
+    dispatch(wa, 'connection-update', { state: 'connected' })
     expect(wa.hasConnectedOnce).toBe(true)
 
     const reconnectingHandler = vi.fn()
     wa.on('reconnecting', reconnectingHandler)
 
-    // Prepare the socket the reconnect will create before advancing timers.
-    const sock2 = makeSocket()
-    mockMakeWASocket.mockReturnValueOnce(sock2)
+    const proc2 = createMockSidecarProcess()
+    mockSpawn.mockReturnValueOnce(proc2)
 
-    sock.ev.emit('connection.update', closeUpdate(428))
+    proc.emit('exit', 1, null)
 
-    // 'reconnecting' fires synchronously inside the handler.
     expect(reconnectingHandler).toHaveBeenCalledOnce()
     expect(reconnectingHandler).toHaveBeenCalledWith(
       expect.objectContaining({ attempt: 1, max: 3 }),
     )
     expect(wa.getStatus()).toBe('reconnecting')
 
-    // Advance 800 ms — reconnect timer fires → start() → second makeWASocket call.
     await vi.advanceTimersByTimeAsync(800)
-    expect(mockMakeWASocket).toHaveBeenCalledTimes(2)
+    expect(mockSpawn).toHaveBeenCalledTimes(2)
   })
 
-  // ── Case 6: loggedOut close ───────────────────────────────────────────────────
+  // ── Case 6: logged-out connection-update ───────────────────────────────────
 
-  it('6: loggedOut close → logged_out status + logged-out event emitted, clearAuth() called, no reconnect', async () => {
+  it('6: connection-update:logged-out → logged_out status + logged-out event, clears whatsmeow session, no reconnect', async () => {
     await wa.start()
-
-    // A prior successful connection makes this scenario realistic.
-    sock.ev.emit('connection.update', { connection: 'open' })
+    dispatch(wa, 'connection-update', { state: 'connected' })
 
     const loggedOutHandler = vi.fn()
     wa.on('logged-out', loggedOutHandler)
 
-    // statusCode 401 = DisconnectReason.loggedOut as set in our mock.
-    sock.ev.emit('connection.update', closeUpdate(401))
+    dispatch(wa, 'connection-update', { state: 'logged-out' })
 
-    // 'logged-out' fires before the async clearAuth() suspends on await.
     expect(loggedOutHandler).toHaveBeenCalledOnce()
     expect(wa.getStatus()).toBe('logged_out')
 
-    // Flush microtasks so clearAuth() can complete.
+    // clearWhatsmeowSession() is fire-and-forget (.catch(() => {})) — flush
+    // its sequential unlink(main/-wal/-shm) awaits.
     await flushMicrotasks()
+    expect(mockFsUnlink).toHaveBeenCalled()
 
-    expect(mockFsReaddir).toHaveBeenCalled()
-
-    // No reconnect timer should be pending after flushing.
+    // logged-out is a connection-update event, not a process exit — it never
+    // touches handleSidecarExit()'s reconnect machinery, so no timer/respawn.
     await vi.runAllTimersAsync()
-    expect(mockMakeWASocket).toHaveBeenCalledTimes(1) // only the original start()
+    expect(mockSpawn).toHaveBeenCalledTimes(1) // only the original start()
   })
 
-  // ── Case 7: Retry budget exhausted (circuit breaker) ─────────────────────────
+  // ── Case 7: Post-connect retry budget exhausted (circuit breaker) ─────────
 
   it('7: post-connect retry budget exhausted → connection-failed event, no further retries', async () => {
     await wa.start()
-
-    // Establish the first connection.
-    sock.ev.emit('connection.update', { connection: 'open' })
+    dispatch(wa, 'connection-update', { state: 'connected' })
 
     const failedHandler = vi.fn()
     wa.on('connection-failed', failedHandler)
 
     // CIRCUIT_BREAKER_BACKOFF = [800, 2000, 5000] — 3 retries allowed.
-    // Each iteration: close fires → retry scheduled → timer fires → new socket created.
+    let current = proc
     for (let i = 0; i < 3; i++) {
-      const nextSock = makeSocket()
-      mockMakeWASocket.mockReturnValueOnce(nextSock)
-      sock.ev.emit('connection.update', closeUpdate(428))
+      const next = createMockSidecarProcess()
+      mockSpawn.mockReturnValueOnce(next)
+      current.emit('exit', 1, null)
       await vi.advanceTimersByTimeAsync(10_000)
-      // Update sock reference so next close fires on the new socket.
-      sock = nextSock
+      current = next
     }
 
-    // 4th close hits reconnectAttempts >= MAX_CIRCUIT_BREAKER_RETRIES → exhausted.
-    sock.ev.emit('connection.update', closeUpdate(428))
+    // 4th exit hits reconnectAttempts >= MAX_CIRCUIT_BREAKER_RETRIES → exhausted.
+    current.emit('exit', 1, null)
     await flushMicrotasks()
 
     expect(failedHandler).toHaveBeenCalledOnce()
     expect(wa.getStatus()).toBe('failed')
 
-    // No more retries pending.
-    const callCount = mockMakeWASocket.mock.calls.length
+    const callCount = mockSpawn.mock.calls.length
     await vi.runAllTimersAsync()
-    expect(mockMakeWASocket.mock.calls.length).toBe(callCount)
+    expect(mockSpawn.mock.calls.length).toBe(callCount)
   })
 
-  // ── Case 8: waitForStore resolves immediately when storeReady = true ──────────
+  // ── Case 8: connect-failure connection-update ──────────────────────────────
+  //   No whatsmeow/sidecar equivalent to Baileys' distinction between
+  //   "recoverable" vs. "unknown" close codes (that whole class of Baileys-
+  //   specific status-code plumbing — the QR-blink fix from aee2ab7 — has no
+  //   analogue: the sidecar only ever reports a small fixed set of named
+  //   connection-update states). This covers the one failure state whatsmeow
+  //   does surface explicitly.
 
-  it('8: waitForStore resolves immediately when storeReady is already true', async () => {
+  it('8: connection-update:connect-failure → protocol_error status + protocol-error event', async () => {
     await wa.start()
 
-    // Trigger the internal chats.set handler so storeReady becomes true.
-    sock.ev.emit('chats.set', { chats: [{ id: 'chat1@s.whatsapp.net' }] })
-    expect(wa.storeReady).toBe(true)
+    const protocolErrorHandler = vi.fn()
+    wa.on('protocol-error', protocolErrorHandler)
 
-    let resolved = false
-    await wa.waitForStore().then(() => { resolved = true })
+    dispatch(wa, 'connection-update', { state: 'connect-failure', reason: 'stream-error' })
 
-    expect(resolved).toBe(true)
+    expect(wa.getStatus()).toBe('protocol_error')
+    expect(protocolErrorHandler).toHaveBeenCalledWith({ reason: 'stream-error' })
+    expect(wa.isConnected()).toBe(false)
   })
 
-  // ── Case 9: waitForStore resolves after store-ready event fires ───────────────
+  // ── Case 9: disconnect() resets lifecycle flags ────────────────────────────
 
-  it('9: waitForStore resolves after store-ready event fires', async () => {
+  it('9: disconnect() resets hasConnectedOnce and currentQR to a clean state', async () => {
     await wa.start()
 
-    // Store is NOT ready yet.
-    expect(wa.storeReady).toBe(false)
-
-    let resolved = false
-    const waitPromise = wa.waitForStore().then(() => { resolved = true })
-
-    // Still pending.
-    await flushMicrotasks()
-    expect(resolved).toBe(false)
-
-    // Fire chats.set → manager emits 'store-ready' → waitForStore resolves.
-    sock.ev.emit('chats.set', { chats: [] })
-
-    await waitPromise
-    expect(resolved).toBe(true)
-  })
-
-  // ── Case 10: waitForStore resolves after timeout ──────────────────────────────
-
-  it('10: waitForStore resolves after timeout when store never arrives (warning logged)', async () => {
-    await wa.start()
-
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-
-    let resolved = false
-    const waitPromise = wa.waitForStore(2000).then(() => { resolved = true })
-
-    // Still pending before the timeout.
-    await flushMicrotasks()
-    expect(resolved).toBe(false)
-
-    // Advance past the 2 s timeout.
-    await vi.advanceTimersByTimeAsync(2001)
-    await waitPromise
-
-    expect(resolved).toBe(true)
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('waitForStore timed out'),
-    )
-
-    warnSpy.mockRestore()
-  })
-
-  // ── Case 11: disconnect() resets all lifecycle flags ─────────────────────────
-
-  it('11: disconnect() resets hasConnectedOnce, storeReady, currentQR to clean state', async () => {
-    await wa.start()
-
-    // Build up state: connected once, store ready, QR set.
-    sock.ev.emit('connection.update', { connection: 'open' })
-    sock.ev.emit('connection.update', { qr: 'leftover-qr' })
-    sock.ev.emit('chats.set', { chats: [{ id: 'chat@s.whatsapp.net' }] })
-    await flushMicrotasks()
+    dispatch(wa, 'connection-update', { state: 'connected' })
+    dispatch(wa, 'qr', { code: 'leftover-qr' })
 
     expect(wa.hasConnectedOnce).toBe(true)
-    expect(wa.storeReady).toBe(true)
     expect(wa.getCurrentQR()).toBe('leftover-qr')
 
-    await wa.disconnect()
+    // disconnect() waits 1500ms (a real setTimeout) for the sidecar's
+    // whatsmeow Client.Logout() to run before killing the process — must
+    // advance fake timers concurrently or the awaited promise never settles.
+    const disconnectPromise = wa.disconnect()
+    await vi.advanceTimersByTimeAsync(1500)
+    await disconnectPromise
 
     expect(wa.hasConnectedOnce).toBe(false)
-    expect(wa.storeReady).toBe(false)
     expect(wa.getCurrentQR()).toBeNull()
     expect(wa.getStatus()).toBe('disconnected')
   })

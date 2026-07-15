@@ -6,7 +6,8 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerAllHandlers } from './ipc'
 import Scanner from './scanner'
 import { initAnalytics, initSentry, track, shutdownAnalytics } from './analytics'
-import WhatsAppManager, { AUTH_DIR } from './whatsapp'
+import WhatsAppManager, { AUTH_DIR, WHATSMEOW_SESSION_DB_PATH } from './whatsapp'
+import MessageStore from './messageStore'
 import { readState, patchState, LOOP_DIR, migrateLegacyLoopDir } from './store'
 import { initAutoUpdater } from './updater'
 import { TRAFFIC_LIGHT_POSITION } from '../shared/layout'
@@ -16,6 +17,19 @@ import { TRAFFIC_LIGHT_POSITION } from '../shared/layout'
  * If state claims WA is connected but the Baileys auth directory is
  * missing or empty, the session is gone — reset connection flags so
  * the user is sent back through onboarding rather than seeing seed data.
+ *
+ * MAV-265/task #5: extended for the whatsmeow cutover. Baileys and
+ * whatsmeow use incompatible session formats — a user who was connected
+ * via the old Baileys path has a `hasSession` (Baileys) that's still valid,
+ * but no whatsmeow-session.db yet, since that file is only ever created by
+ * a fresh QR relink against the new sidecar. Per product decision, this must
+ * be a forced prompt, not passive detection: reset the same three flags so
+ * the user is routed straight back through onboarding (which includes
+ * WhatsAppConnectScreen) on next launch, rather than silently sitting in a
+ * "connected" state that no longer reflects reality. whatsmeow-session.db is
+ * a SQLite file owned entirely by the Go sidecar (design.md Section 1) — Node
+ * never opens it, so existence + nonzero size is the only signal available
+ * from this side without spawning the sidecar just to check.
  */
 async function validateSessionState(): Promise<void> {
   try {
@@ -32,8 +46,22 @@ async function validateSessionState(): Promise<void> {
 
     const hasSession = authFiles.some((f) => f.endsWith('.json') && f !== 'wa-cache.json')
 
-    if (!hasSession && (state.whatsappConnected || state.onboardingComplete)) {
-      console.warn('[main] No Baileys session found but state claims connected — resetting onboarding flags')
+    let hasWhatsmeowSession = false
+    try {
+      const stat = await fs.stat(WHATSMEOW_SESSION_DB_PATH)
+      hasWhatsmeowSession = stat.size > 0
+    } catch {
+      // File missing entirely — never relinked via whatsmeow yet
+    }
+
+    const claimsConnected = state.whatsappConnected || state.onboardingComplete
+
+    if (claimsConnected && !hasWhatsmeowSession) {
+      console.warn(
+        hasSession
+          ? '[main] Baileys session found but no whatsmeow session — forcing relink post-cutover (MAV-265)'
+          : '[main] No session found but state claims connected — resetting onboarding flags'
+      )
       await patchState({
         whatsappConnected: false,
         onboardingComplete: false,
@@ -160,6 +188,10 @@ app.whenReady().then(async () => {
 
   electronApp.setAppUserModelId('com.loop.app')
 
+  // MAV-263: must be ready before any IPC handler or auto-reconnect can call
+  // WhatsAppManager.start() — messages.upsert can fire immediately after connection.
+  await MessageStore.getInstance().init()
+
   track('app_opened', { version: app.getVersion(), platform: process.platform })
 
   app.on('browser-window-created', (_, window) => {
@@ -225,6 +257,12 @@ app.whenReady().then(async () => {
 })
 
 app.on('before-quit', () => {
+  // MAV-265/task #3: the sidecar is a real OS process now, not an in-process
+  // socket — it must be killed explicitly on quit or it's left orphaned
+  // (the exact class of bug the whatsmeow spike hit once already, see
+  // design.md Section 4). Plain SIGTERM shutdown, not a full account
+  // logout/unlink — see WhatsAppManager.shutdownForAppQuit()'s comment.
+  WhatsAppManager.getInstance().shutdownForAppQuit()
   shutdownAnalytics().catch(console.error)
 })
 

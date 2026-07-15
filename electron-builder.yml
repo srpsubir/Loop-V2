@@ -15,6 +15,26 @@ files:
   - out/**/*
   - "!**/*.map"
 
+# MAV-263: better-sqlite3's compiled .node binary can't load from inside the
+# asar archive — must be unpacked to app.asar.unpacked/ at build time.
+asarUnpack:
+  - "**/node_modules/better-sqlite3/**"
+
+# MAV-265/task #7: the whatsmeow Go sidecar, prebuilt per-arch by
+# `npm run build:sidecar` (scripts/build-sidecar.mjs) into
+# sidecar/dist/darwin-<arch>/loop-sidecar before this config runs (wired into
+# `dist`'s npm script). electron-builder's ${arch} macro resolves per the
+# `mac.target[].arch` entry it's currently packaging (arm64 or x64), so each
+# arch build picks up only its own binary — matches
+# resolveSidecarBinaryPath()'s runtime lookup at
+# process.resourcesPath/sidecar/loop-sidecar (src/main/whatsapp.ts). This is
+# a full standalone executable, not a loadable native module like
+# better-sqlite3's .node file, so it needs extraResources (outside the asar
+# entirely) rather than asarUnpack.
+extraResources:
+  - from: sidecar/dist/darwin-${arch}/loop-sidecar
+    to: sidecar/loop-sidecar
+
 artifactName: '${productName}-${version}-${env.BUILD_NOTE}-${arch}.${ext}'
 
 mac:
@@ -26,4 +46,15 @@ mac:
   gatekeeperAssess: false
   entitlements: resources/entitlements.mac.plist
   entitlementsInherit: resources/entitlements.mac.plist
+  # MAV-265/task #7 — UNTESTED, per design.md Section 5 ("Code signing /
+  # notarization... must be verified against a real signed, notarized
+  # `npm run dist` build before this can ship, not assumed to 'just work'").
+  # `binaries` tells electron-builder to code-sign this extraResources
+  # executable with the same identity/entitlements as the rest of the app —
+  # required for Gatekeeper/notarization, since every executable inside a
+  # signed .app bundle must itself be signed. Path is relative to the app
+  # bundle's Contents/, matching where `to: sidecar/loop-sidecar` above lands
+  # under Contents/Resources/.
+  binaries:
+    - Contents/Resources/sidecar/loop-sidecar
   notarize: true

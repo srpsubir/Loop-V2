@@ -29,3 +29,19 @@ src/main/whatsapp-auth/
 # Logs
 *.log
 npm-debug.log*
+
+# Test coverage output (generated)
+coverage/
+
+# Backup files
+*.bak
+
+# Vendored tool clones (own git history, not part of this repo)
+agentic-qa/tools/mcp-server-macos-use/
+
+# whatsmeow spike artifacts — compiled binary, QR images, run logs.
+# Source (main.go, go.mod, README.md) is kept for provenance (see MAV-265
+# design.md), the rest is throwaway spike output.
+spikes/**/spike
+spikes/**/*.png
+spikes/**/spike*.log

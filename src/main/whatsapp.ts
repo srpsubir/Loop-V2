@@ -1,10 +1,63 @@
 import { EventEmitter } from 'events'
 import { join } from 'path'
 import { promises as fs } from 'fs'
+import { spawn, type ChildProcessWithoutNullStreams } from 'child_process'
+import { createInterface } from 'readline'
+import { app } from 'electron'
 import { LOOP_DIR } from './store'
+import MessageStore, {
+  type MessageRecord,
+  type ReceiptRecord,
+  type CallRecord,
+  type LabelRecord,
+  type LabelAssociationRecord,
+} from './messageStore'
 
 // MAV-252: lives under LOOP_DIR (Application Support), not ~/Documents/Loop.
+// MAV-265: Baileys-only from here on — dead weight post-cutover, kept only so
+// task #6 (whatsapp-auth/ decommission step) has a path to delete. Not read
+// or written by any code below; the live session now lives in
+// WHATSMEOW_SESSION_DB_PATH.
 export const AUTH_DIR = join(LOOP_DIR, 'whatsapp-auth')
+
+// MAV-265 design.md Section 1: whatsmeow's own sqlstore-backed device/session
+// store, owned entirely by the Go sidecar process — never read or written
+// from Node directly, only passed as a path for the sidecar to open.
+export const WHATSMEOW_SESSION_DB_PATH = join(LOOP_DIR, 'whatsmeow-session.db')
+
+// Must match sidecar/protocol.go's ProtocolVersion. Bumped whenever the
+// envelope/event/command shapes change non-additively (design.md Section 4,
+// "IPC protocol version skew") — mismatches are a hard failure, not a silent
+// mis-parse.
+const SIDECAR_PROTOCOL_VERSION = 1
+
+// MAV-265/task #7: prebuilt per-arch binaries, not a local Go toolchain
+// requirement (user decision — see design.md's "Go not installed on a
+// contributor's machine" edge case). `npm run build:sidecar`
+// (scripts/build-sidecar.mjs) produces sidecar/dist/darwin-<arch>/loop-sidecar
+// for both arm64 and x64, keyed on Node's process.arch naming.
+//
+// In a packaged app, electron-builder's extraResources (electron-builder.yml)
+// copies the binary matching the build's own arch to
+// process.resourcesPath/sidecar/loop-sidecar — no arch branching needed at
+// runtime since each packaged build only ships its own arch's binary.
+// In dev, resolve straight to the freshly-built per-arch dist path so
+// `npm run dev` works after a plain `npm run build:sidecar` (or the
+// predev-triggered one) without needing a packaged build.
+function resolveSidecarBinaryPath(): string {
+  if (process.env.LOOP_SIDECAR_BINARY_PATH) return process.env.LOOP_SIDECAR_BINARY_PATH
+  if (app.isPackaged) return join(process.resourcesPath, 'sidecar', 'loop-sidecar')
+  return join(process.cwd(), 'sidecar', 'dist', `darwin-${process.arch}`, 'loop-sidecar')
+}
+
+// One line of sidecar stdout, matching sidecar/protocol.go's OutEnvelope.
+interface SidecarOutEnvelope {
+  v: number
+  type: string
+  event: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  payload?: any
+}
 
 export type WAConnectionStatus = 'disconnected' | 'connecting' | 'qr_pending' | 'connected' | 'reconnecting' | 'failed' | 'logged_out' | 'protocol_error'
 
@@ -120,19 +173,31 @@ function louvain(graph: Map<string, Map<string, number>>): Map<string, string> {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 class WhatsAppManager extends EventEmitter {
   private static instance: WhatsAppManager
-  private socket: unknown = null
+  // MAV-265: replaces the Baileys `socket`. Two independent conditions now
+  // gate "connected" (design.md Section 1, state.json's whatsappConnected
+  // flag): the sidecar OS process must be alive AND the sidecar's whatsmeow
+  // client must have reported connection-update{state:"connected"}. Neither
+  // alone is sufficient — a spawned-but-not-yet-connected sidecar must not
+  // be reported as connected.
+  private sidecarProcess: ChildProcessWithoutNullStreams | null = null
+  private sidecarConnected = false
+  // Set before intentionally killing the sidecar (disconnect() or app quit)
+  // so the exit handler doesn't mistake a deliberate shutdown for a crash
+  // and try to respawn it.
+  private intentionalShutdown = false
   private status: WAConnectionStatus = 'disconnected'
   private currentQR: string | null = null
-  private saveCreds: (() => Promise<void>) | null = null
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private chatStore = new Map<string, any>()
-  private storeReady = false
   private hasConnectedOnce = false
   private reconnectAttempts = 0
   private consecutiveProtocolErrors = 0
   private static readonly MAX_RECONNECT_ATTEMPTS = 8
   private static readonly MAX_CIRCUIT_BREAKER_RETRIES = 3
   private static readonly CIRCUIT_BREAKER_BACKOFF = [800, 2000, 5000]
+  // MAV-265: best-effort display-name cache, populated incrementally from
+  // messages-upsert's pushName field (WhatsApp's own WebMessageInfo.PushName)
+  // as messages arrive. Replaces Baileys' sock.contacts[] lookup, which had
+  // no whatsmeow/sidecar equivalent — not persisted, rebuilt each session.
+  private displayNameCache = new Map<string, string>()
 
   // MAV-256: in-memory mirror of GROUP_CACHE_PATH, lazily loaded once per
   // process and kept warm afterward by passive groups.upsert/groups.update/
@@ -141,6 +206,10 @@ class WhatsAppManager extends EventEmitter {
   private groupCache = new Map<string, CachedGroup>()
   private groupCacheWrittenAt: number | null = null
   private groupCacheLoaded = false
+
+  // MAV-263: real per-message record, source for buildTieStrengthMap()'s
+  // messageCount — replaces the hardcoded 150/30/5 recency-bucket proxy.
+  private messageStore = MessageStore.getInstance()
   // Freshness window: group membership doesn't need to be more current than
   // this for the app's actual use cases (occasional chapter detection / group
   // scan, not live chat) — picked as "a day" per MAV-256, not tuned further.
@@ -153,19 +222,33 @@ class WhatsAppManager extends EventEmitter {
 
   getStatus(): WAConnectionStatus { return this.status }
   getCurrentQR(): string | null { return this.currentQR }
-  isConnected(): boolean { return this.status === 'connected' }
+  // MAV-265/task #4: sidecar process alive AND whatsmeow client connected —
+  // both conditions, not either alone.
+  isConnected(): boolean { return this.status === 'connected' && this.sidecarConnected }
 
-  // MAV-255: chatStore is populated only from Baileys' own chats.set/chats.upsert
-  // events — i.e. conversations that genuinely exist on the connected WhatsApp
-  // account. Used as a real technical guarantee that a send target is a real
-  // contact, not e.g. externally-injected/fabricated contact data (which has no
-  // representation in chatStore since it never came from a real WhatsApp sync).
+  // MAV-255, ported to whatsmeow (MAV-265): originally backed by Baileys'
+  // chats.set/chats.upsert events, which have no whatsmeow/sidecar
+  // equivalent (design.md flagged this sidecar-side: send-message is an
+  // unguarded pass-through, guard must live here). Re-derived from
+  // messageStore instead — a JID with at least one real ingested message
+  // (via messages-upsert or history-sync-chunk) is, by construction, a real
+  // conversation that happened on the connected account. Arguably a
+  // stronger guarantee than the old chats.set snapshot, since it requires
+  // actual message traffic rather than a bulk chat-list entry.
   hasChatWith(jid: string): boolean {
-    return this.chatStore.has(jid)
+    return this.messageStore.getMessageCount(jid) > 0
   }
 
+  // MAV-265/task #10: whatsmeow's Client.SendMessage is itself a synchronous
+  // call returning (SendResponse, error) directly — confirmed against
+  // mautrix-whatsapp's own send path (pkg/connector/handlematrix.go), which
+  // just propagates that error straight to its caller rather than treating
+  // sends as fire-and-forget. The sidecar now correlates that result back
+  // over IPC via cmdId (sidecar/commands.go's handleSendMessage), so this can
+  // throw on a real send failure again, same as the old `await
+  // sock.sendMessage()` could.
   async sendMessage(jid: string, text: string): Promise<void> {
-    if (!this.socket) throw new Error('WhatsApp not connected')
+    if (!this.sidecarProcess || !this.sidecarConnected) throw new Error('WhatsApp not connected')
     const normalised = jid.includes('@') ? jid : `${jid.replace(/[^0-9]/g, '')}@s.whatsapp.net`
     // Reject JIDs that don't conform to WhatsApp's known address format
     if (!/^\d+@(s\.whatsapp\.net|g\.us)$/.test(normalised)) {
@@ -177,19 +260,12 @@ class WhatsAppManager extends EventEmitter {
     if (!this.hasChatWith(normalised)) {
       throw new Error('No existing WhatsApp conversation with this contact — refusing to send to an unverified number.')
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (this.socket as any).sendMessage(normalised, { text })
+    await this.sendCommandAwaitAck('send-message', { jid: normalised, text })
   }
 
   private setStatus(s: WAConnectionStatus): void {
     this.status = s
     this.emit('status', s)
-  }
-
-  private classifyCloseCode(statusCode: number | undefined): 'logged_out' | 'protocol' | 'transient' {
-    if (statusCode === 401 || statusCode === 440) return 'logged_out'
-    if (statusCode === 500 || statusCode === 411 || statusCode === 403 || statusCode === 405) return 'protocol'
-    return 'transient'
   }
 
   async retry(): Promise<void> {
@@ -198,185 +274,332 @@ class WhatsAppManager extends EventEmitter {
     await this.start()
   }
 
+  // MAV-265: sends one NDJSON command line to the sidecar's stdin, matching
+  // sidecar/protocol.go's InEnvelope shape. Returns the command's correlation
+  // id — callers that don't care about the result (fetch-history, logout,
+  // both of which signal completion via their own events) can just ignore
+  // it; callers that do (send-message, list-groups) use
+  // sendCommandAwaitAck() instead, which wraps this and resolves off the
+  // sidecar's command-ack/command-error events.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private sendCommand(cmd: string, payload: any): string {
+    const id = String(this.commandSeq++)
+    if (!this.sidecarProcess?.stdin?.writable) {
+      console.warn(`[WhatsApp] sendCommand(${cmd}): sidecar not running, dropped`)
+      return id
+    }
+    const line = JSON.stringify({
+      v: SIDECAR_PROTOCOL_VERSION,
+      type: 'command',
+      cmd,
+      id,
+      payload,
+    })
+    this.sidecarProcess.stdin.write(line + '\n')
+    return id
+  }
+
+  private commandSeq = 0
+
+  // MAV-265/task #10: pending command-ack/command-error correlation, keyed by
+  // cmdId (sidecar/protocol.go's EventCommandAck/EventCommandError). Only
+  // send-message and list-groups use this path today — see sendCommand()'s
+  // comment for why fetch-history/logout don't need it.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private pendingCommands = new Map<string, { resolve: (payload: any) => void; reject: (err: Error) => void }>()
+
+  private static readonly COMMAND_ACK_TIMEOUT_MS = 15_000
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private sendCommandAwaitAck(cmd: string, payload: any): Promise<any> {
+    if (!this.sidecarProcess || !this.sidecarConnected) {
+      return Promise.reject(new Error('WhatsApp not connected'))
+    }
+    const id = this.sendCommand(cmd, payload)
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pendingCommands.delete(id)
+        reject(new Error(`${cmd}: sidecar did not respond within ${WhatsAppManager.COMMAND_ACK_TIMEOUT_MS}ms`))
+      }, WhatsAppManager.COMMAND_ACK_TIMEOUT_MS)
+      this.pendingCommands.set(id, {
+        resolve: (p) => { clearTimeout(timer); resolve(p) },
+        reject: (e) => { clearTimeout(timer); reject(e) },
+      })
+    })
+  }
+
   async start(): Promise<void> {
     if (this.status === 'connected' || this.status === 'connecting') return
     this.setStatus('connecting')
+    this.intentionalShutdown = false
 
-    // Clean up the previous socket's listeners before creating a new one.
-    // Baileys accumulates event listeners on reconnect if not explicitly removed.
-    if (this.socket) {
-      try { (this.socket as any).ev.removeAllListeners() } catch { /* ignore */ }
-      this.socket = null
+    if (this.sidecarProcess) {
+      try { this.sidecarProcess.removeAllListeners(); this.sidecarProcess.kill() } catch { /* ignore */ }
+      this.sidecarProcess = null
     }
+    this.sidecarConnected = false
 
     try {
-      await fs.mkdir(AUTH_DIR, { recursive: true })
+      await fs.mkdir(LOOP_DIR, { recursive: true })
 
-      const {
-        default: makeWASocket,
-        useMultiFileAuthState,
-        DisconnectReason,
-        fetchLatestBaileysVersion,
-        makeCacheableSignalKeyStore,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } = await import('@whiskeysockets/baileys') as any
+      const child = spawn(resolveSidecarBinaryPath(), [], {
+        env: { ...process.env, LOOP_WHATSMEOW_DB_PATH: WHATSMEOW_SESSION_DB_PATH },
+        stdio: ['pipe', 'pipe', 'pipe'],
+      })
+      this.sidecarProcess = child
 
-      const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR)
-      this.saveCreds = saveCreds
+      const rl = createInterface({ input: child.stdout })
+      rl.on('line', (line) => this.handleSidecarLine(line))
 
-      const { version } = await fetchLatestBaileysVersion()
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sock = makeWASocket({
-        version,
-        auth: {
-          creds: state.creds,
-          keys: makeCacheableSignalKeyStore(state.keys, console),
-        },
-        browser: ['Loop', 'Desktop', '3.0.0'],
-        printQRInTerminal: false,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        logger: (await import('pino') as any).default({ level: 'silent' }),
-        syncFullHistory: false,
-        markOnlineOnConnect: false,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      }) as any
-
-      this.socket = sock
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      sock.ev.on('chats.set', ({ chats }: { chats: any[] }) => {
-        this.chatStore.clear()
-        for (const c of chats) this.chatStore.set(c.id, c)
-        this.storeReady = true
-        this.emit('store-ready')
+      // Sidecar's own stderr is Go's internal whatsmeow/sqlstore log output
+      // (waLog.Stdout(..., "ERROR", true) per sidecar/main.go), not part of
+      // the JSON protocol — surfaced for debugging only.
+      child.stderr.on('data', (chunk: Buffer) => {
+        console.warn('[WhatsApp][sidecar stderr]', chunk.toString().trim())
       })
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      sock.ev.on('chats.upsert', (chats: any[]) => {
-        for (const c of chats) this.chatStore.set(c.id, c)
+      child.on('error', (err) => {
+        console.error('[WhatsApp] sidecar process error:', err)
+        this.handleSidecarExit()
       })
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      sock.ev.on('connection.update', async (update: any) => {
-        const { connection, lastDisconnect, qr } = update
-
-        if (qr) {
-          this.currentQR = qr
-          this.setStatus('qr_pending')
-          this.emit('qr', qr)
-        }
-
-        if (connection === 'open') {
-          this.currentQR = null
-          this.hasConnectedOnce = true
-          this.reconnectAttempts = 0
-          this.consecutiveProtocolErrors = 0
-          this.setStatus('connected')
-          this.emit('connected')
-        }
-
-        if (connection === 'close') {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const statusCode = (lastDisconnect?.error as any)?.output?.statusCode
-          this.chatStore.clear()
-          this.storeReady = false
-
-          if (!this.hasConnectedOnce) {
-            this.setStatus('disconnected')
-            const delay = Math.min(800 * Math.pow(2, this.reconnectAttempts), 15_000)
-            this.reconnectAttempts++
-            console.warn(`[WhatsApp] Pre-connect close (code: ${statusCode}), retry ${this.reconnectAttempts} in ${delay}ms`)
-            if (this.reconnectAttempts <= WhatsAppManager.MAX_RECONNECT_ATTEMPTS) {
-              setTimeout(() => this.start(), delay)
-            } else {
-              this.reconnectAttempts = 0
-              this.consecutiveProtocolErrors = 0
-              this.setStatus('failed')
-              this.emit('connection-failed', { reason: 'exhausted' })
-            }
-            return
-          }
-
-          const classification = this.classifyCloseCode(statusCode)
-
-          if (classification === 'logged_out') {
-            this.reconnectAttempts = 0
-            this.consecutiveProtocolErrors = 0
-            this.setStatus('logged_out')
-            this.emit('logged-out')
-            await this.clearAuth()
-            return
-          }
-
-          if (classification === 'protocol') {
-            this.consecutiveProtocolErrors++
-          } else {
-            if (statusCode === 515 && this.consecutiveProtocolErrors >= 2) {
-              this.consecutiveProtocolErrors++
-            } else {
-              this.consecutiveProtocolErrors = 0
-            }
-          }
-
-          if (this.consecutiveProtocolErrors >= 3) {
-            this.reconnectAttempts = 0
-            this.consecutiveProtocolErrors = 0
-            this.setStatus('protocol_error')
-            this.emit('protocol-error', { reason: `code:${statusCode}` })
-            return
-          }
-
-          if (this.reconnectAttempts >= WhatsAppManager.MAX_CIRCUIT_BREAKER_RETRIES) {
-            this.reconnectAttempts = 0
-            this.consecutiveProtocolErrors = 0
-            this.setStatus('failed')
-            this.emit('connection-failed', { reason: `code:${statusCode}` })
-            return
-          }
-
-          const delay = WhatsAppManager.CIRCUIT_BREAKER_BACKOFF[this.reconnectAttempts] ?? 5000
-          this.reconnectAttempts++
-          this.setStatus('reconnecting')
-          this.emit('reconnecting', { attempt: this.reconnectAttempts, max: WhatsAppManager.MAX_CIRCUIT_BREAKER_RETRIES })
-          console.warn(`[WhatsApp] Post-connect close (code: ${statusCode}), retry ${this.reconnectAttempts} in ${delay}ms`)
-          setTimeout(() => this.start(), delay)
-        }
+      child.on('exit', (code, signal) => {
+        console.warn(`[WhatsApp] sidecar process exited (code=${code}, signal=${signal})`)
+        this.handleSidecarExit()
       })
-
-      sock.ev.on('creds.update', async () => {
-        await this.saveCreds?.()
-      })
-
-      // MAV-256: keep the group cache warm incrementally between full
-      // fetches. These only fire for changes that happen while connected —
-      // they cannot backfill history on a fresh connection, so listGroups()
-      // must still be able to do a real fetch on a cache miss; this is a
-      // top-up, not a replacement for that fetch. Handlers are extracted
-      // methods (rather than inline closures) so they're unit-testable
-      // without going through the full start()/makeWASocket() flow.
-      sock.ev.on('groups.upsert', this.handleGroupsUpsert.bind(this))
-      sock.ev.on('groups.update', this.handleGroupsUpdate.bind(this))
-      sock.ev.on('group-participants.update', this.handleGroupParticipantsUpdate.bind(this))
     } catch (err) {
-      console.error('[WhatsApp] Failed to start:', err)
+      console.error('[WhatsApp] Failed to start sidecar:', err)
       this.setStatus('disconnected')
       this.emit('disconnected', { loggedOut: false })
     }
   }
 
-  async disconnect(): Promise<void> {
-    if (this.socket) {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (this.socket as any).logout()
-      } catch { /* ignore */ }
-      this.socket = null
+  // design.md Section 3, "Sidecar crash / unexpected exit": detect exit,
+  // treat exactly like Baileys' old connection.close handling — respawn
+  // with the same exponential-backoff budget (MAX_RECONNECT_ATTEMPTS = 8,
+  // pattern from aee2ab7) now applied to process respawns instead of socket
+  // reconnects. A deliberate shutdown (disconnect()/app quit) skips all of
+  // this via intentionalShutdown.
+  private handleSidecarExit(): void {
+    this.sidecarProcess = null
+    this.sidecarConnected = false
+    this.rejectAllPendingCommands('WhatsApp sidecar exited before responding')
+    if (this.intentionalShutdown) return
+
+    if (!this.hasConnectedOnce) {
+      this.setStatus('disconnected')
+      const delay = Math.min(800 * Math.pow(2, this.reconnectAttempts), 15_000)
+      this.reconnectAttempts++
+      console.warn(`[WhatsApp] Sidecar exited pre-connect, retry ${this.reconnectAttempts} in ${delay}ms`)
+      if (this.reconnectAttempts <= WhatsAppManager.MAX_RECONNECT_ATTEMPTS) {
+        setTimeout(() => this.start(), delay)
+      } else {
+        this.reconnectAttempts = 0
+        this.consecutiveProtocolErrors = 0
+        this.setStatus('failed')
+        this.emit('connection-failed', { reason: 'exhausted' })
+      }
+      return
     }
+
+    if (this.reconnectAttempts >= WhatsAppManager.MAX_CIRCUIT_BREAKER_RETRIES) {
+      this.reconnectAttempts = 0
+      this.consecutiveProtocolErrors = 0
+      this.setStatus('failed')
+      this.emit('connection-failed', { reason: 'sidecar-exit' })
+      return
+    }
+
+    const delay = WhatsAppManager.CIRCUIT_BREAKER_BACKOFF[this.reconnectAttempts] ?? 5000
+    this.reconnectAttempts++
+    this.setStatus('reconnecting')
+    this.emit('reconnecting', { attempt: this.reconnectAttempts, max: WhatsAppManager.MAX_CIRCUIT_BREAKER_RETRIES })
+    console.warn(`[WhatsApp] Post-connect sidecar exit, retry ${this.reconnectAttempts} in ${delay}ms`)
+    setTimeout(() => this.start(), delay)
+  }
+
+  // MAV-265: routes one parsed NDJSON line from the sidecar to the matching
+  // handler, mirroring the 11 event names in sidecar/protocol.go. A
+  // malformed/unparseable line or a protocol version mismatch is logged and
+  // dropped, never allowed to crash the main process (design.md Section 4,
+  // "IPC protocol version skew").
+  private handleSidecarLine(line: string): void {
+    if (!line.trim()) return
+    let env: SidecarOutEnvelope
+    try {
+      env = JSON.parse(line)
+    } catch (err) {
+      console.warn('[WhatsApp] sidecar emitted unparseable line:', err, line.slice(0, 200))
+      return
+    }
+    if (env.v !== SIDECAR_PROTOCOL_VERSION) {
+      console.error(
+        `[WhatsApp] sidecar protocol version mismatch: got v${env.v}, want v${SIDECAR_PROTOCOL_VERSION} ` +
+        `(event: ${env.event}) — dropping message, sidecar binary may be stale`
+      )
+      return
+    }
+    const p = env.payload ?? {}
+    switch (env.event) {
+      case 'qr':
+        this.currentQR = p.code
+        this.setStatus('qr_pending')
+        this.emit('qr', p.code)
+        break
+      case 'connection-update':
+        this.handleConnectionUpdate(p)
+        break
+      case 'history-sync-chunk':
+        this.handleSidecarHistorySyncChunk(p)
+        break
+      case 'messages-upsert':
+        this.handleSidecarMessageUpsert(p)
+        break
+      case 'receipt-update':
+        this.handleSidecarReceiptUpdate(p)
+        break
+      case 'call':
+        this.handleSidecarCall(p)
+        break
+      case 'labels-edit':
+        this.handleSidecarLabelsEdit(p)
+        break
+      case 'labels-association':
+        this.handleSidecarLabelsAssociation(p)
+        break
+      case 'groups-upsert':
+        this.handleSidecarGroupsUpsert(p)
+        break
+      case 'groups-update':
+        this.handleSidecarGroupsUpdate(p)
+        break
+      case 'group-participants-update':
+        this.handleSidecarGroupParticipantsUpdate(p)
+        break
+      case 'log':
+        console.log('[WhatsApp][sidecar]', p.message)
+        break
+      case 'fatal':
+        console.error('[WhatsApp][sidecar fatal]', p.message)
+        break
+      case 'command-ack':
+        this.resolvePendingCommand(p.cmdId, p)
+        break
+      case 'command-error':
+        this.rejectPendingCommand(p.cmdId, new Error(p.error ?? `${p.cmd ?? 'command'} failed`))
+        break
+      default:
+        console.warn('[WhatsApp] unknown sidecar event:', env.event)
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private resolvePendingCommand(cmdId: string | undefined, payload: any): void {
+    if (!cmdId) return
+    const pending = this.pendingCommands.get(cmdId)
+    if (!pending) return // already timed out, or a fetch-history/logout with no correlation
+    this.pendingCommands.delete(cmdId)
+    pending.resolve(payload)
+  }
+
+  private rejectPendingCommand(cmdId: string | undefined, err: Error): void {
+    if (!cmdId) return
+    const pending = this.pendingCommands.get(cmdId)
+    if (!pending) return
+    this.pendingCommands.delete(cmdId)
+    pending.reject(err)
+  }
+
+  // Sidecar died (crash/respawn) with commands still in flight — those
+  // promises must not hang until COMMAND_ACK_TIMEOUT_MS for no reason.
+  private rejectAllPendingCommands(reason: string): void {
+    for (const [id, pending] of this.pendingCommands) {
+      pending.reject(new Error(reason))
+      this.pendingCommands.delete(id)
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private handleConnectionUpdate(p: { state: string; reason?: string }): void {
+    switch (p.state) {
+      case 'connecting':
+        this.setStatus('connecting')
+        break
+      case 'connected':
+        this.currentQR = null
+        this.sidecarConnected = true
+        this.hasConnectedOnce = true
+        this.reconnectAttempts = 0
+        this.consecutiveProtocolErrors = 0
+        this.setStatus('connected')
+        this.emit('connected')
+        this.decommissionBaileysAuth()
+        break
+      case 'disconnected':
+        // whatsmeow's own Client auto-reconnects transient drops internally
+        // (design.md Section 3 discussion) — this is a signal, not
+        // necessarily a failure requiring our own respawn logic. Surface it
+        // to the renderer as 'reconnecting' UX, but don't tear down the
+        // sidecar process; a genuine process death is handled separately by
+        // handleSidecarExit().
+        this.sidecarConnected = false
+        this.setStatus('reconnecting')
+        this.emit('reconnecting', { attempt: this.reconnectAttempts, max: WhatsAppManager.MAX_CIRCUIT_BREAKER_RETRIES })
+        break
+      case 'logged-out':
+        this.sidecarConnected = false
+        this.reconnectAttempts = 0
+        this.consecutiveProtocolErrors = 0
+        this.setStatus('logged_out')
+        this.emit('logged-out')
+        this.clearWhatsmeowSession().catch(() => {})
+        break
+      case 'connect-failure':
+        this.sidecarConnected = false
+        this.setStatus('protocol_error')
+        this.emit('protocol-error', { reason: p.reason ?? 'connect-failure' })
+        break
+      case 'qr-timeout':
+        this.setStatus('disconnected')
+        this.emit('reconnecting', { attempt: this.reconnectAttempts, max: WhatsAppManager.MAX_CIRCUIT_BREAKER_RETRIES })
+        break
+      default:
+        console.warn('[WhatsApp] unknown connection-update state:', p.state)
+    }
+  }
+
+  // MAV-265/task #3: app quit must not unlink the WhatsApp device — only
+  // disconnect() (an explicit user "log out" action) should ever send the
+  // sidecar's `logout` command. This just asks the sidecar to exit cleanly:
+  // sidecar/main.go already handles SIGTERM by calling whatsmeow's
+  // Disconnect() (not Logout()) before exiting, so the session persists in
+  // whatsmeow-session.db for the next launch. Directly informed by the
+  // spike incident where two orphaned sidecar binaries were left running
+  // simultaneously (design.md Section 4, "App quit / clean shutdown") — that
+  // class of bug must not ship.
+  shutdownForAppQuit(): void {
+    this.intentionalShutdown = true
+    if (!this.sidecarProcess) return
+    try {
+      this.sidecarProcess.kill('SIGTERM')
+    } catch { /* ignore — process may already be gone */ }
+  }
+
+  async disconnect(): Promise<void> {
+    this.intentionalShutdown = true
+    if (this.sidecarProcess) {
+      this.sendCommand('logout', {})
+      // Give the sidecar a moment to run whatsmeow's Client.Logout() before
+      // killing the process — logout is a network call, not instantaneous.
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      try { this.sidecarProcess.kill() } catch { /* ignore */ }
+      this.sidecarProcess = null
+    }
+    this.sidecarConnected = false
     this.setStatus('disconnected')
     this.currentQR = null
     this.hasConnectedOnce = false
-    this.storeReady = false
+    this.displayNameCache.clear()
     // MAV-256: a full disconnect/logout can be followed by linking a
     // different WhatsApp account — don't let that account inherit this one's
     // cached group data.
@@ -386,49 +609,77 @@ class WhatsAppManager extends EventEmitter {
     try {
       await fs.unlink(GROUP_CACHE_PATH)
     } catch { /* fine if it never existed */ }
-    await this.clearAuth()
+    // MAV-263: same reasoning — a second account linked in the same install
+    // must never inherit the first account's message history.
+    this.messageStore.clearAll()
+    await this.clearWhatsmeowSession()
   }
 
-  async clearAuth(): Promise<void> {
-    try {
-      const files = await fs.readdir(AUTH_DIR)
-      await Promise.all(files.map((f) => fs.unlink(join(AUTH_DIR, f))))
-    } catch { /* ignore */ }
-  }
-
-  async getMessages(jid: string, limit = 50): Promise<WAMessage[]> {
-    if (!this.socket) return []
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sock = this.socket as any
-      const result = await sock.fetchMessagesFromWA(jid, limit)
-      return this.normalizeMessages(result)
-    } catch {
-      return []
+  // MAV-265: replaces clearAuth() (Baileys-specific, see AUTH_DIR comment
+  // above) — wipes whatsmeow's sqlite session store so a subsequent start()
+  // begins a fresh QR pairing instead of reusing a logged-out session.
+  // better-sqlite3/modernc.org-sqlite can leave -wal/-shm sidecar files
+  // alongside the main db; remove all three.
+  async clearWhatsmeowSession(): Promise<void> {
+    for (const suffix of ['', '-wal', '-shm']) {
+      try {
+        await fs.unlink(WHATSMEOW_SESSION_DB_PATH + suffix)
+      } catch { /* fine if it never existed */ }
     }
   }
 
+  // MAV-265/task #6: the old Baileys credential directory is dead weight
+  // once whatsmeow has a confirmed working connection (design.md Section 1)
+  // — this only removes Loop's local files. It does not and cannot unlink
+  // the old Baileys device from WhatsApp's Linked Devices on the server side
+  // (no API for that once Baileys itself is gone); that remains a manual
+  // step for the user. Fire-and-forget from the 'connected' handler:
+  // deletion failing must never block or unwind a successful connect.
+  private decommissionBaileysAuth(): void {
+    fs.rm(AUTH_DIR, { recursive: true, force: true })
+      .then(() => console.log('[WhatsApp] Decommissioned old Baileys auth directory:', AUTH_DIR))
+      .catch((err) => console.warn('[WhatsApp] Failed to decommission Baileys auth directory (non-fatal):', err))
+  }
+
+  // MAV-265: Baileys' sock.fetchMessagesFromWA() (a live per-chat query) has
+  // no whatsmeow/sidecar command equivalent (design.md's command set is
+  // fetch-history/logout/send-message only, and fetch-history's result
+  // arrives asynchronously as a history-sync-chunk event, not a return
+  // value this method could await). Reimplemented as a synchronous local
+  // read from messageStore, which already has every message ingested via
+  // messages-upsert/history-sync-chunk — no network call, and actually
+  // faster than the old live-fetch path. Requires MessageStore.getMessages()
+  // (new, additive method — see report).
+  async getMessages(jid: string, limit = 50): Promise<WAMessage[]> {
+    const records = this.messageStore.getMessages(jid, limit)
+    return records
+      .filter((r) => r.text !== null)
+      .map((r) => ({ id: r.id, fromMe: r.fromMe, timestamp: r.timestamp, text: r.text }))
+      .sort((a, b) => b.timestamp - a.timestamp)
+  }
+
+  // MAV-265: previously sourced from Baileys' chatStore (chats.set/upsert),
+  // which has no whatsmeow/sidecar equivalent. Rebuilt from messageStore's
+  // own accumulated data instead: every DM chat Loop has ever ingested a
+  // message for, with recency computed from the latest stored message
+  // timestamp rather than Baileys' conversationTimestamp field. Requires
+  // MessageStore.getDmChatSummaries() (new, additive method — see report).
+  // displayName now comes from displayNameCache (populated from
+  // messages-upsert's pushName field), not sock.contacts[] — best-effort,
+  // may be blank for contacts Loop hasn't seen a live message from yet.
   async buildTieStrengthMap(): Promise<Map<string, { strength: 'high' | 'medium' | 'low'; messageCount: number; displayName: string }>> {
     const map = new Map<string, { strength: 'high' | 'medium' | 'low'; messageCount: number; displayName: string }>()
-    if (!this.socket) return map
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sock = this.socket as any
       const nowSec = Date.now() / 1000
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const allChats: any[] = Array.from(this.chatStore.values())
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const dmChats = allChats.filter((c: any) => c.id?.endsWith('@s.whatsapp.net'))
+      const dmChats = this.messageStore.getDmChatSummaries()
       for (const chat of dmChats) {
-        const ts = Number(chat.conversationTimestamp ?? 0)
-        const daysSince = ts > 0 ? (nowSec - ts) / 86400 : Infinity
+        const daysSince = chat.lastTimestamp > 0 ? (nowSec - chat.lastTimestamp) / 86400 : Infinity
         const strength: 'high' | 'medium' | 'low' =
           daysSince <= 30  ? 'high' :
           daysSince <= 180 ? 'medium' : 'low'
-        const messageCount = strength === 'high' ? 150 : strength === 'medium' ? 30 : 5
-        const contactMeta = sock.contacts?.[chat.id]
-        const displayName: string = contactMeta?.name ?? contactMeta?.notify ?? chat.name ?? ''
-        map.set(chat.id, { strength, messageCount, displayName })
+        const messageCount = this.messageStore.getMessageCount(chat.chatId)
+        const displayName = this.displayNameCache.get(chat.chatId) ?? ''
+        map.set(chat.chatId, { strength, messageCount, displayName })
       }
     } catch { /* non-fatal */ }
     return map
@@ -437,175 +688,63 @@ class WhatsAppManager extends EventEmitter {
   // Patterns that indicate broadcast/admin/noise groups rather than real social chapters
   private static readonly GARBAGE_NAME_RE = /\b(broadcast|announce|announcement|update|updates|news|newsletter|society|alumni|association|residents|colony|welfare|committee|notices?|info|helpdesk|support|class of|batch of|school of|investor meet|networking event)\b/i
 
-  // MAV: groupFetchAllParticipating()'s bulk `participants` field is frequently
-  // incomplete/stale right after a fresh session (a known Baileys limitation) —
-  // observed returning exactly 2 participants for every group regardless of real
-  // size, which made every group fail chapters.ts's MIN_MEMBERS=3 gate and
-  // produced a guaranteed zero-chapter-candidate outcome. Real membership needs
-  // a per-group sock.groupMetadata() fetch (the pattern listGroups() already
-  // uses below) — but doing that for up to 200 groups against a real, live
-  // connected account requires explicit pacing to avoid WhatsApp rate-limiting
-  // or flagging the account. Batched with a delay between batches, a per-call
-  // timeout, and an overall budget so a stuck fetch can't hang chapter detection
-  // indefinitely; individual failures are skipped, not fatal to the whole pass.
-  private static readonly GROUP_META_BATCH_SIZE = 8
-  private static readonly GROUP_META_BATCH_DELAY_MS = 1500
-  private static readonly GROUP_META_PER_CALL_TIMEOUT_MS = 8_000
-  private static readonly GROUP_META_TOTAL_BUDGET_MS = 90_000
-  // One below chapters.ts's MIN_MEMBERS=3 gate — a real fetch returning this
-  // few participants is already too small to ever produce a usable chapter
-  // candidate, so it's a reasonable bar for "plausibly a genuinely tiny group"
-  // vs. "likely a truncated rate-limited response."
-  private static readonly SUSPICIOUS_MEMBER_THRESHOLD = 2
-  // MAV-259: deliberately above SUSPICIOUS_MEMBER_THRESHOLD — a cache entry
-  // has to be genuinely plausible, not just "not-suspicious," before it's
-  // trusted to skip a fresh active fetch. Lets the passive groups.upsert/
-  // groups.update/group-participants.update listeners (already wired in
-  // start()) actually reduce active-fetch load: an already-resolved group
-  // stops competing with genuine misses for the same rate-limited batch
-  // budget, instead of being redundantly re-fetched every pass.
-  private static readonly SKIP_ACTIVE_FETCH_MIN_MEMBERS = 3
-
-  // MAV-257: WhatsApp's own rate limiter (`rate-overlimit`, not a timeout)
-  // consistently lets through only ~1/3 of groups per pass — confirmed via
-  // live logs across multiple separate runs. Every group whose fetch fails
-  // used to be dropped outright by callers (`if (members.length === 0)
-  // continue`), so "found N groups" was really "whichever third got through
-  // the rate limiter this specific run" — a group could be visible one scan
-  // and gone the next for no reason the user could see. Fix: consult and
-  // update the shared MAV-256 group cache per-group inside this fetch, so a
-  // group resolved on an earlier pass stays known even when a later pass
-  // fails to re-resolve it. Benefits both callers (listGroups() and
-  // listGroupsWithMeta()) since both route through this one method — a group
-  // resolved via chapter detection also helps the crew-detection group scan
-  // on its next cache hit, and vice versa.
-  private async fetchRealGroupMembers(
+  // MAV-265/task #10: sidecar's `list-groups` command wraps whatsmeow's
+  // client.GetJoinedGroups() (sidecar/commands.go's handleListGroups),
+  // mirroring mautrix-whatsapp's chatinfo.go pattern — group membership is
+  // fetched on demand, not assembled purely from passive events. Refreshes
+  // groupCache for every joined group in one round trip, so a group the
+  // account joined before the sidecar's current run is no longer stuck
+  // unresolved (the gap flagged when task #2 first shipped).
+  private async listJoinedGroupsFromSidecar(): Promise<void> {
+    if (!this.sidecarProcess || !this.sidecarConnected) return
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    sock: any,
-    groupIds: string[]
-  ): Promise<Map<string, string[]>> {
+    const ack: { groups: Array<{ chatId: string; name?: string; participants?: string[] }> } =
+      await this.sendCommandAwaitAck('list-groups', {})
+    for (const g of ack.groups ?? []) {
+      const existing = this.groupCache.get(g.chatId)
+      this.groupCache.set(g.chatId, {
+        id: g.chatId,
+        name: g.name ?? existing?.name ?? '',
+        members: g.participants ?? existing?.members ?? [],
+        lastMessageAt: existing?.lastMessageAt ?? 0,
+        createdAt: existing?.createdAt ?? null,
+      })
+    }
+    await this.saveGroupCache()
+  }
+
+  private async fetchRealGroupMembers(groupIds: string[]): Promise<Map<string, string[]>> {
     await this.loadGroupCache()
-    const membersByGroup = new Map<string, string[]>()
-    const budgetDeadline = Date.now() + WhatsAppManager.GROUP_META_TOTAL_BUDGET_MS
-    const totalBatches = Math.ceil(groupIds.length / WhatsAppManager.GROUP_META_BATCH_SIZE)
 
-    for (let i = 0; i < groupIds.length; i += WhatsAppManager.GROUP_META_BATCH_SIZE) {
-      if (Date.now() >= budgetDeadline) {
-        console.warn(
-          `[WA] group metadata fetch budget (${WhatsAppManager.GROUP_META_TOTAL_BUDGET_MS}ms) exhausted — ` +
-          `${membersByGroup.size}/${groupIds.length} groups fetched, remaining groups skipped for this pass`
-        )
-        break
-      }
-
-      const batch = groupIds.slice(i, i + WhatsAppManager.GROUP_META_BATCH_SIZE)
-      const batchNum = Math.floor(i / WhatsAppManager.GROUP_META_BATCH_SIZE) + 1
-      console.log(`[WA] fetching group metadata: batch ${batchNum}/${totalBatches} (${batch.length} groups)`)
-
-      await Promise.all(batch.map(async (groupId) => {
-        // MAV-259: a group already resolved (via a prior active fetch or a
-        // passive groups.upsert/update event) with a plausible member count
-        // doesn't need to spend a network call/batch slot this pass — carry
-        // it forward and let the budget concentrate on genuine misses. An
-        // empty or 1-2-member cached entry is indistinguishable from "not
-        // yet known" and must still attempt a real fetch.
-        const cachedBeforeFetch = this.groupCache.get(groupId)
-        if (cachedBeforeFetch && cachedBeforeFetch.members.length >= WhatsAppManager.SKIP_ACTIVE_FETCH_MIN_MEMBERS) {
-          membersByGroup.set(groupId, cachedBeforeFetch.members)
-          return
-        }
-
-        try {
-          const timeout = new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('groupMetadata timeout')), WhatsAppManager.GROUP_META_PER_CALL_TIMEOUT_MS)
-          )
-          const meta = await Promise.race([sock.groupMetadata(groupId), timeout])
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const participants = (meta?.participants ?? []).map((p: any) => p.id as string)
-          const existing = this.groupCache.get(groupId)
-
-          // A groupMetadata() call can resolve without throwing yet still be
-          // truncated — WhatsApp's rate limiter sometimes returns only the
-          // requester's own participant entry under load instead of a real
-          // error. That doesn't hit the catch block below, so without this
-          // check a truncated-but-"successful" response would silently
-          // overwrite a previously-good, fuller cached member list. Cross-check
-          // against Baileys' own meta.size (participant count) when present,
-          // and never let an implausibly small result regress a cache entry
-          // that already has more members than this fetch returned.
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const declaredSize = typeof (meta as any)?.size === 'number' ? (meta as any).size : undefined
-          const suspiciouslySmall = participants.length <= WhatsAppManager.SUSPICIOUS_MEMBER_THRESHOLD
-          const disagreesWithDeclaredSize = declaredSize !== undefined && declaredSize > participants.length
-          const regressesKnownGoodCache = existing !== undefined && existing.members.length > participants.length
-          const looksTruncated = suspiciouslySmall && (disagreesWithDeclaredSize || regressesKnownGoodCache)
-
-          if (looksTruncated && existing && existing.members.length > 0) {
-            console.warn(
-              `[WA] groupMetadata for ${groupId} returned ${participants.length} participants` +
-              `${declaredSize !== undefined ? ` (declared size ${declaredSize})` : ''} — looks truncated, keeping ` +
-              `previously-cached ${existing.members.length} instead of overwriting`
-            )
-            membersByGroup.set(groupId, existing.members)
-          } else {
-            // First-ever sighting of this group, or a result that isn't
-            // suspicious — accept it. An incomplete first sighting is still
-            // better than leaving the group unresolved entirely.
-            if (looksTruncated) {
-              console.warn(
-                `[WA] groupMetadata for ${groupId} returned only ${participants.length} participants` +
-                `${declaredSize !== undefined ? ` (declared size ${declaredSize})` : ''} and no prior cache exists — ` +
-                `accepting anyway as a first sighting`
-              )
-            }
-            membersByGroup.set(groupId, participants)
-            this.groupCache.set(groupId, {
-              id: groupId,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              name: (meta as any)?.subject ?? existing?.name ?? '',
-              members: participants,
-              lastMessageAt: existing?.lastMessageAt ?? 0,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              createdAt: (meta as any)?.creation ?? existing?.createdAt ?? null,
-            })
-          }
-        } catch (err) {
-          console.warn(`[WA] groupMetadata failed for ${groupId}, skipping:`, err instanceof Error ? err.message : err)
-          // Don't let a rate-limited/failed fetch erase a group resolved on
-          // an earlier pass — fall back to last-known real membership rather
-          // than letting the caller drop the group entirely.
-          const cached = this.groupCache.get(groupId)
-          if (cached && cached.members.length > 0) {
-            membersByGroup.set(groupId, cached.members)
-          }
-        }
-      }))
-
-      const isLastBatch = i + WhatsAppManager.GROUP_META_BATCH_SIZE >= groupIds.length
-      if (!isLastBatch) {
-        await new Promise((resolve) => setTimeout(resolve, WhatsAppManager.GROUP_META_BATCH_DELAY_MS))
+    const missing = groupIds.filter((id) => {
+      const cached = this.groupCache.get(id)
+      return !cached || cached.members.length === 0
+    })
+    if (missing.length > 0) {
+      try {
+        await this.listJoinedGroupsFromSidecar()
+      } catch (err) {
+        console.warn('[WA] fetchRealGroupMembers: list-groups active fetch failed, falling back to cache:', err)
       }
     }
 
-    await this.saveGroupCache().catch(() => {})
-    console.log(`[WA] group metadata fetch complete: ${membersByGroup.size}/${groupIds.length} groups resolved`)
-    return membersByGroup
-  }
-
-  private waitForStore(timeoutMs = 10_000): Promise<void> {
-    if (this.storeReady) return Promise.resolve()
-    return new Promise((resolve) => {
-      const timer = setTimeout(() => {
-        this.off('store-ready', onReady)
-        console.warn('[WhatsApp] waitForStore timed out — proceeding without full chat store')
-        resolve()
-      }, timeoutMs)
-      const onReady = () => {
-        clearTimeout(timer)
-        resolve()
+    const membersByGroup = new Map<string, string[]>()
+    let unresolved = 0
+    for (const groupId of groupIds) {
+      const cached = this.groupCache.get(groupId)
+      if (cached && cached.members.length > 0) {
+        membersByGroup.set(groupId, cached.members)
+      } else {
+        unresolved++
       }
-      this.once('store-ready', onReady)
-    })
+    }
+    if (unresolved > 0) {
+      console.warn(
+        `[WA] fetchRealGroupMembers: ${unresolved}/${groupIds.length} groups still unresolved after an active ` +
+        `list-groups fetch — likely not joined groups (e.g. broadcast lists) or sidecar not connected`
+      )
+    }
+    return membersByGroup
   }
 
   // ─── MAV-256: group cache ───────────────────────────────────────────────────
@@ -653,53 +792,227 @@ class WhatsAppManager extends EventEmitter {
     )
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private handleGroupsUpsert(metas: any[]): void {
-    for (const m of metas) {
-      const existing = this.groupCache.get(m.id)
-      this.groupCache.set(m.id, {
-        id: m.id,
-        name: m.subject ?? existing?.name ?? '',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        members: (m.participants ?? []).map((p: any) => p.id as string),
-        lastMessageAt: existing?.lastMessageAt ?? 0,
-        createdAt: m.creation ?? existing?.createdAt ?? null,
-      })
-    }
+  // MAV-265: sidecar's groups-upsert (events.JoinedGroup) fires on actively
+  // joining a group, with `join` carrying the *initial* member list — unlike
+  // Baileys' groups.upsert, which delivered an array of full group metas.
+  // One event per group now, not a batch.
+  private handleSidecarGroupsUpsert(p: { chatId: string; name?: string; join?: string[] }): void {
+    const existing = this.groupCache.get(p.chatId)
+    this.groupCache.set(p.chatId, {
+      id: p.chatId,
+      name: p.name ?? existing?.name ?? '',
+      members: p.join ?? existing?.members ?? [],
+      lastMessageAt: existing?.lastMessageAt ?? 0,
+      createdAt: existing?.createdAt ?? null,
+    })
     this.saveGroupCache().catch(() => {})
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private handleGroupsUpdate(partials: any[]): void {
-    for (const p of partials) {
-      // A partial update for a group we haven't cached yet carries no
-      // reliable member list — wait for a real fetch instead of guessing.
-      const existing = this.groupCache.get(p.id)
-      if (!existing) continue
-      this.groupCache.set(p.id, { ...existing, name: p.subject ?? existing.name })
-    }
+  // sidecar's groups-update (events.GroupInfo) carries name/metadata only —
+  // membership deltas from the same underlying whatsmeow event are handled
+  // separately by handleSidecarGroupParticipantsUpdate, mirroring the old
+  // Baileys split (handleGroupsUpdate = name only, handleGroupParticipantsUpdate
+  // = membership).
+  private handleSidecarGroupsUpdate(p: { chatId: string; name?: string }): void {
+    const existing = this.groupCache.get(p.chatId)
+    if (!existing) return // not cached yet — no active fetch path exists to backfill (see MAV-265 gap above)
+    if (p.name) this.groupCache.set(p.chatId, { ...existing, name: p.name })
     this.saveGroupCache().catch(() => {})
   }
 
-  private handleGroupParticipantsUpdate({
-    id,
-    participants,
-    action,
-  }: {
-    id: string
-    participants: string[]
-    action: string
+  private handleSidecarGroupParticipantsUpdate(p: {
+    chatId: string
+    join?: string[]
+    leave?: string[]
   }): void {
-    const existing = this.groupCache.get(id)
-    if (!existing) return // not cached yet — the next full fetch will pick it up
-    const members =
-      action === 'add'
-        ? [...new Set([...existing.members, ...participants])]
-        : action === 'remove'
-          ? existing.members.filter((m) => !participants.includes(m))
-          : existing.members
-    this.groupCache.set(id, { ...existing, members })
+    const existing = this.groupCache.get(p.chatId)
+    if (!existing) return // not cached yet — the next passive groups-upsert will pick it up
+    let members = existing.members
+    if (p.join?.length) members = [...new Set([...members, ...p.join])]
+    if (p.leave?.length) members = members.filter((m) => !p.leave!.includes(m))
+    this.groupCache.set(p.chatId, { ...existing, members })
     this.saveGroupCache().catch(() => {})
+  }
+
+  // ─── MAV-263: message persistence ──────────────────────────────────────────
+
+  // Maps a whatsmeow WebMessageInfo (protojson, from a history-sync-chunk
+  // event's chats[].messages[]) into a MessageRecord, or null if it lacks
+  // the minimum fields needed to key/dedup a row (chat_id, id). WebMessageInfo
+  // shares the same field names as Baileys' WAMessage (both are generated
+  // from the same underlying WhatsApp WebMessageInfo protobuf spec), so this
+  // mapping is unchanged from the pre-MAV-265 Baileys version.
+  // Deliberately does NOT apply getMessages()'s text-only filter — a
+  // chat that's mostly voice notes/photos would otherwise be systematically
+  // under-counted, biasing the frequency signal downstream. Every message is
+  // inserted (text = null when not text-representable).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private mapHistorySyncMessage(m: any): MessageRecord | null {
+    const chatId: string = m.key?.remoteJid ?? ''
+    const id: string = m.key?.id ?? ''
+    if (!chatId || !id) return null
+    const fromMe: boolean = m.key?.fromMe ?? false
+    // key.participant is the real sender only for group messages; for DMs,
+    // key.remoteJid (== chatId) is both the chat and the sender when !fromMe.
+    const senderJid: string = fromMe ? 'me' : (m.key?.participant ?? chatId)
+    const timestamp: number = Number(m.messageTimestamp ?? 0)
+    const text: string | null = m.message?.conversation ?? m.message?.extendedTextMessage?.text ?? null
+    return { id, chatId, senderJid, fromMe, timestamp, text }
+  }
+
+  // MAV-265: sidecar's history-sync-chunk payload (sidecar/events.go) is
+  // pre-batched (~300 messages/chunk) and grouped by chat — shape:
+  // { syncType, progress, isLast, chats: [{ chatId, name, messages: [...] }] }.
+  private handleSidecarHistorySyncChunk(p: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    chats?: { chatId: string; name?: string; messages: any[] }[]
+    isLast?: boolean
+    progress?: number
+  }): void {
+    const records: MessageRecord[] = []
+    for (const chat of p.chats ?? []) {
+      for (const m of chat.messages ?? []) {
+        const r = this.mapHistorySyncMessage(m)
+        if (r) records.push(r)
+      }
+    }
+    this.messageStore.insertMessages(records)
+    if (p.isLast) {
+      console.log(`[WhatsApp] history-sync-chunk: callback flush complete (${records.length} messages this chunk, progress=${p.progress})`)
+    }
+  }
+
+  // MAV-265: sidecar's messages-upsert payload (sidecar/events.go) is a
+  // single live message already flattened by the sidecar — chatId/senderId/
+  // id/isFromMe/timestamp as top-level fields, not nested under `.key` like
+  // Baileys/history-sync messages. `message` is protojson-encoded
+  // waE2E.Message (content only, no envelope).
+  private handleSidecarMessageUpsert(p: {
+    chatId: string
+    senderId: string
+    id: string
+    isFromMe: boolean
+    timestamp: number
+    pushName?: string
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    message?: any
+  }): void {
+    if (!p.chatId || !p.id) return
+    if (p.pushName) this.displayNameCache.set(p.chatId, p.pushName)
+    const senderJid = p.isFromMe ? 'me' : p.senderId
+    const text: string | null = p.message?.conversation ?? p.message?.extendedTextMessage?.text ?? null
+    this.messageStore.insertMessages([
+      { id: p.id, chatId: p.chatId, senderJid, fromMe: p.isFromMe, timestamp: p.timestamp, text },
+    ])
+  }
+
+  // ─── MAV-264: remaining Baileys capability wiring ──────────────────────────
+
+  // MAV-265: sidecar's receipt-update payload is one event per receipt
+  // (chatId/senderId/messageIds[]/type/timestamp), not Baileys' array-of-
+  // updates shape. `type` is whatsmeow's types.ReceiptType (e.g. "read",
+  // "read-self", "delivered", "played", "sender") — mapped here to the same
+  // receiptTimestamp/readTimestamp split the old Baileys handler produced,
+  // since messageStore's schema (unchanged) only has those two columns.
+  private handleSidecarReceiptUpdate(p: {
+    chatId: string
+    senderId: string
+    messageIds: string[]
+    type: string
+    timestamp: number
+  }): void {
+    if (!p.chatId || !p.senderId || !Array.isArray(p.messageIds)) return
+    const isRead = p.type.includes('read')
+    const records: ReceiptRecord[] = p.messageIds
+      .filter((messageId) => !!messageId)
+      .map((messageId) => ({
+        chatId: p.chatId,
+        messageId,
+        userJid: p.senderId,
+        receiptTimestamp: isRead ? null : p.timestamp,
+        readTimestamp: isRead ? p.timestamp : null,
+      }))
+    this.messageStore.insertReceipts(records)
+  }
+
+  // Call history — a graph-strength signal fully independent of text.
+  // calls.chat_jid has no FK dependency on messages.chat_id: a call can
+  // exist for a JID Loop has never seen a message from. MAV-265: sidecar
+  // emits one call event per call-related whatsmeow event (offer/offer-
+  // notice/terminate/reject), not Baileys' batched array — `kind` replaces
+  // Baileys' `status` field, `groupJid || from` replaces `from ?? chatId`.
+  private handleSidecarCall(p: {
+    callId: string
+    from: string
+    groupJid?: string
+    timestamp: number
+    kind: string
+  }): void {
+    const chatJid = p.groupJid || p.from
+    if (!p.callId || !chatJid) return
+    this.messageStore.insertCalls([
+      { id: p.callId, chatJid, status: p.kind, isVideo: false, timestamp: p.timestamp },
+    ])
+  }
+
+  // labels.edit can mark a label deleted (deleted: true) without removing
+  // existing label_associations rows — messageStore.upsertLabel never
+  // cascades a delete, only flips the flag on the label itself.
+  private handleSidecarLabelsEdit(p: { labelId: string; name?: string; deleted?: boolean }): void {
+    if (!p.labelId) return
+    const record: LabelRecord = { id: p.labelId, name: p.name ?? '', deleted: Boolean(p.deleted) }
+    this.messageStore.upsertLabel(record)
+  }
+
+  // MAV-265: sidecar's labels-association payload carries a `labeled`
+  // boolean (add vs. remove). messageStore.upsertLabelAssociation has no
+  // removal counterpart (unchanged schema, out of this task's scope) — a
+  // `labeled: false` (removal) event is logged but not applied, a known
+  // gap flagged for follow-up rather than silently dropped.
+  private handleSidecarLabelsAssociation(p: {
+    labelId: string
+    chatId: string
+    msgId?: string
+    labeled: boolean
+  }): void {
+    if (!p.labelId || !p.chatId) return
+    if (!p.labeled) {
+      console.warn(`[WhatsApp] labels-association removal for label ${p.labelId} on ${p.chatId} — no removal path in messageStore, skipped`)
+      return
+    }
+    const record: LabelAssociationRecord = {
+      labelId: p.labelId,
+      chatId: p.chatId,
+      messageId: p.msgId ?? null,
+    }
+    this.messageStore.upsertLabelAssociation(record)
+  }
+
+  // On-demand per-chat deep-backfill pull, independent of the sync-payload
+  // mechanism entirely — the fallback lever if the shouldSyncHistoryMessage
+  // fix alone doesn't get real depth. MAV-265: now a fire-and-forget sidecar
+  // command (fetch-history); the result arrives asynchronously via the same
+  // history-sync-chunk event already wired (sidecar/commands.go), this
+  // method's job is purely to trigger the additional sync, not process a
+  // return value — same contract as the pre-MAV-265 version.
+  // messageStore.getOldestMessage() doesn't track fromMe, so
+  // oldestKnownFromMe is approximated as false — a known limitation (see
+  // report); it only affects whatsmeow's internal history-request anchor,
+  // not what's persisted.
+  async fetchOlderMessages(chatId: string, count = 50): Promise<void> {
+    if (!this.sidecarProcess || !this.sidecarConnected) return
+    const oldest = this.messageStore.getOldestMessage(chatId)
+    if (!oldest) {
+      console.log(`[WhatsApp] fetchOlderMessages: no stored messages for ${chatId}, nothing to anchor to — no-op`)
+      return
+    }
+    this.sendCommand('fetch-history', {
+      chatId,
+      oldestKnownMessageId: oldest.id,
+      oldestKnownFromMe: false,
+      oldestKnownTimestamp: oldest.timestamp,
+      count,
+    })
   }
 
   async listGroupsWithMeta(): Promise<{
@@ -713,73 +1026,49 @@ class WhatsAppManager extends EventEmitter {
     highTieMemberFraction: number
     topTieMemberNames: string[]
   }[]> {
-    if (!this.socket) return []
+    if (!this.sidecarProcess || !this.sidecarConnected) return []
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sock = this.socket as any
-      const myJid = (sock.user?.id ?? '').replace(/:\d+@/, '@')
       const tieMap = await this.buildTieStrengthMap()
 
-      // groupFetchAllParticipating() fetches groups directly from WA servers —
-      // unlike chatStore which only populates on first QR scan with syncFullHistory:false.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let groupMap: Record<string, any> = {}
-      try {
-        console.log('[WA] fetching all participating groups...')
-        const timeout = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('groupFetchAllParticipating timeout')), 20000)
-        )
-        groupMap = await Promise.race([sock.groupFetchAllParticipating(), timeout])
-        console.log(`[WA] groupFetchAllParticipating returned ${Object.keys(groupMap).length} groups`)
-      } catch (err) {
-        console.error('[WA] groupFetchAllParticipating failed:', err)
-        return []
-      }
-
-      const groupEntries = Object.values(groupMap).slice(0, 200)
-
-      // Cheap filters first (name/community/newsletter/garbage-regex) so the
-      // rate-limited per-group metadata fetch below only runs against groups
-      // that could plausibly become a chapter candidate, not all 200.
+      // MAV-265: groupFetchAllParticipating() (a live bulk RPC) has no
+      // sidecar equivalent (see fetchRealGroupMembers's MAV-265 gap comment
+      // above) — candidate discovery is now the groupCache itself, built
+      // entirely from passive groups-upsert/groups-update/
+      // group-participants-update events since this sidecar session
+      // started. A group the account joined before this run and that has
+      // had no membership-changing activity since will not appear here.
+      await this.loadGroupCache()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const candidateEntries: any[] = []
-      for (const meta of groupEntries) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const m = meta as any
-        const groupId: string = m.id
-        const resolvedName: string = m.subject ?? ''
+      for (const g of this.groupCache.values()) {
+        const groupId = g.id
+        const resolvedName = g.name ?? ''
         if (!resolvedName || resolvedName === groupId) continue
-        if (m.isCommunity || m.isCommunityAnnounce) continue
         if (groupId.endsWith('@newsletter')) continue
         if (WhatsAppManager.GARBAGE_NAME_RE.test(resolvedName)) continue
-        candidateEntries.push(m)
+        candidateEntries.push(g)
       }
 
-      // groupFetchAllParticipating()'s bulk `participants` field is unreliable
-      // right after a fresh session — fetch real per-group membership instead,
-      // rate-limited (see fetchRealGroupMembers doc comment).
       const realMembersByGroup = await this.fetchRealGroupMembers(
-        sock,
         candidateEntries.map((m) => m.id as string)
       )
 
       const results = []
       for (const m of candidateEntries) {
         const groupId: string = m.id
-        const resolvedName: string = m.subject ?? ''
+        const resolvedName: string = m.name ?? ''
 
         const members: string[] = realMembersByGroup.get(groupId) ?? []
         if (members.length === 0) continue // MAV-257: never resolved in any pass — genuinely unknown, skip
         if (members.length > 50) continue
-        const createdAt: number | null = m.creation ?? null
-        const ownerJid = (m.owner ?? '').replace(/:\d+@/, '@')
-        const userIsCreator = !!ownerJid && ownerJid === myJid
+        const createdAt: number | null = m.createdAt ?? null
+        // MAV-265: whatsmeow's GroupInfo carries OwnerJID, but the sidecar's
+        // groups-upsert/groups-update events don't emit it yet (events.go
+        // gap, alongside the MAV-265 group-query gap above) — defaults to
+        // false rather than guessing.
+        const userIsCreator = false
 
-        // lastMessageAt from chatStore if available, fallback to creation time
-        const chatEntry = this.chatStore.get(groupId)
-        const lastMessageAt = Number(
-          chatEntry?.conversationTimestamp ?? chatEntry?.lastMessageTimestamp ?? createdAt ?? 0
-        )
+        const lastMessageAt = Number(m.lastMessageAt ?? createdAt ?? 0)
 
         const memberTieData = members.map(jid => tieMap.get(jid) ?? { strength: 'low' as const, messageCount: 0, displayName: '' })
         const highTieMembers = memberTieData.filter(d => d.strength === 'high')
@@ -1079,93 +1368,23 @@ class WhatsAppManager extends EventEmitter {
     return { clusters: mergedClusters, groups }
   }
 
+  // MAV-265: previously did a live groupFetchAllParticipating() RPC on a
+  // cache miss/stale-cache (see the MAV-265 gap comment on
+  // fetchRealGroupMembers above — no sidecar equivalent exists). Now purely
+  // cache-driven: returns whatever groupCache has accumulated from passive
+  // sidecar group events, fresh or not, since there is no live alternative
+  // to fall back to.
   async listGroups(): Promise<{ id: string; name: string; members: string[] }[]> {
-    if (!this.socket) return []
-
-    // MAV-256: serve from cache when fresh — skips the rate-limited fetch
-    // entirely (previously always 60-120s+, hitting rate-overlimit on most
-    // groups, even for back-to-back calls seconds apart).
+    if (!this.sidecarProcess || !this.sidecarConnected) return []
     await this.loadGroupCache()
-    if (this.isGroupCacheFresh()) {
-      return [...this.groupCache.values()].map(({ id, name, members }) => ({ id, name, members }))
-    }
-
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sock = this.socket as any
-
-      // Fetch directly from WA servers, not this.chatStore — chatStore only
-      // populates passively as chats sync/receive messages and is unreliable
-      // right after a fresh session (same reasoning as listGroupsWithMeta()).
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let groupMap: Record<string, any> = {}
+    if (!this.isGroupCacheFresh()) {
       try {
-        const timeout = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('groupFetchAllParticipating timeout')), 20000)
-        )
-        groupMap = await Promise.race([sock.groupFetchAllParticipating(), timeout])
+        await this.listJoinedGroupsFromSidecar()
       } catch (err) {
-        console.error('[WA] listGroups: groupFetchAllParticipating failed:', err)
-        return []
+        console.warn('[WA] listGroups: active list-groups refresh failed, serving stale/cached data:', err)
       }
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const candidateEntries: any[] = []
-      for (const meta of Object.values(groupMap).slice(0, 200)) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const m = meta as any
-        const groupId: string = m.id
-        const resolvedName: string = m.subject ?? ''
-        if (!resolvedName || resolvedName === groupId) continue
-        if (m.isCommunity || m.isCommunityAnnounce) continue
-        if (groupId.endsWith('@newsletter')) continue
-        candidateEntries.push(m)
-      }
-
-      // groupFetchAllParticipating()'s bulk `participants` field is unreliable
-      // right after a fresh session — fetch real per-group membership instead,
-      // rate-limited (see fetchRealGroupMembers doc comment).
-      const realMembersByGroup = await this.fetchRealGroupMembers(
-        sock,
-        candidateEntries.map((m) => m.id as string)
-      )
-
-      const results = []
-      for (const m of candidateEntries) {
-        const groupId: string = m.id
-        const members = realMembersByGroup.get(groupId) ?? []
-        if (members.length === 0) continue // MAV-257: never resolved in any pass — genuinely unknown, skip
-        results.push({ id: groupId, name: m.subject as string, members })
-      }
-
-      // MAV-256: refresh the cache with this real result set so the next
-      // call (within GROUP_CACHE_MAX_AGE_MS, or kept fresh incrementally by
-      // the groups.upsert/update and group-participants.update listeners
-      // registered in start()) can skip the fetch entirely.
-      for (const r of results) {
-        this.groupCache.set(r.id, { id: r.id, name: r.name, members: r.members, lastMessageAt: 0, createdAt: null })
-      }
-      await this.saveGroupCache()
-
-      return results
-    } catch {
-      return []
     }
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private normalizeMessages(raw: any[]): WAMessage[] {
-    if (!Array.isArray(raw)) return []
-    return raw
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((m: any) => ({
-        id: m.key?.id ?? '',
-        fromMe: m.key?.fromMe ?? false,
-        timestamp: m.messageTimestamp ?? 0,
-        text: m.message?.conversation ?? m.message?.extendedTextMessage?.text ?? null,
-      }))
-      .filter((m) => m.text !== null)
-      .sort((a, b) => b.timestamp - a.timestamp)
+    return [...this.groupCache.values()].map(({ id, name, members }) => ({ id, name, members }))
   }
 }
 
