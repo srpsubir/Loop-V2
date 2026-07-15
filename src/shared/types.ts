@@ -138,6 +138,12 @@ export interface AppState {
   email?: string                          // MAV-216: captured via Google Sign-In
   googleId?: string                       // MAV-216: Google sub claim (anonymous user identifier)
   licenseStatus?: 'beta' | 'pro' | 'expired'  // MAV-216/208: default 'beta' until billing wired
+  // MAV-260: waJid -> ISO timestamp when a returning-user rescan candidate was
+  // declined. detectedChapters/pendingChapters are wholesale-replaced on every
+  // chapters:detect() call, so a per-candidate dismissal can't live inside
+  // ChapterCandidate itself — it needs its own map that survives across scans.
+  // Mirrors ContactState.nudgeDismissedAt's 7-day-resurface convention.
+  dismissedChapterCandidates: Record<string, string>
 }
 
 // ─── Screen ──────────────────────────────────────────────────────────────────

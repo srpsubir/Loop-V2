@@ -1,7 +1,9 @@
 // MAV-45 — settings screen (CD design + full IPC wiring)
 import React, { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, MessageCircle, Trash2, Folder, RefreshCw } from 'lucide-react'
-import type { AppState, Contact } from '@shared/types'
+import type { AppState, ChapterCandidate, Contact } from '@shared/types'
+import { getNewChapterCandidates } from '../lib/newChapterCandidates'
+import { ChapterReviewModal } from '../components/ChapterReviewModal'
 
 const MONO = '"SFMono-Regular","SF Mono",ui-monospace,Menlo,monospace'
 
@@ -234,6 +236,7 @@ export function SettingsScreen({ onBack, onConnect }: SettingsScreenProps) {
   const [toast, setToast] = useState<ToastState>(null)
   const [telemetryEnabled, setTelemetryEnabled] = useState(true)
   const [rescanning, setRescanning] = useState(false)
+  const [reviewCandidates, setReviewCandidates] = useState<ChapterCandidate[] | null>(null)
   useEffect(() => {
     Promise.all([
       window.loop.state.get(),
@@ -284,13 +287,21 @@ export function SettingsScreen({ onBack, onConnect }: SettingsScreenProps) {
     if (rescanning) return
     setRescanning(true)
     try {
-      const candidates = await window.loop.chapters.detect()
-      setToast({
-        message: candidates.length > 0
-          ? `Rescanned — found ${candidates.length} chapter candidate${candidates.length === 1 ? '' : 's'}.`
-          : 'Rescanned — no new chapters to suggest right now.',
-        tone: 'positive',
-      })
+      await window.loop.chapters.detect()
+      // chapters:detect() already persists detectedChapters/pendingChapters
+      // (main-process side) — re-read state so the "actually new" filter sees
+      // this pass's results, not the stale copy fetched on mount.
+      const fresh = await window.loop.state.get()
+      const newOnes = getNewChapterCandidates(fresh)
+      setToast(
+        newOnes.length > 0
+          ? {
+              message: `Found ${newOnes.length} new chapter${newOnes.length === 1 ? '' : 's'}.`,
+              tone: 'positive',
+              action: { label: 'Review', onClick: () => { setReviewCandidates(newOnes); setToast(null) } },
+            }
+          : { message: 'Rescanned — no new chapters to suggest right now.', tone: 'positive' }
+      )
     } catch {
       setToast({ message: "Couldn't rescan right now. Try again in a bit.", tone: 'neutral' })
     } finally {
@@ -461,6 +472,14 @@ export function SettingsScreen({ onBack, onConnect }: SettingsScreenProps) {
 
 
       <Toast toast={toast} onClose={() => setToast(null)} />
+
+      {reviewCandidates && (
+        <ChapterReviewModal
+          candidates={reviewCandidates}
+          onClose={() => setReviewCandidates(null)}
+          onConfirmed={() => {}}
+        />
+      )}
     </div>
   )
 }

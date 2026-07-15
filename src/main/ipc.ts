@@ -207,6 +207,18 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
     getWindow()?.webContents.send('state:changed')
   })
 
+  // MAV-260: returning-user rescan candidates get a 7-day snooze on decline,
+  // not a permanent dismissal — recorded separately from detectedChapters
+  // since that array is wholesale-replaced on every chapters:detect() call.
+  ipcMain.handle('chapters:dismissCandidate', async (_e, waJid: string) => {
+    if (typeof waJid !== 'string' || waJid.length === 0) return
+    const state = await readState()
+    await patchState({
+      dismissedChapterCandidates: { ...state.dismissedChapterCandidates, [waJid]: new Date().toISOString() },
+    })
+    getWindow()?.webContents.send('state:changed')
+  })
+
   ipcMain.handle('chapters:setName', async (_e, chapterId: string, name: string) => {
     if (typeof name !== 'string' || name.trim().length === 0 || name.length > 100) return
     const state = await readState()

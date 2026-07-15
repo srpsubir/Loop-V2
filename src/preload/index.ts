@@ -110,6 +110,8 @@ const loopAPI = {
     confirm: (jids: string[]): Promise<void> => ipcRenderer.invoke('chapters:confirm', jids),
     setName: (chapterId: string, name: string): Promise<void> =>
       ipcRenderer.invoke('chapters:setName', chapterId, name),
+    dismissCandidate: (waJid: string): Promise<void> =>
+      ipcRenderer.invoke('chapters:dismissCandidate', waJid),
   },
 
   onReconnection: (cb: (contactId: string) => void) => {

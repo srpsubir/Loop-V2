@@ -75,6 +75,7 @@ const DEFAULT_STATE: AppState = {
   chapterDetectionComplete: false,
   onThisDayMemory: null,
   contacts: {},
+  dismissedChapterCandidates: {},
 }
 
 export async function ensureLoopDir(): Promise<void> {

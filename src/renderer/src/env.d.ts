@@ -54,6 +54,7 @@ interface LoopAPI {
     detect: () => Promise<import('@shared/types').ChapterCandidate[]>
     confirm: (jids: string[]) => Promise<void>
     setName: (chapterId: string, name: string) => Promise<void>
+    dismissCandidate: (waJid: string) => Promise<void>
   }
   update: {
     onChecking: (cb: () => void) => () => void

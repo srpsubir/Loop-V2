@@ -17,6 +17,9 @@ interface Props {
   // screen always highlighted "Chapters" even when opened from People.
   storyFrom?: SidebarSection
   onNavigate: (section: SidebarSection) => void
+  // MAV-260: count of rescan-discovered chapter candidates awaiting review —
+  // rendered as a small dot-badge on the Chapters nav item until reviewed.
+  newChapterCount?: number
 }
 
 const NAV_ITEMS: { id: SidebarSection; label: string }[] = [
@@ -34,7 +37,7 @@ function activeSection(screen: string, storyFrom?: SidebarSection): SidebarSecti
   return 'your-loops'
 }
 
-export function AppSidebar({ currentScreen, storyFrom, onNavigate }: Props) {
+export function AppSidebar({ currentScreen, storyFrom, onNavigate, newChapterCount = 0 }: Props) {
   const active = activeSection(currentScreen, storyFrom)
   const [hov, setHov] = useState<SidebarSection | null>(null)
 
@@ -112,7 +115,20 @@ export function AppSidebar({ currentScreen, storyFrom, onNavigate }: Props) {
                 boxSizing: 'border-box',
               } as React.CSSProperties}
             >
-              {label}
+              <span style={{ flex: 1, textAlign: 'left' }}>{label}</span>
+              {id === 'chapters' && newChapterCount > 0 && (
+                <span
+                  aria-label={`${newChapterCount} new chapter${newChapterCount === 1 ? '' : 's'} to review`}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    minWidth: 16, height: 16, padding: '0 4px', borderRadius: 999,
+                    background: '#C8724A', color: '#FEFCF8', fontSize: 10, fontWeight: 700,
+                    fontFamily: SANS, lineHeight: 1,
+                  }}
+                >
+                  {newChapterCount}
+                </span>
+              )}
             </button>
           )
         })}

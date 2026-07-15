@@ -4,6 +4,7 @@ import QRCode from 'qrcode'
 import { QrCode, Loader2 } from 'lucide-react'
 import { Button } from './components'
 import { AboutScreen } from './AboutScreen'
+import { getNewChapterCandidates } from './lib/newChapterCandidates'
 
 const MONO = '"SFMono-Regular","SF Mono",ui-monospace,Menlo,monospace'
 import { YourLoopsScreen } from './screens/YourLoopsScreen'
@@ -234,11 +235,25 @@ function AppShell({
   onNavigate: (n: Nav) => void
   children: React.ReactNode
 }) {
+  // MAV-260: badge count is self-contained here (not threaded through every
+  // AppShell call site) since this is the sole place AppSidebar renders, and
+  // only for already-onboarded screens — exactly when the badge is relevant.
+  const [newChapterCount, setNewChapterCount] = useState(0)
+  useEffect(() => {
+    const refresh = () => {
+      window.loop.state.get().then((s) => setNewChapterCount(getNewChapterCandidates(s).length)).catch(() => {})
+    }
+    refresh()
+    const unsub = window.loop.state.onChange(refresh)
+    return () => unsub?.()
+  }, [])
+
   return (
     <div style={{ display: 'flex', height: '100%' } as React.CSSProperties}>
       <AppSidebar
         currentScreen={nav.screen}
         storyFrom={nav.screen === 'story' ? nav.from : undefined}
+        newChapterCount={newChapterCount}
         onNavigate={(section) => {
           if (section === 'your-loops') onNavigate({ screen: 'your-loops' })
           else if (section === 'people') onNavigate({ screen: 'people' })
