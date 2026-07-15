@@ -1,0 +1,527 @@
+[
+  {
+    "description": "CPO Track 🚀",
+    "vars": {
+      "groupName": "CPO Track 🚀",
+      "memberCount": 3,
+      "lastMessageAt": "2024-04-13",
+      "active": "false",
+      "createdAt": "2024-04-13",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": false
+    }
+  },
+  {
+    "description": "Elite Dance Community ",
+    "vars": {
+      "groupName": "Elite Dance Community ",
+      "memberCount": 2,
+      "lastMessageAt": "2024-05-08",
+      "active": "false",
+      "createdAt": "2024-05-08",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": false
+    }
+  },
+  {
+    "description": "SalsOli: Salsa in Berlin",
+    "vars": {
+      "groupName": "SalsOli: Salsa in Berlin",
+      "memberCount": 1,
+      "lastMessageAt": "2023-05-17",
+      "active": "false",
+      "createdAt": "2023-05-17",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": false
+    }
+  },
+  {
+    "description": "Easter Holidays",
+    "vars": {
+      "groupName": "Easter Holidays",
+      "memberCount": 2,
+      "lastMessageAt": "2023-03-15",
+      "active": "false",
+      "createdAt": "2023-03-15",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": true
+    }
+  },
+  {
+    "description": "Pinky and the Brain",
+    "vars": {
+      "groupName": "Pinky and the Brain",
+      "memberCount": 2,
+      "lastMessageAt": "2022-12-28",
+      "active": "false",
+      "createdAt": "2022-12-28",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": true
+    }
+  },
+  {
+    "description": "New year eve",
+    "vars": {
+      "groupName": "New year eve",
+      "memberCount": 3,
+      "lastMessageAt": "2018-12-28",
+      "active": "false",
+      "createdAt": "2018-12-28",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": false
+    }
+  },
+  {
+    "description": "Chetan x Subir",
+    "vars": {
+      "groupName": "Chetan x Subir",
+      "memberCount": 3,
+      "lastMessageAt": "2025-10-31",
+      "active": "false",
+      "createdAt": "2025-10-31",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": false
+    }
+  },
+  {
+    "description": "Insurance for Subir",
+    "vars": {
+      "groupName": "Insurance for Subir",
+      "memberCount": 3,
+      "lastMessageAt": "2020-08-25",
+      "active": "false",
+      "createdAt": "2020-08-25",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": false
+    }
+  },
+  {
+    "description": "True dip",
+    "vars": {
+      "groupName": "True dip",
+      "memberCount": 3,
+      "lastMessageAt": "2022-03-15",
+      "active": "false",
+      "createdAt": "2022-03-15",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": false
+    }
+  },
+  {
+    "description": "Introducing Priyanshu",
+    "vars": {
+      "groupName": "Introducing Priyanshu",
+      "memberCount": 3,
+      "lastMessageAt": "2021-07-12",
+      "active": "false",
+      "createdAt": "2021-07-12",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": false
+    }
+  },
+  {
+    "description": "Uno Night",
+    "vars": {
+      "groupName": "Uno Night",
+      "memberCount": 4,
+      "lastMessageAt": "2026-01-09",
+      "active": "false",
+      "createdAt": "2026-01-09",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": true
+    }
+  },
+  {
+    "description": "CSP - Crew 💃🕺",
+    "vars": {
+      "groupName": "CSP - Crew 💃🕺",
+      "memberCount": 5,
+      "lastMessageAt": "2022-04-27",
+      "active": "false",
+      "createdAt": "2022-04-27",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": false
+    }
+  },
+  {
+    "description": "Leoni Torres Chemnitz",
+    "vars": {
+      "groupName": "Leoni Torres Chemnitz",
+      "memberCount": 6,
+      "lastMessageAt": "2025-05-01",
+      "active": "false",
+      "createdAt": "2025-05-01",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": true
+    }
+  },
+  {
+    "description": "Andrew's 🤵🏻‍♂️bachelor party",
+    "vars": {
+      "groupName": "Andrew's 🤵🏻‍♂️bachelor party",
+      "memberCount": 7,
+      "lastMessageAt": "2026-03-06",
+      "active": "false",
+      "createdAt": "2026-03-06",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": true
+    }
+  },
+  {
+    "description": "Calle de timberos 2022",
+    "vars": {
+      "groupName": "Calle de timberos 2022",
+      "memberCount": 8,
+      "lastMessageAt": "2022-08-24",
+      "active": "false",
+      "createdAt": "2022-08-24",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": true
+    }
+  },
+  {
+    "description": "House Party at Andrew's",
+    "vars": {
+      "groupName": "House Party at Andrew's",
+      "memberCount": 11,
+      "lastMessageAt": "2023-10-31",
+      "active": "false",
+      "createdAt": "2023-10-31",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": false
+    }
+  },
+  {
+    "description": "Andrew's Birthday party",
+    "vars": {
+      "groupName": "Andrew's Birthday party",
+      "memberCount": 12,
+      "lastMessageAt": "2024-03-07",
+      "active": "false",
+      "createdAt": "2024-03-07",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": false
+    }
+  },
+  {
+    "description": "Aline's Bday - 8/14",
+    "vars": {
+      "groupName": "Aline's Bday - 8/14",
+      "memberCount": 13,
+      "lastMessageAt": "2022-08-05",
+      "active": "false",
+      "createdAt": "2022-08-05",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": true
+    }
+  },
+  {
+    "description": "Egyptian Delights at Andrew's",
+    "vars": {
+      "groupName": "Egyptian Delights at Andrew's",
+      "memberCount": 13,
+      "lastMessageAt": "2023-05-01",
+      "active": "false",
+      "createdAt": "2023-05-01",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": false
+    }
+  },
+  {
+    "description": "La Candela - Support Group",
+    "vars": {
+      "groupName": "La Candela - Support Group",
+      "memberCount": 14,
+      "lastMessageAt": "2024-10-16",
+      "active": "false",
+      "createdAt": "2024-10-16",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": false
+    }
+  },
+  {
+    "description": "Project Salsadad 🎁",
+    "vars": {
+      "groupName": "Project Salsadad 🎁",
+      "memberCount": 15,
+      "lastMessageAt": "2023-04-25",
+      "active": "false",
+      "createdAt": "2023-04-25",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": true
+    }
+  },
+  {
+    "description": "La Candela - Son practice",
+    "vars": {
+      "groupName": "La Candela - Son practice",
+      "memberCount": 23,
+      "lastMessageAt": "2023-08-14",
+      "active": "false",
+      "createdAt": "2023-08-14",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": false
+    }
+  },
+  {
+    "description": "Salsa-Party💃",
+    "vars": {
+      "groupName": "Salsa-Party💃",
+      "memberCount": 28,
+      "lastMessageAt": "2022-05-21",
+      "active": "false",
+      "createdAt": "2022-05-21",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": true
+    }
+  },
+  {
+    "description": "KIZ Bootcamp 2.Sep.",
+    "vars": {
+      "groupName": "KIZ Bootcamp 2.Sep.",
+      "memberCount": 39,
+      "lastMessageAt": "2022-11-13",
+      "active": "false",
+      "createdAt": "2022-11-13",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": false
+    }
+  },
+  {
+    "description": "Geburtstage Timo und Kimmy",
+    "vars": {
+      "groupName": "Geburtstage Timo und Kimmy",
+      "memberCount": 39,
+      "lastMessageAt": "2024-05-26",
+      "active": "false",
+      "createdAt": "2024-05-26",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": false
+    }
+  },
+  {
+    "description": "Techies 👩🏼‍💻😎👨🏻‍💻",
+    "vars": {
+      "groupName": "Techies 👩🏼‍💻😎👨🏻‍💻",
+      "memberCount": 61,
+      "lastMessageAt": "2018-06-01",
+      "active": "false",
+      "createdAt": "2018-06-01",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": false
+    }
+  },
+  {
+    "description": "Startup investing",
+    "vars": {
+      "groupName": "Startup investing",
+      "memberCount": 115,
+      "lastMessageAt": "2020-08-23",
+      "active": "false",
+      "createdAt": "2020-08-23",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": false
+    }
+  },
+  {
+    "description": "Sensual Berlin",
+    "vars": {
+      "groupName": "Sensual Berlin",
+      "memberCount": 115,
+      "lastMessageAt": "2020-07-25",
+      "active": "false",
+      "createdAt": "2020-07-25",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": false
+    }
+  },
+  {
+    "description": "Berlin Salsa Festival \" Fiesta Elegante\" connection",
+    "vars": {
+      "groupName": "Berlin Salsa Festival \" Fiesta Elegante\" connection",
+      "memberCount": 257,
+      "lastMessageAt": "2024-02-07",
+      "active": "false",
+      "createdAt": "2024-02-07",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": false
+    }
+  },
+  {
+    "description": "💃 Salsa-Berlin-Original🕺",
+    "vars": {
+      "groupName": "💃 Salsa-Berlin-Original🕺",
+      "memberCount": 316,
+      "lastMessageAt": "2020-04-19",
+      "active": "false",
+      "createdAt": "2020-04-19",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": false
+    }
+  },
+  {
+    "description": "Kiz Sundays - Kizombaberlin.de",
+    "vars": {
+      "groupName": "Kiz Sundays - Kizombaberlin.de",
+      "memberCount": 331,
+      "lastMessageAt": "2019-12-20",
+      "active": "false",
+      "createdAt": "2019-12-20",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": false
+    }
+  },
+  {
+    "description": "BachatAcademy Classes ℹ️",
+    "vars": {
+      "groupName": "BachatAcademy Classes ℹ️",
+      "memberCount": 558,
+      "lastMessageAt": "2021-06-21",
+      "active": "false",
+      "createdAt": "2021-06-21",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": false
+    }
+  },
+  {
+    "description": "CPO Track 🚀",
+    "vars": {
+      "groupName": "CPO Track 🚀",
+      "memberCount": 829,
+      "lastMessageAt": "2024-04-13",
+      "active": "false",
+      "createdAt": "2024-04-13",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": false
+    }
+  },
+  {
+    "description": "Elite Dance Community ",
+    "vars": {
+      "groupName": "Elite Dance Community ",
+      "memberCount": 1306,
+      "lastMessageAt": "2024-05-08",
+      "active": "false",
+      "createdAt": "2024-05-08",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": false
+    }
+  },
+  {
+    "description": "SalsOli: Salsa in Berlin",
+    "vars": {
+      "groupName": "SalsOli: Salsa in Berlin",
+      "memberCount": 1755,
+      "lastMessageAt": "2023-05-17",
+      "active": "false",
+      "createdAt": "2023-05-17",
+      "avgTieStrength": "low",
+      "userIsCreator": false,
+      "mySharePercent": null,
+      "lastMessagesSample": [],
+      "expectedIsChapter": false
+    }
+  }
+]

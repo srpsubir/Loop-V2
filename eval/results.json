@@ -1,0 +1,1434 @@
+{
+  "evalId": "eval-XU7-2026-06-25T19:10:05",
+  "results": {
+    "version": 3,
+    "timestamp": "2026-06-25T19:10:05.317Z",
+    "prompts": [
+      {
+        "id": "15f74e1f4dba7d8e85d5499e6ad72f950de3e35eaa692f5cf14e16d9889b8dfc",
+        "raw": "Group name: {{groupName}}\nMembers: {{memberCount}}\nLast active: {{lastMessageAt}}\nCurrently active: {{active}}\n\nIs this WhatsApp group a life chapter?\n\nA life chapter = a distinct period defined by shared context: university cohort, city you lived in, a job era, travel, a close crew from a specific time.\nNOT a chapter = family groups, large work announcement channels, generic unnamed groups, logistics groups.\n\nRespond ONLY with valid JSON, no other text:\n{\n  \"isChapter\": boolean,\n  \"chapterName\": string,\n  \"startYear\": number | null,\n  \"endYear\": number | null,\n  \"confidence\": number,\n  \"reason\": string\n}\n",
+        "label": "Group name: {{groupName}}\nMembers: {{memberCount}}\nLast active: {{lastMessageAt}}\nCurrently active: {{active}}\n\nIs this WhatsApp group a life chapter?\n\nA life chapter = a distinct period defined by shared context: university cohort, city you lived in, a job era, travel, a close crew from a specific time.\nNOT a chapter = family groups, large work announcement channels, generic unnamed groups, logistics groups.\n\nRespond ONLY with valid JSON, no other text:\n{\n  \"isChapter\": boolean,\n  \"chapterName\": string,\n  \"startYear\": number | null,\n  \"endYear\": number | null,\n  \"confidence\": number,\n  \"reason\": string\n}\n",
+        "provider": "anthropic:messages:claude-haiku-4-5-20251001",
+        "metrics": {
+          "score": 17,
+          "testPassCount": 0,
+          "testFailCount": 8,
+          "testErrorCount": 0,
+          "assertPassCount": 6,
+          "assertFailCount": 10,
+          "totalLatencyMs": 20175,
+          "tokenUsage": {
+            "prompt": 1318,
+            "completion": 1049,
+            "cached": 0,
+            "total": 2367,
+            "numRequests": 8,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            },
+            "assertions": {
+              "total": 3634,
+              "prompt": 2925,
+              "completion": 709,
+              "cached": 0,
+              "numRequests": 0,
+              "completionDetails": {
+                "reasoning": 0,
+                "acceptedPrediction": 0,
+                "rejectedPrediction": 0,
+                "cacheReadInputTokens": 0,
+                "cacheCreationInputTokens": 0
+              }
+            }
+          },
+          "namedScores": {},
+          "namedScoresCount": {},
+          "namedScoreWeights": {},
+          "cost": 0.006563000000000001
+        }
+      }
+    ],
+    "results": [
+      {
+        "cost": 0.0007620000000000001,
+        "error": "isChapter is correctly true. chapterName is 'Edinburgh University 2016' which includes the year '2016' making it not entirely clean (ideally just 'Edinburgh University'). startYear is 2016 which falls within the acceptable 2013-2017 range. Confidence is 0.92 which is above 0.8. The chapter name is mostly clean but retains the year suffix from the group name.",
+        "gradingResult": {
+          "pass": false,
+          "score": 1.5,
+          "reason": "isChapter is correctly true. chapterName is 'Edinburgh University 2016' which includes the year '2016' making it not entirely clean (ideally just 'Edinburgh University'). startYear is 2016 which falls within the acceptable 2013-2017 range. Confidence is 0.92 which is above 0.8. The chapter name is mostly clean but retains the year suffix from the group name.",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 488,
+            "prompt": 374,
+            "completion": 114,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": false,
+              "score": 0,
+              "reason": "Expected output to be valid JSON",
+              "assertion": {
+                "type": "is-json"
+              }
+            },
+            {
+              "assertion": {
+                "type": "llm-rubric",
+                "value": "isChapter should be true. chapterName should be clean (e.g. \"Edinburgh University\") not a copy of the group name.\nstartYear around 2013-2017, confidence 0.8+. Score 1-5.\n",
+                "threshold": 4,
+                "provider": "anthropic:messages:claude-sonnet-4-6"
+              },
+              "pass": false,
+              "score": 3,
+              "reason": "isChapter is correctly true. chapterName is 'Edinburgh University 2016' which includes the year '2016' making it not entirely clean (ideally just 'Edinburgh University'). startYear is 2016 which falls within the acceptable 2013-2017 range. Confidence is 0.92 which is above 0.8. The chapter name is mostly clean but retains the year suffix from the group name.",
+              "tokensUsed": {
+                "total": 488,
+                "prompt": 374,
+                "completion": 114,
+                "cached": 0,
+                "numRequests": 0,
+                "completionDetails": {
+                  "cacheReadInputTokens": 0,
+                  "cacheCreationInputTokens": 0
+                }
+              },
+              "metadata": {
+                "renderedGradingPrompt": "[{\"role\":\"system\",\"content\":\"You are grading output according to a user-specified rubric. If the statement in the rubric is true, then the output passes the test. You respond with a JSON object with this structure: {reason: string, pass: boolean, score: number}\\n\\nExamples:\\n\\n<Output>Hello world</Output>\\n<Rubric>Content contains a greeting</Rubric>\\n{\\\"reason\\\": \\\"the content contains the word 'Hello'\\\", \\\"pass\\\": true, \\\"score\\\": 1.0}\\n\\n<Output>Avast ye swabs, repel the invaders!</Output>\\n<Rubric>Does not speak like a pirate</Rubric>\\n{\\\"reason\\\": \\\"'avast ye' is a common pirate term\\\", \\\"pass\\\": false, \\\"score\\\": 0.0}\"},{\"role\":\"user\",\"content\":\"<Output>\\n```json\\n{\\n  \\\"isChapter\\\": true,\\n  \\\"chapterName\\\": \\\"Edinburgh University 2016\\\",\\n  \\\"startYear\\\": 2016,\\n  \\\"endYear\\\": 2019,\\n  \\\"confidence\\\": 0.92,\\n  \\\"reason\\\": \\\"Named university cohort group with 18 members from a specific year (2016). Represents a distinct life period defined by shared university context. Last active date (2019) aligns with typical graduation timeline, marking natural chapter closure.\\\"\\n}\\n```\\n</Output>\\n<Rubric>\\nisChapter should be true. chapterName should be clean (e.g. \\\"Edinburgh University\\\") not a copy of the group name.\\nstartYear around 2013-2017, confidence 0.8+. Score 1-5.\\n\\n</Rubric>\"}]"
+              }
+            }
+          ]
+        },
+        "id": "e1bf6d94-58ee-4d4a-b15e-39856fb270a0",
+        "latencyMs": 1737,
+        "namedScores": {},
+        "prompt": {
+          "raw": "Group name: Edinburgh Uni Friends 2016\nMembers: 18\nLast active: 2019-06-01\nCurrently active: false\n\nIs this WhatsApp group a life chapter?\n\nA life chapter = a distinct period defined by shared context: university cohort, city you lived in, a job era, travel, a close crew from a specific time.\nNOT a chapter = family groups, large work announcement channels, generic unnamed groups, logistics groups.\n\nRespond ONLY with valid JSON, no other text:\n{\n  \"isChapter\": boolean,\n  \"chapterName\": string,\n  \"startYear\": number | null,\n  \"endYear\": number | null,\n  \"confidence\": number,\n  \"reason\": string\n}\n",
+          "label": "Group name: {{groupName}}\nMembers: {{memberCount}}\nLast active: {{lastMessageAt}}\nCurrently active: {{active}}\n\nIs this WhatsApp group a life chapter?\n\nA life chapter = a distinct period defined by shared context: university cohort, city you lived in, a job era, travel, a close crew from a specific time.\nNOT a chapter = family groups, large work announcement channels, generic unnamed groups, logistics groups.\n\nRespond ONLY with valid JSON, no other text:\n{\n  \"isChapter\": boolean,\n  \"chapterName\": string,\n  \"startYear\": number | null,\n  \"endYear\": number | null,\n  \"confidence\": number,\n  \"reason\": string\n}\n",
+          "config": {}
+        },
+        "promptId": "15f74e1f4dba7d8e85d5499e6ad72f950de3e35eaa692f5cf14e16d9889b8dfc",
+        "promptIdx": 0,
+        "provider": {
+          "id": "anthropic:messages:claude-haiku-4-5-20251001",
+          "label": ""
+        },
+        "response": {
+          "output": "```json\n{\n  \"isChapter\": true,\n  \"chapterName\": \"Edinburgh University 2016\",\n  \"startYear\": 2016,\n  \"endYear\": 2019,\n  \"confidence\": 0.92,\n  \"reason\": \"Named university cohort group with 18 members from a specific year (2016). Represents a distinct life period defined by shared university context. Last active date (2019) aligns with typical graduation timeline, marking natural chapter closure.\"\n}\n```",
+          "tokenUsage": {
+            "total": 286,
+            "prompt": 167,
+            "completion": 119,
+            "completionDetails": {
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          },
+          "finishReason": "stop",
+          "cost": 0.0007620000000000001
+        },
+        "score": 1.5,
+        "success": false,
+        "testCase": {
+          "description": "University cohort with year in name",
+          "vars": {
+            "groupName": "Edinburgh Uni Friends 2016",
+            "memberCount": 18,
+            "lastMessageAt": "2019-06-01",
+            "active": "false"
+          },
+          "assert": [
+            {
+              "type": "is-json"
+            },
+            {
+              "type": "llm-rubric",
+              "value": "isChapter should be true. chapterName should be clean (e.g. \"Edinburgh University\") not a copy of the group name.\nstartYear around 2013-2017, confidence 0.8+. Score 1-5.\n",
+              "threshold": 4,
+              "provider": "anthropic:messages:claude-sonnet-4-6"
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 0,
+        "tokenUsage": {
+          "prompt": 167,
+          "completion": 119,
+          "cached": 0,
+          "total": 286,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 488,
+            "prompt": 374,
+            "completion": 114,
+            "cached": 0,
+            "numRequests": 1,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "groupName": "Edinburgh Uni Friends 2016",
+          "memberCount": 18,
+          "lastMessageAt": "2019-06-01",
+          "active": "false"
+        },
+        "metadata": {
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 1
+      },
+      {
+        "cost": 0.000835,
+        "error": "Expected output to be valid JSON",
+        "gradingResult": {
+          "pass": false,
+          "score": 2.5,
+          "reason": "Expected output to be valid JSON",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 426,
+            "prompt": 363,
+            "completion": 63,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": false,
+              "score": 0,
+              "reason": "Expected output to be valid JSON",
+              "assertion": {
+                "type": "is-json"
+              }
+            },
+            {
+              "assertion": {
+                "type": "llm-rubric",
+                "value": "isChapter true. chapterName references Berlin or Zalando. confidence 0.75+. Score 1-5.\n",
+                "threshold": 4,
+                "provider": "anthropic:messages:claude-sonnet-4-6"
+              },
+              "pass": true,
+              "score": 5,
+              "reason": "isChapter is true, chapterName is 'Zalando Berlin' which references both Berlin and Zalando, and confidence is exactly 0.75 which meets the 0.75+ threshold.",
+              "tokensUsed": {
+                "total": 426,
+                "prompt": 363,
+                "completion": 63,
+                "cached": 0,
+                "numRequests": 0,
+                "completionDetails": {
+                  "cacheReadInputTokens": 0,
+                  "cacheCreationInputTokens": 0
+                }
+              },
+              "metadata": {
+                "renderedGradingPrompt": "[{\"role\":\"system\",\"content\":\"You are grading output according to a user-specified rubric. If the statement in the rubric is true, then the output passes the test. You respond with a JSON object with this structure: {reason: string, pass: boolean, score: number}\\n\\nExamples:\\n\\n<Output>Hello world</Output>\\n<Rubric>Content contains a greeting</Rubric>\\n{\\\"reason\\\": \\\"the content contains the word 'Hello'\\\", \\\"pass\\\": true, \\\"score\\\": 1.0}\\n\\n<Output>Avast ye swabs, repel the invaders!</Output>\\n<Rubric>Does not speak like a pirate</Rubric>\\n{\\\"reason\\\": \\\"'avast ye' is a common pirate term\\\", \\\"pass\\\": false, \\\"score\\\": 0.0}\"},{\"role\":\"user\",\"content\":\"<Output>\\n```json\\n{\\n  \\\"isChapter\\\": true,\\n  \\\"chapterName\\\": \\\"Zalando Berlin\\\",\\n  \\\"startYear\\\": null,\\n  \\\"endYear\\\": 2023,\\n  \\\"confidence\\\": 0.75,\\n  \\\"reason\\\": \\\"Work-based group from a specific company and location (Zalando Berlin) with 9 members suggesting a close crew from a particular job era. The inactivity since Nov 2023 indicates a concluded chapter. However, confidence is moderate as it could also be an active work team rather than a completed life chapter.\\\"\\n}\\n```\\n</Output>\\n<Rubric>\\nisChapter true. chapterName references Berlin or Zalando. confidence 0.75+. Score 1-5.\\n\\n</Rubric>\"}]"
+              }
+            }
+          ]
+        },
+        "id": "9b08cd0e-c888-47e6-806e-87af3487b5c4",
+        "latencyMs": 2073,
+        "namedScores": {},
+        "prompt": {
+          "raw": "Group name: Zalando Berlin Squad\nMembers: 9\nLast active: 2023-11-01\nCurrently active: false\n\nIs this WhatsApp group a life chapter?\n\nA life chapter = a distinct period defined by shared context: university cohort, city you lived in, a job era, travel, a close crew from a specific time.\nNOT a chapter = family groups, large work announcement channels, generic unnamed groups, logistics groups.\n\nRespond ONLY with valid JSON, no other text:\n{\n  \"isChapter\": boolean,\n  \"chapterName\": string,\n  \"startYear\": number | null,\n  \"endYear\": number | null,\n  \"confidence\": number,\n  \"reason\": string\n}\n",
+          "label": "Group name: {{groupName}}\nMembers: {{memberCount}}\nLast active: {{lastMessageAt}}\nCurrently active: {{active}}\n\nIs this WhatsApp group a life chapter?\n\nA life chapter = a distinct period defined by shared context: university cohort, city you lived in, a job era, travel, a close crew from a specific time.\nNOT a chapter = family groups, large work announcement channels, generic unnamed groups, logistics groups.\n\nRespond ONLY with valid JSON, no other text:\n{\n  \"isChapter\": boolean,\n  \"chapterName\": string,\n  \"startYear\": number | null,\n  \"endYear\": number | null,\n  \"confidence\": number,\n  \"reason\": string\n}\n",
+          "config": {}
+        },
+        "promptId": "15f74e1f4dba7d8e85d5499e6ad72f950de3e35eaa692f5cf14e16d9889b8dfc",
+        "promptIdx": 0,
+        "provider": {
+          "id": "anthropic:messages:claude-haiku-4-5-20251001",
+          "label": ""
+        },
+        "response": {
+          "output": "```json\n{\n  \"isChapter\": true,\n  \"chapterName\": \"Zalando Berlin\",\n  \"startYear\": null,\n  \"endYear\": 2023,\n  \"confidence\": 0.75,\n  \"reason\": \"Work-based group from a specific company and location (Zalando Berlin) with 9 members suggesting a close crew from a particular job era. The inactivity since Nov 2023 indicates a concluded chapter. However, confidence is moderate as it could also be an active work team rather than a completed life chapter.\"\n}\n```",
+          "tokenUsage": {
+            "total": 299,
+            "prompt": 165,
+            "completion": 134,
+            "completionDetails": {
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          },
+          "finishReason": "stop",
+          "cost": 0.000835
+        },
+        "score": 2.5,
+        "success": false,
+        "testCase": {
+          "description": "Work crew in a specific city",
+          "vars": {
+            "groupName": "Zalando Berlin Squad",
+            "memberCount": 9,
+            "lastMessageAt": "2023-11-01",
+            "active": "false"
+          },
+          "assert": [
+            {
+              "type": "is-json"
+            },
+            {
+              "type": "llm-rubric",
+              "value": "isChapter true. chapterName references Berlin or Zalando. confidence 0.75+. Score 1-5.\n",
+              "threshold": 4,
+              "provider": "anthropic:messages:claude-sonnet-4-6"
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 1,
+        "tokenUsage": {
+          "prompt": 165,
+          "completion": 134,
+          "cached": 0,
+          "total": 299,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 426,
+            "prompt": 363,
+            "completion": 63,
+            "cached": 0,
+            "numRequests": 1,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "groupName": "Zalando Berlin Squad",
+          "memberCount": 9,
+          "lastMessageAt": "2023-11-01",
+          "active": "false"
+        },
+        "metadata": {
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 1
+      },
+      {
+        "cost": 0.000887,
+        "error": "Expected output to be valid JSON",
+        "gradingResult": {
+          "pass": false,
+          "score": 2.5,
+          "reason": "Expected output to be valid JSON",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 449,
+            "prompt": 377,
+            "completion": 72,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": false,
+              "score": 0,
+              "reason": "Expected output to be valid JSON",
+              "assertion": {
+                "type": "is-json"
+              }
+            },
+            {
+              "assertion": {
+                "type": "llm-rubric",
+                "value": "isChapter true. chapterName references Barcelona. endYear around 2021. confidence 0.8+. Score 1-5.\n",
+                "threshold": 4,
+                "provider": "anthropic:messages:claude-sonnet-4-6"
+              },
+              "pass": true,
+              "score": 5,
+              "reason": "isChapter is true, chapterName is 'Barcelona Year' which references Barcelona, endYear is 2021 which is around 2021, and confidence is 0.85 which is above 0.8. All criteria are met.",
+              "tokensUsed": {
+                "total": 449,
+                "prompt": 377,
+                "completion": 72,
+                "cached": 0,
+                "numRequests": 0,
+                "completionDetails": {
+                  "cacheReadInputTokens": 0,
+                  "cacheCreationInputTokens": 0
+                }
+              },
+              "metadata": {
+                "renderedGradingPrompt": "[{\"role\":\"system\",\"content\":\"You are grading output according to a user-specified rubric. If the statement in the rubric is true, then the output passes the test. You respond with a JSON object with this structure: {reason: string, pass: boolean, score: number}\\n\\nExamples:\\n\\n<Output>Hello world</Output>\\n<Rubric>Content contains a greeting</Rubric>\\n{\\\"reason\\\": \\\"the content contains the word 'Hello'\\\", \\\"pass\\\": true, \\\"score\\\": 1.0}\\n\\n<Output>Avast ye swabs, repel the invaders!</Output>\\n<Rubric>Does not speak like a pirate</Rubric>\\n{\\\"reason\\\": \\\"'avast ye' is a common pirate term\\\", \\\"pass\\\": false, \\\"score\\\": 0.0}\"},{\"role\":\"user\",\"content\":\"<Output>\\n```json\\n{\\n  \\\"isChapter\\\": true,\\n  \\\"chapterName\\\": \\\"Barcelona Year\\\",\\n  \\\"startYear\\\": 2020,\\n  \\\"endYear\\\": 2021,\\n  \\\"confidence\\\": 0.85,\\n  \\\"reason\\\": \\\"Group name explicitly references a specific time period and location ('Barcelona Year'), suggesting a cohort of people who shared a distinct life experience living in Barcelona during a particular year. The last active date of 2021-08-01 and inactive status align with a completed chapter. This fits the definition of a shared context period, likely a study abroad, work assignment, or travel experience.\\\"\\n}\\n```\\n</Output>\\n<Rubric>\\nisChapter true. chapterName references Barcelona. endYear around 2021. confidence 0.8+. Score 1-5.\\n\\n</Rubric>\"}]"
+              }
+            }
+          ]
+        },
+        "id": "d094b9d3-5bc3-45f8-aec1-2977ea8c31a7",
+        "latencyMs": 4781,
+        "namedScores": {},
+        "prompt": {
+          "raw": "Group name: Barcelona Year\nMembers: 11\nLast active: 2021-08-01\nCurrently active: false\n\nIs this WhatsApp group a life chapter?\n\nA life chapter = a distinct period defined by shared context: university cohort, city you lived in, a job era, travel, a close crew from a specific time.\nNOT a chapter = family groups, large work announcement channels, generic unnamed groups, logistics groups.\n\nRespond ONLY with valid JSON, no other text:\n{\n  \"isChapter\": boolean,\n  \"chapterName\": string,\n  \"startYear\": number | null,\n  \"endYear\": number | null,\n  \"confidence\": number,\n  \"reason\": string\n}\n",
+          "label": "Group name: {{groupName}}\nMembers: {{memberCount}}\nLast active: {{lastMessageAt}}\nCurrently active: {{active}}\n\nIs this WhatsApp group a life chapter?\n\nA life chapter = a distinct period defined by shared context: university cohort, city you lived in, a job era, travel, a close crew from a specific time.\nNOT a chapter = family groups, large work announcement channels, generic unnamed groups, logistics groups.\n\nRespond ONLY with valid JSON, no other text:\n{\n  \"isChapter\": boolean,\n  \"chapterName\": string,\n  \"startYear\": number | null,\n  \"endYear\": number | null,\n  \"confidence\": number,\n  \"reason\": string\n}\n",
+          "config": {}
+        },
+        "promptId": "15f74e1f4dba7d8e85d5499e6ad72f950de3e35eaa692f5cf14e16d9889b8dfc",
+        "promptIdx": 0,
+        "provider": {
+          "id": "anthropic:messages:claude-haiku-4-5-20251001",
+          "label": ""
+        },
+        "response": {
+          "output": "```json\n{\n  \"isChapter\": true,\n  \"chapterName\": \"Barcelona Year\",\n  \"startYear\": 2020,\n  \"endYear\": 2021,\n  \"confidence\": 0.85,\n  \"reason\": \"Group name explicitly references a specific time period and location ('Barcelona Year'), suggesting a cohort of people who shared a distinct life experience living in Barcelona during a particular year. The last active date of 2021-08-01 and inactive status align with a completed chapter. This fits the definition of a shared context period, likely a study abroad, work assignment, or travel experience.\"\n}\n```",
+          "tokenUsage": {
+            "total": 307,
+            "prompt": 162,
+            "completion": 145,
+            "completionDetails": {
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          },
+          "finishReason": "stop",
+          "cost": 0.000887
+        },
+        "score": 2.5,
+        "success": false,
+        "testCase": {
+          "description": "Travel year",
+          "vars": {
+            "groupName": "Barcelona Year",
+            "memberCount": 11,
+            "lastMessageAt": "2021-08-01",
+            "active": "false"
+          },
+          "assert": [
+            {
+              "type": "is-json"
+            },
+            {
+              "type": "llm-rubric",
+              "value": "isChapter true. chapterName references Barcelona. endYear around 2021. confidence 0.8+. Score 1-5.\n",
+              "threshold": 4,
+              "provider": "anthropic:messages:claude-sonnet-4-6"
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 2,
+        "tokenUsage": {
+          "prompt": 162,
+          "completion": 145,
+          "cached": 0,
+          "total": 307,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 449,
+            "prompt": 377,
+            "completion": 72,
+            "cached": 0,
+            "numRequests": 1,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "groupName": "Barcelona Year",
+          "memberCount": 11,
+          "lastMessageAt": "2021-08-01",
+          "active": "false"
+        },
+        "metadata": {
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 1
+      },
+      {
+        "cost": 0.0006870000000000001,
+        "error": "Expected output to be valid JSON",
+        "gradingResult": {
+          "pass": false,
+          "score": 2.5,
+          "reason": "Expected output to be valid JSON",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 412,
+            "prompt": 334,
+            "completion": 78,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": false,
+              "score": 0,
+              "reason": "Expected output to be valid JSON",
+              "assertion": {
+                "type": "is-json"
+              }
+            },
+            {
+              "assertion": {
+                "type": "llm-rubric",
+                "value": "isChapter must be false. Family groups are never life chapters. Score 5 = correctly rejected. Score 1-5.\n",
+                "threshold": 4,
+                "provider": "anthropic:messages:claude-sonnet-4-6"
+              },
+              "pass": true,
+              "score": 5,
+              "reason": "The output correctly identifies this as not a life chapter (isChapter: false) and provides a clear, accurate explanation that family groups represent ongoing relationships rather than distinct life periods, explicitly noting they are excluded from the definition of a life chapter. This is a correct and well-reasoned rejection.",
+              "tokensUsed": {
+                "total": 412,
+                "prompt": 334,
+                "completion": 78,
+                "cached": 0,
+                "numRequests": 0,
+                "completionDetails": {
+                  "cacheReadInputTokens": 0,
+                  "cacheCreationInputTokens": 0
+                }
+              },
+              "metadata": {
+                "renderedGradingPrompt": "[{\"role\":\"system\",\"content\":\"You are grading output according to a user-specified rubric. If the statement in the rubric is true, then the output passes the test. You respond with a JSON object with this structure: {reason: string, pass: boolean, score: number}\\n\\nExamples:\\n\\n<Output>Hello world</Output>\\n<Rubric>Content contains a greeting</Rubric>\\n{\\\"reason\\\": \\\"the content contains the word 'Hello'\\\", \\\"pass\\\": true, \\\"score\\\": 1.0}\\n\\n<Output>Avast ye swabs, repel the invaders!</Output>\\n<Rubric>Does not speak like a pirate</Rubric>\\n{\\\"reason\\\": \\\"'avast ye' is a common pirate term\\\", \\\"pass\\\": false, \\\"score\\\": 0.0}\"},{\"role\":\"user\",\"content\":\"<Output>\\n```json\\n{\\n  \\\"isChapter\\\": false,\\n  \\\"chapterName\\\": null,\\n  \\\"startYear\\\": null,\\n  \\\"endYear\\\": null,\\n  \\\"confidence\\\": 0.95,\\n  \\\"reason\\\": \\\"This is a family group, which is explicitly excluded from the definition of a life chapter. Family groups represent ongoing relationships rather than distinct periods defined by shared context like university cohorts, job eras, or travel experiences.\\\"\\n}\\n```\\n</Output>\\n<Rubric>\\nisChapter must be false. Family groups are never life chapters. Score 5 = correctly rejected. Score 1-5.\\n\\n</Rubric>\"}]"
+              }
+            }
+          ]
+        },
+        "id": "50808097-5c8d-4dfe-b3b7-b626761bda7a",
+        "latencyMs": 1486,
+        "namedScores": {},
+        "prompt": {
+          "raw": "Group name: Paul Family\nMembers: 6\nLast active: 2025-01-10\nCurrently active: true\n\nIs this WhatsApp group a life chapter?\n\nA life chapter = a distinct period defined by shared context: university cohort, city you lived in, a job era, travel, a close crew from a specific time.\nNOT a chapter = family groups, large work announcement channels, generic unnamed groups, logistics groups.\n\nRespond ONLY with valid JSON, no other text:\n{\n  \"isChapter\": boolean,\n  \"chapterName\": string,\n  \"startYear\": number | null,\n  \"endYear\": number | null,\n  \"confidence\": number,\n  \"reason\": string\n}\n",
+          "label": "Group name: {{groupName}}\nMembers: {{memberCount}}\nLast active: {{lastMessageAt}}\nCurrently active: {{active}}\n\nIs this WhatsApp group a life chapter?\n\nA life chapter = a distinct period defined by shared context: university cohort, city you lived in, a job era, travel, a close crew from a specific time.\nNOT a chapter = family groups, large work announcement channels, generic unnamed groups, logistics groups.\n\nRespond ONLY with valid JSON, no other text:\n{\n  \"isChapter\": boolean,\n  \"chapterName\": string,\n  \"startYear\": number | null,\n  \"endYear\": number | null,\n  \"confidence\": number,\n  \"reason\": string\n}\n",
+          "config": {}
+        },
+        "promptId": "15f74e1f4dba7d8e85d5499e6ad72f950de3e35eaa692f5cf14e16d9889b8dfc",
+        "promptIdx": 0,
+        "provider": {
+          "id": "anthropic:messages:claude-haiku-4-5-20251001",
+          "label": ""
+        },
+        "response": {
+          "output": "```json\n{\n  \"isChapter\": false,\n  \"chapterName\": null,\n  \"startYear\": null,\n  \"endYear\": null,\n  \"confidence\": 0.95,\n  \"reason\": \"This is a family group, which is explicitly excluded from the definition of a life chapter. Family groups represent ongoing relationships rather than distinct periods defined by shared context like university cohorts, job eras, or travel experiences.\"\n}\n```",
+          "tokenUsage": {
+            "total": 267,
+            "prompt": 162,
+            "completion": 105,
+            "completionDetails": {
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          },
+          "finishReason": "stop",
+          "cost": 0.0006870000000000001
+        },
+        "score": 2.5,
+        "success": false,
+        "testCase": {
+          "description": "Family group — not a chapter",
+          "vars": {
+            "groupName": "Paul Family",
+            "memberCount": 6,
+            "lastMessageAt": "2025-01-10",
+            "active": "true"
+          },
+          "assert": [
+            {
+              "type": "is-json"
+            },
+            {
+              "type": "llm-rubric",
+              "value": "isChapter must be false. Family groups are never life chapters. Score 5 = correctly rejected. Score 1-5.\n",
+              "threshold": 4,
+              "provider": "anthropic:messages:claude-sonnet-4-6"
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 3,
+        "tokenUsage": {
+          "prompt": 162,
+          "completion": 105,
+          "cached": 0,
+          "total": 267,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 412,
+            "prompt": 334,
+            "completion": 78,
+            "cached": 0,
+            "numRequests": 1,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "groupName": "Paul Family",
+          "memberCount": 6,
+          "lastMessageAt": "2025-01-10",
+          "active": "true"
+        },
+        "metadata": {
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 1
+      },
+      {
+        "cost": 0.000714,
+        "error": "Expected output to be valid JSON",
+        "gradingResult": {
+          "pass": false,
+          "score": 2.5,
+          "reason": "Expected output to be valid JSON",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 409,
+            "prompt": 334,
+            "completion": 75,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": false,
+              "score": 0,
+              "reason": "Expected output to be valid JSON",
+              "assertion": {
+                "type": "is-json"
+              }
+            },
+            {
+              "assertion": {
+                "type": "llm-rubric",
+                "value": "isChapter must be false. Large announcement channel, not a personal cohort. Score 1-5.\n",
+                "threshold": 4,
+                "provider": "anthropic:messages:claude-sonnet-4-6"
+              },
+              "pass": true,
+              "score": 5,
+              "reason": "The output correctly identifies isChapter as false, with a well-reasoned explanation citing the large membership (312 members), 'All Hands' company-wide nature, and explicitly noting that large organizational groups lack the personal, bounded social context required for life chapter classification.",
+              "tokensUsed": {
+                "total": 409,
+                "prompt": 334,
+                "completion": 75,
+                "cached": 0,
+                "numRequests": 0,
+                "completionDetails": {
+                  "cacheReadInputTokens": 0,
+                  "cacheCreationInputTokens": 0
+                }
+              },
+              "metadata": {
+                "renderedGradingPrompt": "[{\"role\":\"system\",\"content\":\"You are grading output according to a user-specified rubric. If the statement in the rubric is true, then the output passes the test. You respond with a JSON object with this structure: {reason: string, pass: boolean, score: number}\\n\\nExamples:\\n\\n<Output>Hello world</Output>\\n<Rubric>Content contains a greeting</Rubric>\\n{\\\"reason\\\": \\\"the content contains the word 'Hello'\\\", \\\"pass\\\": true, \\\"score\\\": 1.0}\\n\\n<Output>Avast ye swabs, repel the invaders!</Output>\\n<Rubric>Does not speak like a pirate</Rubric>\\n{\\\"reason\\\": \\\"'avast ye' is a common pirate term\\\", \\\"pass\\\": false, \\\"score\\\": 0.0}\"},{\"role\":\"user\",\"content\":\"<Output>\\n```json\\n{\\n  \\\"isChapter\\\": false,\\n  \\\"chapterName\\\": null,\\n  \\\"startYear\\\": null,\\n  \\\"endYear\\\": null,\\n  \\\"confidence\\\": 0.95,\\n  \\\"reason\\\": \\\"This is a large work announcement channel (312 members, 'All Hands' indicates company-wide group). Large organizational groups are explicitly excluded from life chapter classification as they lack the personal, bounded social context that defines a life chapter.\\\"\\n}\\n```\\n</Output>\\n<Rubric>\\nisChapter must be false. Large announcement channel, not a personal cohort. Score 1-5.\\n\\n</Rubric>\"}]"
+              }
+            }
+          ]
+        },
+        "id": "517dee53-09e0-4291-94cd-73ceff331b7e",
+        "latencyMs": 1926,
+        "namedScores": {},
+        "prompt": {
+          "raw": "Group name: Company All Hands\nMembers: 312\nLast active: 2025-01-15\nCurrently active: true\n\nIs this WhatsApp group a life chapter?\n\nA life chapter = a distinct period defined by shared context: university cohort, city you lived in, a job era, travel, a close crew from a specific time.\nNOT a chapter = family groups, large work announcement channels, generic unnamed groups, logistics groups.\n\nRespond ONLY with valid JSON, no other text:\n{\n  \"isChapter\": boolean,\n  \"chapterName\": string,\n  \"startYear\": number | null,\n  \"endYear\": number | null,\n  \"confidence\": number,\n  \"reason\": string\n}\n",
+          "label": "Group name: {{groupName}}\nMembers: {{memberCount}}\nLast active: {{lastMessageAt}}\nCurrently active: {{active}}\n\nIs this WhatsApp group a life chapter?\n\nA life chapter = a distinct period defined by shared context: university cohort, city you lived in, a job era, travel, a close crew from a specific time.\nNOT a chapter = family groups, large work announcement channels, generic unnamed groups, logistics groups.\n\nRespond ONLY with valid JSON, no other text:\n{\n  \"isChapter\": boolean,\n  \"chapterName\": string,\n  \"startYear\": number | null,\n  \"endYear\": number | null,\n  \"confidence\": number,\n  \"reason\": string\n}\n",
+          "config": {}
+        },
+        "promptId": "15f74e1f4dba7d8e85d5499e6ad72f950de3e35eaa692f5cf14e16d9889b8dfc",
+        "promptIdx": 0,
+        "provider": {
+          "id": "anthropic:messages:claude-haiku-4-5-20251001",
+          "label": ""
+        },
+        "response": {
+          "output": "```json\n{\n  \"isChapter\": false,\n  \"chapterName\": null,\n  \"startYear\": null,\n  \"endYear\": null,\n  \"confidence\": 0.95,\n  \"reason\": \"This is a large work announcement channel (312 members, 'All Hands' indicates company-wide group). Large organizational groups are explicitly excluded from life chapter classification as they lack the personal, bounded social context that defines a life chapter.\"\n}\n```",
+          "tokenUsage": {
+            "total": 274,
+            "prompt": 164,
+            "completion": 110,
+            "completionDetails": {
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          },
+          "finishReason": "stop",
+          "cost": 0.000714
+        },
+        "score": 2.5,
+        "success": false,
+        "testCase": {
+          "description": "Large company channel — not a chapter",
+          "vars": {
+            "groupName": "Company All Hands",
+            "memberCount": 312,
+            "lastMessageAt": "2025-01-15",
+            "active": "true"
+          },
+          "assert": [
+            {
+              "type": "is-json"
+            },
+            {
+              "type": "llm-rubric",
+              "value": "isChapter must be false. Large announcement channel, not a personal cohort. Score 1-5.\n",
+              "threshold": 4,
+              "provider": "anthropic:messages:claude-sonnet-4-6"
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 4,
+        "tokenUsage": {
+          "prompt": 164,
+          "completion": 110,
+          "cached": 0,
+          "total": 274,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 409,
+            "prompt": 334,
+            "completion": 75,
+            "cached": 0,
+            "numRequests": 1,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "groupName": "Company All Hands",
+          "memberCount": 312,
+          "lastMessageAt": "2025-01-15",
+          "active": "true"
+        },
+        "metadata": {
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 1
+      },
+      {
+        "cost": 0.000817,
+        "error": "Expected output to be valid JSON",
+        "gradingResult": {
+          "pass": false,
+          "score": 2.5,
+          "reason": "Expected output to be valid JSON",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 476,
+            "prompt": 368,
+            "completion": 108,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": false,
+              "score": 0,
+              "reason": "Expected output to be valid JSON",
+              "assertion": {
+                "type": "is-json"
+              }
+            },
+            {
+              "assertion": {
+                "type": "llm-rubric",
+                "value": "Ambiguous. If isChapter true, confidence must be low (< 0.55). High confidence here is a hallucination. Score 1-5.\n",
+                "threshold": 3,
+                "provider": "anthropic:messages:claude-sonnet-4-6"
+              },
+              "pass": true,
+              "score": 5,
+              "reason": "The output correctly identifies this as ambiguous with isChapter set to false and a low confidence of 0.3. The reasoning is sound - 'The Boys' is a generic group name without enough context to determine if it represents a distinct life chapter. The confidence level (0.3) is well below the 0.55 threshold mentioned in the rubric. This is an appropriate, non-hallucinatory response.",
+              "tokensUsed": {
+                "total": 476,
+                "prompt": 368,
+                "completion": 108,
+                "cached": 0,
+                "numRequests": 0,
+                "completionDetails": {
+                  "cacheReadInputTokens": 0,
+                  "cacheCreationInputTokens": 0
+                }
+              },
+              "metadata": {
+                "renderedGradingPrompt": "[{\"role\":\"system\",\"content\":\"You are grading output according to a user-specified rubric. If the statement in the rubric is true, then the output passes the test. You respond with a JSON object with this structure: {reason: string, pass: boolean, score: number}\\n\\nExamples:\\n\\n<Output>Hello world</Output>\\n<Rubric>Content contains a greeting</Rubric>\\n{\\\"reason\\\": \\\"the content contains the word 'Hello'\\\", \\\"pass\\\": true, \\\"score\\\": 1.0}\\n\\n<Output>Avast ye swabs, repel the invaders!</Output>\\n<Rubric>Does not speak like a pirate</Rubric>\\n{\\\"reason\\\": \\\"'avast ye' is a common pirate term\\\", \\\"pass\\\": false, \\\"score\\\": 0.0}\"},{\"role\":\"user\",\"content\":\"<Output>\\n```json\\n{\\n  \\\"isChapter\\\": false,\\n  \\\"chapterName\\\": null,\\n  \\\"startYear\\\": null,\\n  \\\"endYear\\\": null,\\n  \\\"confidence\\\": 0.3,\\n  \\\"reason\\\": \\\"Insufficient information to determine if this is a life chapter. The group name 'The Boys' is generic and could refer to various contexts (friend group, work crew, hobby group, etc.). Without knowing the members' relationship, when the group was formed, or what shared context defines it, cannot confidently classify as a distinct life period.\\\"\\n}\\n```\\n</Output>\\n<Rubric>\\nAmbiguous. If isChapter true, confidence must be low (< 0.55). High confidence here is a hallucination. Score 1-5.\\n\\n</Rubric>\"}]"
+              }
+            }
+          ]
+        },
+        "id": "6f14dbd5-06ba-491b-990a-fbcfd5d850c6",
+        "latencyMs": 1816,
+        "namedScores": {},
+        "prompt": {
+          "raw": "Group name: The Boys\nMembers: 7\nLast active: 2024-09-01\nCurrently active: true\n\nIs this WhatsApp group a life chapter?\n\nA life chapter = a distinct period defined by shared context: university cohort, city you lived in, a job era, travel, a close crew from a specific time.\nNOT a chapter = family groups, large work announcement channels, generic unnamed groups, logistics groups.\n\nRespond ONLY with valid JSON, no other text:\n{\n  \"isChapter\": boolean,\n  \"chapterName\": string,\n  \"startYear\": number | null,\n  \"endYear\": number | null,\n  \"confidence\": number,\n  \"reason\": string\n}\n",
+          "label": "Group name: {{groupName}}\nMembers: {{memberCount}}\nLast active: {{lastMessageAt}}\nCurrently active: {{active}}\n\nIs this WhatsApp group a life chapter?\n\nA life chapter = a distinct period defined by shared context: university cohort, city you lived in, a job era, travel, a close crew from a specific time.\nNOT a chapter = family groups, large work announcement channels, generic unnamed groups, logistics groups.\n\nRespond ONLY with valid JSON, no other text:\n{\n  \"isChapter\": boolean,\n  \"chapterName\": string,\n  \"startYear\": number | null,\n  \"endYear\": number | null,\n  \"confidence\": number,\n  \"reason\": string\n}\n",
+          "config": {}
+        },
+        "promptId": "15f74e1f4dba7d8e85d5499e6ad72f950de3e35eaa692f5cf14e16d9889b8dfc",
+        "promptIdx": 0,
+        "provider": {
+          "id": "anthropic:messages:claude-haiku-4-5-20251001",
+          "label": ""
+        },
+        "response": {
+          "output": "```json\n{\n  \"isChapter\": false,\n  \"chapterName\": null,\n  \"startYear\": null,\n  \"endYear\": null,\n  \"confidence\": 0.3,\n  \"reason\": \"Insufficient information to determine if this is a life chapter. The group name 'The Boys' is generic and could refer to various contexts (friend group, work crew, hobby group, etc.). Without knowing the members' relationship, when the group was formed, or what shared context defines it, cannot confidently classify as a distinct life period.\"\n}\n```",
+          "tokenUsage": {
+            "total": 293,
+            "prompt": 162,
+            "completion": 131,
+            "completionDetails": {
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          },
+          "finishReason": "stop",
+          "cost": 0.000817
+        },
+        "score": 2.5,
+        "success": false,
+        "testCase": {
+          "description": "Ambiguous informal name",
+          "vars": {
+            "groupName": "The Boys",
+            "memberCount": 7,
+            "lastMessageAt": "2024-09-01",
+            "active": "true"
+          },
+          "assert": [
+            {
+              "type": "is-json"
+            },
+            {
+              "type": "llm-rubric",
+              "value": "Ambiguous. If isChapter true, confidence must be low (< 0.55). High confidence here is a hallucination. Score 1-5.\n",
+              "threshold": 3,
+              "provider": "anthropic:messages:claude-sonnet-4-6"
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 5,
+        "tokenUsage": {
+          "prompt": 162,
+          "completion": 131,
+          "cached": 0,
+          "total": 293,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 476,
+            "prompt": 368,
+            "completion": 108,
+            "cached": 0,
+            "numRequests": 1,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "groupName": "The Boys",
+          "memberCount": 7,
+          "lastMessageAt": "2024-09-01",
+          "active": "true"
+        },
+        "metadata": {
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 1
+      },
+      {
+        "cost": 0.00097,
+        "error": "The group name consists only of emojis (wave, sun, surfboard), which have no definitive semantic content. The model fabricated a specific chapter name 'Beach/Surf Crew' and assigned a confidence of 0.65, which is well above the required threshold of < 0.45 for emoji-only names. The model should have recognized that emoji-only names provide insufficient information to confidently determine a chapter name, and should have kept confidence low. The fabricated chapter name with moderate-high confidence is penalized.",
+        "gradingResult": {
+          "pass": false,
+          "score": 0.5,
+          "reason": "The group name consists only of emojis (wave, sun, surfboard), which have no definitive semantic content. The model fabricated a specific chapter name 'Beach/Surf Crew' and assigned a confidence of 0.65, which is well above the required threshold of < 0.45 for emoji-only names. The model should have recognized that emoji-only names provide insufficient information to confidently determine a chapter name, and should have kept confidence low. The fabricated chapter name with moderate-high confidence is penalized.",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 532,
+            "prompt": 400,
+            "completion": 132,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": false,
+              "score": 0,
+              "reason": "Expected output to be valid JSON",
+              "assertion": {
+                "type": "is-json"
+              }
+            },
+            {
+              "assertion": {
+                "type": "llm-rubric",
+                "value": "Emoji-only name has no semantic content. confidence must be low (< 0.45). Penalise fabricated chapter names with high confidence. Score 1-5.\n",
+                "threshold": 3,
+                "provider": "anthropic:messages:claude-sonnet-4-6"
+              },
+              "pass": false,
+              "score": 1,
+              "reason": "The group name consists only of emojis (wave, sun, surfboard), which have no definitive semantic content. The model fabricated a specific chapter name 'Beach/Surf Crew' and assigned a confidence of 0.65, which is well above the required threshold of < 0.45 for emoji-only names. The model should have recognized that emoji-only names provide insufficient information to confidently determine a chapter name, and should have kept confidence low. The fabricated chapter name with moderate-high confidence is penalized.",
+              "tokensUsed": {
+                "total": 532,
+                "prompt": 400,
+                "completion": 132,
+                "cached": 0,
+                "numRequests": 0,
+                "completionDetails": {
+                  "cacheReadInputTokens": 0,
+                  "cacheCreationInputTokens": 0
+                }
+              },
+              "metadata": {
+                "renderedGradingPrompt": "[{\"role\":\"system\",\"content\":\"You are grading output according to a user-specified rubric. If the statement in the rubric is true, then the output passes the test. You respond with a JSON object with this structure: {reason: string, pass: boolean, score: number}\\n\\nExamples:\\n\\n<Output>Hello world</Output>\\n<Rubric>Content contains a greeting</Rubric>\\n{\\\"reason\\\": \\\"the content contains the word 'Hello'\\\", \\\"pass\\\": true, \\\"score\\\": 1.0}\\n\\n<Output>Avast ye swabs, repel the invaders!</Output>\\n<Rubric>Does not speak like a pirate</Rubric>\\n{\\\"reason\\\": \\\"'avast ye' is a common pirate term\\\", \\\"pass\\\": false, \\\"score\\\": 0.0}\"},{\"role\":\"user\",\"content\":\"<Output>\\n```json\\n{\\n  \\\"isChapter\\\": true,\\n  \\\"chapterName\\\": \\\"Beach/Surf Crew\\\",\\n  \\\"startYear\\\": null,\\n  \\\"endYear\\\": 2020,\\n  \\\"confidence\\\": 0.65,\\n  \\\"reason\\\": \\\"The group name (wave, sun, surfboard emojis) and small member count (5) suggest a close crew united by a shared activity or location (beach/surfing). Last active in 2020 indicates a distinct time period. However, confidence is moderate due to lack of explicit context about whether this represents a true life chapter (e.g., summer abroad, local crew from specific city) versus just a casual hobby group.\\\"\\n}\\n```\\n</Output>\\n<Rubric>\\nEmoji-only name has no semantic content. confidence must be low (< 0.45). Penalise fabricated chapter names with high confidence. Score 1-5.\\n\\n</Rubric>\"}]"
+              }
+            }
+          ]
+        },
+        "id": "880696c6-c822-4023-be7b-fc4eb94da5a9",
+        "latencyMs": 3380,
+        "namedScores": {},
+        "prompt": {
+          "raw": "Group name: 🌊☀️🏄\nMembers: 5\nLast active: 2020-09-01\nCurrently active: false\n\nIs this WhatsApp group a life chapter?\n\nA life chapter = a distinct period defined by shared context: university cohort, city you lived in, a job era, travel, a close crew from a specific time.\nNOT a chapter = family groups, large work announcement channels, generic unnamed groups, logistics groups.\n\nRespond ONLY with valid JSON, no other text:\n{\n  \"isChapter\": boolean,\n  \"chapterName\": string,\n  \"startYear\": number | null,\n  \"endYear\": number | null,\n  \"confidence\": number,\n  \"reason\": string\n}\n",
+          "label": "Group name: {{groupName}}\nMembers: {{memberCount}}\nLast active: {{lastMessageAt}}\nCurrently active: {{active}}\n\nIs this WhatsApp group a life chapter?\n\nA life chapter = a distinct period defined by shared context: university cohort, city you lived in, a job era, travel, a close crew from a specific time.\nNOT a chapter = family groups, large work announcement channels, generic unnamed groups, logistics groups.\n\nRespond ONLY with valid JSON, no other text:\n{\n  \"isChapter\": boolean,\n  \"chapterName\": string,\n  \"startYear\": number | null,\n  \"endYear\": number | null,\n  \"confidence\": number,\n  \"reason\": string\n}\n",
+          "config": {}
+        },
+        "promptId": "15f74e1f4dba7d8e85d5499e6ad72f950de3e35eaa692f5cf14e16d9889b8dfc",
+        "promptIdx": 0,
+        "provider": {
+          "id": "anthropic:messages:claude-haiku-4-5-20251001",
+          "label": ""
+        },
+        "response": {
+          "output": "```json\n{\n  \"isChapter\": true,\n  \"chapterName\": \"Beach/Surf Crew\",\n  \"startYear\": null,\n  \"endYear\": 2020,\n  \"confidence\": 0.65,\n  \"reason\": \"The group name (wave, sun, surfboard emojis) and small member count (5) suggest a close crew united by a shared activity or location (beach/surfing). Last active in 2020 indicates a distinct time period. However, confidence is moderate due to lack of explicit context about whether this represents a true life chapter (e.g., summer abroad, local crew from specific city) versus just a casual hobby group.\"\n}\n```",
+          "tokenUsage": {
+            "total": 330,
+            "prompt": 170,
+            "completion": 160,
+            "completionDetails": {
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          },
+          "finishReason": "stop",
+          "cost": 0.00097
+        },
+        "score": 0.5,
+        "success": false,
+        "testCase": {
+          "description": "Emoji-only name — thin signal",
+          "vars": {
+            "groupName": "🌊☀️🏄",
+            "memberCount": 5,
+            "lastMessageAt": "2020-09-01",
+            "active": "false"
+          },
+          "assert": [
+            {
+              "type": "is-json"
+            },
+            {
+              "type": "llm-rubric",
+              "value": "Emoji-only name has no semantic content. confidence must be low (< 0.45). Penalise fabricated chapter names with high confidence. Score 1-5.\n",
+              "threshold": 3,
+              "provider": "anthropic:messages:claude-sonnet-4-6"
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 6,
+        "tokenUsage": {
+          "prompt": 170,
+          "completion": 160,
+          "cached": 0,
+          "total": 330,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 532,
+            "prompt": 400,
+            "completion": 132,
+            "cached": 0,
+            "numRequests": 1,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "groupName": "🌊☀️🏄",
+          "memberCount": 5,
+          "lastMessageAt": "2020-09-01",
+          "active": "false"
+        },
+        "metadata": {
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 1
+      },
+      {
+        "cost": 0.0008910000000000001,
+        "error": "Expected output to be valid JSON",
+        "gradingResult": {
+          "pass": false,
+          "score": 2.5,
+          "reason": "Expected output to be valid JSON",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 442,
+            "prompt": 375,
+            "completion": 67,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": false,
+              "score": 0,
+              "reason": "Expected output to be valid JSON",
+              "assertion": {
+                "type": "is-json"
+              }
+            },
+            {
+              "assertion": {
+                "type": "llm-rubric",
+                "value": "isChapter true. Community/activity-based chapter in London. chapterName should reference yoga or London. Score 1-5.\n",
+                "threshold": 3,
+                "provider": "anthropic:messages:claude-sonnet-4-6"
+              },
+              "pass": true,
+              "score": 5,
+              "reason": "isChapter is true. The chapter is community/activity-based (Sunday yoga crew) in London. The chapterName 'Sunday Yoga Crew London' explicitly references both yoga and London. All rubric criteria are met.",
+              "tokensUsed": {
+                "total": 442,
+                "prompt": 375,
+                "completion": 67,
+                "cached": 0,
+                "numRequests": 0,
+                "completionDetails": {
+                  "cacheReadInputTokens": 0,
+                  "cacheCreationInputTokens": 0
+                }
+              },
+              "metadata": {
+                "renderedGradingPrompt": "[{\"role\":\"system\",\"content\":\"You are grading output according to a user-specified rubric. If the statement in the rubric is true, then the output passes the test. You respond with a JSON object with this structure: {reason: string, pass: boolean, score: number}\\n\\nExamples:\\n\\n<Output>Hello world</Output>\\n<Rubric>Content contains a greeting</Rubric>\\n{\\\"reason\\\": \\\"the content contains the word 'Hello'\\\", \\\"pass\\\": true, \\\"score\\\": 1.0}\\n\\n<Output>Avast ye swabs, repel the invaders!</Output>\\n<Rubric>Does not speak like a pirate</Rubric>\\n{\\\"reason\\\": \\\"'avast ye' is a common pirate term\\\", \\\"pass\\\": false, \\\"score\\\": 0.0}\"},{\"role\":\"user\",\"content\":\"<Output>\\n```json\\n{\\n  \\\"isChapter\\\": true,\\n  \\\"chapterName\\\": \\\"Sunday Yoga Crew London\\\",\\n  \\\"startYear\\\": null,\\n  \\\"endYear\\\": 2023,\\n  \\\"confidence\\\": 0.75,\\n  \\\"reason\\\": \\\"This represents a distinct period defined by shared context: a specific social crew united by a recurring activity (Sunday yoga) in a specific location (London). The group's inactivity since March 2023 suggests a concluded chapter. However, confidence is moderate rather than high because the exact start date is unknown and yoga groups can be more casual/ongoing than typical life chapters.\\\"\\n}\\n```\\n</Output>\\n<Rubric>\\nisChapter true. Community/activity-based chapter in London. chapterName should reference yoga or London. Score 1-5.\\n\\n</Rubric>\"}]"
+              }
+            }
+          ]
+        },
+        "id": "7aa38f0b-c362-4db0-9aca-3238563ac4f3",
+        "latencyMs": 2976,
+        "namedScores": {},
+        "prompt": {
+          "raw": "Group name: Sunday Yoga Crew London\nMembers: 14\nLast active: 2023-03-01\nCurrently active: false\n\nIs this WhatsApp group a life chapter?\n\nA life chapter = a distinct period defined by shared context: university cohort, city you lived in, a job era, travel, a close crew from a specific time.\nNOT a chapter = family groups, large work announcement channels, generic unnamed groups, logistics groups.\n\nRespond ONLY with valid JSON, no other text:\n{\n  \"isChapter\": boolean,\n  \"chapterName\": string,\n  \"startYear\": number | null,\n  \"endYear\": number | null,\n  \"confidence\": number,\n  \"reason\": string\n}\n",
+          "label": "Group name: {{groupName}}\nMembers: {{memberCount}}\nLast active: {{lastMessageAt}}\nCurrently active: {{active}}\n\nIs this WhatsApp group a life chapter?\n\nA life chapter = a distinct period defined by shared context: university cohort, city you lived in, a job era, travel, a close crew from a specific time.\nNOT a chapter = family groups, large work announcement channels, generic unnamed groups, logistics groups.\n\nRespond ONLY with valid JSON, no other text:\n{\n  \"isChapter\": boolean,\n  \"chapterName\": string,\n  \"startYear\": number | null,\n  \"endYear\": number | null,\n  \"confidence\": number,\n  \"reason\": string\n}\n",
+          "config": {}
+        },
+        "promptId": "15f74e1f4dba7d8e85d5499e6ad72f950de3e35eaa692f5cf14e16d9889b8dfc",
+        "promptIdx": 0,
+        "provider": {
+          "id": "anthropic:messages:claude-haiku-4-5-20251001",
+          "label": ""
+        },
+        "response": {
+          "output": "```json\n{\n  \"isChapter\": true,\n  \"chapterName\": \"Sunday Yoga Crew London\",\n  \"startYear\": null,\n  \"endYear\": 2023,\n  \"confidence\": 0.75,\n  \"reason\": \"This represents a distinct period defined by shared context: a specific social crew united by a recurring activity (Sunday yoga) in a specific location (London). The group's inactivity since March 2023 suggests a concluded chapter. However, confidence is moderate rather than high because the exact start date is unknown and yoga groups can be more casual/ongoing than typical life chapters.\"\n}\n```",
+          "tokenUsage": {
+            "total": 311,
+            "prompt": 166,
+            "completion": 145,
+            "completionDetails": {
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          },
+          "finishReason": "stop",
+          "cost": 0.0008910000000000001
+        },
+        "score": 2.5,
+        "success": false,
+        "testCase": {
+          "description": "Yoga community crew",
+          "vars": {
+            "groupName": "Sunday Yoga Crew London",
+            "memberCount": 14,
+            "lastMessageAt": "2023-03-01",
+            "active": "false"
+          },
+          "assert": [
+            {
+              "type": "is-json"
+            },
+            {
+              "type": "llm-rubric",
+              "value": "isChapter true. Community/activity-based chapter in London. chapterName should reference yoga or London. Score 1-5.\n",
+              "threshold": 3,
+              "provider": "anthropic:messages:claude-sonnet-4-6"
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 7,
+        "tokenUsage": {
+          "prompt": 166,
+          "completion": 145,
+          "cached": 0,
+          "total": 311,
+          "numRequests": 1,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          },
+          "assertions": {
+            "total": 442,
+            "prompt": 375,
+            "completion": 67,
+            "cached": 0,
+            "numRequests": 1,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            }
+          }
+        },
+        "vars": {
+          "groupName": "Sunday Yoga Crew London",
+          "memberCount": 14,
+          "lastMessageAt": "2023-03-01",
+          "active": "false"
+        },
+        "metadata": {
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 1
+      }
+    ],
+    "stats": {
+      "successes": 0,
+      "failures": 8,
+      "errors": 0,
+      "tokenUsage": {
+        "prompt": 1318,
+        "completion": 1049,
+        "cached": 0,
+        "total": 2367,
+        "numRequests": 8,
+        "completionDetails": {
+          "reasoning": 0,
+          "acceptedPrediction": 0,
+          "rejectedPrediction": 0,
+          "cacheReadInputTokens": 0,
+          "cacheCreationInputTokens": 0
+        },
+        "assertions": {
+          "total": 3634,
+          "prompt": 2925,
+          "completion": 709,
+          "cached": 0,
+          "numRequests": 0,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          }
+        }
+      },
+      "durationMs": 12757,
+      "evaluationDurationMs": 12757
+    }
+  },
+  "config": {
+    "tags": {},
+    "description": "Loop — SLM chapter inference eval",
+    "prompts": [
+      {
+        "id": "chapter-v1",
+        "raw": "Group name: {{groupName}}\nMembers: {{memberCount}}\nLast active: {{lastMessageAt}}\nCurrently active: {{active}}\n\nIs this WhatsApp group a life chapter?\n\nA life chapter = a distinct period defined by shared context: university cohort, city you lived in, a job era, travel, a close crew from a specific time.\nNOT a chapter = family groups, large work announcement channels, generic unnamed groups, logistics groups.\n\nRespond ONLY with valid JSON, no other text:\n{\n  \"isChapter\": boolean,\n  \"chapterName\": string,\n  \"startYear\": number | null,\n  \"endYear\": number | null,\n  \"confidence\": number,\n  \"reason\": string\n}\n"
+      }
+    ],
+    "providers": [
+      {
+        "id": "anthropic:messages:claude-haiku-4-5-20251001",
+        "config": {
+          "temperature": 0.1,
+          "max_tokens": 200,
+          "system": "You are a life chapter inference engine for a relationship app called Loop.\nYou analyse WhatsApp group metadata and determine if the group represents a meaningful life chapter.\nRespond only with valid JSON. Never fabricate high confidence on ambiguous inputs.\n"
+        }
+      }
+    ],
+    "tests": [
+      {
+        "description": "University cohort with year in name",
+        "vars": {
+          "groupName": "Edinburgh Uni Friends 2016",
+          "memberCount": 18,
+          "lastMessageAt": "2019-06-01",
+          "active": "false"
+        },
+        "assert": [
+          {
+            "type": "llm-rubric",
+            "value": "isChapter should be true. chapterName should be clean (e.g. \"Edinburgh University\") not a copy of the group name.\nstartYear around 2013-2017, confidence 0.8+. Score 1-5.\n",
+            "threshold": 4,
+            "provider": "anthropic:messages:claude-sonnet-4-6"
+          }
+        ]
+      },
+      {
+        "description": "Work crew in a specific city",
+        "vars": {
+          "groupName": "Zalando Berlin Squad",
+          "memberCount": 9,
+          "lastMessageAt": "2023-11-01",
+          "active": "false"
+        },
+        "assert": [
+          {
+            "type": "llm-rubric",
+            "value": "isChapter true. chapterName references Berlin or Zalando. confidence 0.75+. Score 1-5.\n",
+            "threshold": 4,
+            "provider": "anthropic:messages:claude-sonnet-4-6"
+          }
+        ]
+      },
+      {
+        "description": "Travel year",
+        "vars": {
+          "groupName": "Barcelona Year",
+          "memberCount": 11,
+          "lastMessageAt": "2021-08-01",
+          "active": "false"
+        },
+        "assert": [
+          {
+            "type": "llm-rubric",
+            "value": "isChapter true. chapterName references Barcelona. endYear around 2021. confidence 0.8+. Score 1-5.\n",
+            "threshold": 4,
+            "provider": "anthropic:messages:claude-sonnet-4-6"
+          }
+        ]
+      },
+      {
+        "description": "Family group — not a chapter",
+        "vars": {
+          "groupName": "Paul Family",
+          "memberCount": 6,
+          "lastMessageAt": "2025-01-10",
+          "active": "true"
+        },
+        "assert": [
+          {
+            "type": "llm-rubric",
+            "value": "isChapter must be false. Family groups are never life chapters. Score 5 = correctly rejected. Score 1-5.\n",
+            "threshold": 4,
+            "provider": "anthropic:messages:claude-sonnet-4-6"
+          }
+        ]
+      },
+      {
+        "description": "Large company channel — not a chapter",
+        "vars": {
+          "groupName": "Company All Hands",
+          "memberCount": 312,
+          "lastMessageAt": "2025-01-15",
+          "active": "true"
+        },
+        "assert": [
+          {
+            "type": "llm-rubric",
+            "value": "isChapter must be false. Large announcement channel, not a personal cohort. Score 1-5.\n",
+            "threshold": 4,
+            "provider": "anthropic:messages:claude-sonnet-4-6"
+          }
+        ]
+      },
+      {
+        "description": "Ambiguous informal name",
+        "vars": {
+          "groupName": "The Boys",
+          "memberCount": 7,
+          "lastMessageAt": "2024-09-01",
+          "active": "true"
+        },
+        "assert": [
+          {
+            "type": "llm-rubric",
+            "value": "Ambiguous. If isChapter true, confidence must be low (< 0.55). High confidence here is a hallucination. Score 1-5.\n",
+            "threshold": 3,
+            "provider": "anthropic:messages:claude-sonnet-4-6"
+          }
+        ]
+      },
+      {
+        "description": "Emoji-only name — thin signal",
+        "vars": {
+          "groupName": "🌊☀️🏄",
+          "memberCount": 5,
+          "lastMessageAt": "2020-09-01",
+          "active": "false"
+        },
+        "assert": [
+          {
+            "type": "llm-rubric",
+            "value": "Emoji-only name has no semantic content. confidence must be low (< 0.45). Penalise fabricated chapter names with high confidence. Score 1-5.\n",
+            "threshold": 3,
+            "provider": "anthropic:messages:claude-sonnet-4-6"
+          }
+        ]
+      },
+      {
+        "description": "Yoga community crew",
+        "vars": {
+          "groupName": "Sunday Yoga Crew London",
+          "memberCount": 14,
+          "lastMessageAt": "2023-03-01",
+          "active": "false"
+        },
+        "assert": [
+          {
+            "type": "llm-rubric",
+            "value": "isChapter true. Community/activity-based chapter in London. chapterName should reference yoga or London. Score 1-5.\n",
+            "threshold": 3,
+            "provider": "anthropic:messages:claude-sonnet-4-6"
+          }
+        ]
+      }
+    ],
+    "env": {},
+    "defaultTest": {
+      "assert": [
+        {
+          "type": "is-json"
+        }
+      ],
+      "vars": {},
+      "options": {},
+      "metadata": {}
+    },
+    "outputPath": [
+      "eval/results.json"
+    ],
+    "extensions": [],
+    "metadata": {},
+    "evaluateOptions": {}
+  },
+  "shareableUrl": null,
+  "metadata": {
+    "promptfooVersion": "0.121.17",
+    "nodeVersion": "v22.23.1",
+    "platform": "darwin",
+    "arch": "arm64",
+    "exportedAt": "2026-06-25T19:10:18.263Z",
+    "evaluationCreatedAt": "2026-06-25T19:10:05.317Z"
+  },
+  "vars": [
+    "groupName",
+    "memberCount",
+    "lastMessageAt",
+    "active"
+  ],
+  "runtimeOptions": {
+    "eventSource": "cli",
+    "showProgressBar": true,
+    "repeat": 1,
+    "maxConcurrency": 4,
+    "cache": true
+  }
+}

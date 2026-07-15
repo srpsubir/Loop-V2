@@ -1,0 +1,148 @@
+description: "Loop — SLM chapter inference eval"
+
+prompts:
+  - id: chapter-v1
+    raw: |
+      Group name: {{groupName}}
+      Members: {{memberCount}}
+      Last active: {{lastMessageAt}}
+      Currently active: {{active}}
+
+      Is this WhatsApp group a life chapter?
+
+      A life chapter = a distinct recurring period defined by shared context: university cohort, city you lived in, a job era, an ongoing travel stint, a close crew you spent sustained time with.
+      NOT a chapter = family groups, large channels, logistics groups, one-off events (birthday parties, bachelor parties, housewarmings, single trips, holiday celebrations, gift coordination).
+
+      Respond ONLY with valid JSON, no other text:
+      {
+        "isChapter": boolean,
+        "chapterName": string,
+        "startYear": number | null,
+        "endYear": number | null,
+        "confidence": number,
+        "reason": string
+      }
+
+providers:
+  - id: anthropic:messages:claude-haiku-4-5-20251001
+    config:
+      temperature: 0.1
+      max_tokens: 200
+      system: |
+        You are a life chapter inference engine for a relationship app called Loop.
+        You analyse WhatsApp group metadata and determine if the group represents a meaningful life chapter.
+        CRITICAL: Return ONLY the raw JSON object. Your entire response must start with { and end with }. No markdown, no ```json, no code fences, no explanation, no other text whatsoever.
+        Never fabricate high confidence on ambiguous or emoji-only inputs — if the group name has no semantic content, confidence must be below 0.4.
+    transform: "output.replace(/^```(?:json)?\\n?/,'').replace(/\\n?```$/,'').trim()"
+
+defaultTest:
+  assert:
+    - type: is-json
+
+tests:
+  - description: "University cohort with year in name"
+    vars:
+      groupName: "Edinburgh Uni Friends 2016"
+      memberCount: 18
+      lastMessageAt: "2019-06-01"
+      active: "false"
+    assert:
+      - type: llm-rubric
+        value: |
+          isChapter should be true. chapterName should be clean (e.g. "Edinburgh University") not a copy of the group name.
+          startYear around 2013-2017, confidence 0.8+. Score 1-5.
+        threshold: 4
+        provider: anthropic:messages:claude-sonnet-4-6
+
+  - description: "Work crew in a specific city"
+    vars:
+      groupName: "Zalando Berlin Squad"
+      memberCount: 9
+      lastMessageAt: "2023-11-01"
+      active: "false"
+    assert:
+      - type: llm-rubric
+        value: |
+          isChapter true. chapterName references Berlin or Zalando. confidence 0.75+. Score 1-5.
+        threshold: 4
+        provider: anthropic:messages:claude-sonnet-4-6
+
+  - description: "Travel year"
+    vars:
+      groupName: "Barcelona Year"
+      memberCount: 11
+      lastMessageAt: "2021-08-01"
+      active: "false"
+    assert:
+      - type: llm-rubric
+        value: |
+          isChapter true. chapterName references Barcelona. endYear around 2021. confidence 0.8+. Score 1-5.
+        threshold: 4
+        provider: anthropic:messages:claude-sonnet-4-6
+
+  - description: "Family group — not a chapter"
+    vars:
+      groupName: "Paul Family"
+      memberCount: 6
+      lastMessageAt: "2025-01-10"
+      active: "true"
+    assert:
+      - type: llm-rubric
+        value: |
+          isChapter must be false. Family groups are never life chapters. Score 5 = correctly rejected. Score 1-5.
+        threshold: 4
+        provider: anthropic:messages:claude-sonnet-4-6
+
+  - description: "Large company channel — not a chapter"
+    vars:
+      groupName: "Company All Hands"
+      memberCount: 312
+      lastMessageAt: "2025-01-15"
+      active: "true"
+    assert:
+      - type: llm-rubric
+        value: |
+          isChapter must be false. Large announcement channel, not a personal cohort. Score 1-5.
+        threshold: 4
+        provider: anthropic:messages:claude-sonnet-4-6
+
+  - description: "Ambiguous informal name"
+    vars:
+      groupName: "The Boys"
+      memberCount: 7
+      lastMessageAt: "2024-09-01"
+      active: "true"
+    assert:
+      - type: llm-rubric
+        value: |
+          Ambiguous. If isChapter true, confidence must be low (< 0.55). High confidence here is a hallucination. Score 1-5.
+        threshold: 3
+        provider: anthropic:messages:claude-sonnet-4-6
+
+  - description: "Emoji-only name — thin signal"
+    vars:
+      groupName: "🌊☀️🏄"
+      memberCount: 5
+      lastMessageAt: "2020-09-01"
+      active: "false"
+    assert:
+      - type: llm-rubric
+        value: |
+          Emoji-only name has no semantic content. confidence must be low (< 0.45). Penalise fabricated chapter names with high confidence. Score 1-5.
+        threshold: 3
+        provider: anthropic:messages:claude-sonnet-4-6
+
+  - description: "Yoga community crew"
+    vars:
+      groupName: "Sunday Yoga Crew London"
+      memberCount: 14
+      lastMessageAt: "2023-03-01"
+      active: "false"
+    assert:
+      - type: llm-rubric
+        value: |
+          isChapter true. Community/activity-based chapter in London. chapterName should reference yoga or London. Score 1-5.
+        threshold: 3
+        provider: anthropic:messages:claude-sonnet-4-6
+
+outputPath: eval/results.json

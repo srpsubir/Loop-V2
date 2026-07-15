@@ -1,0 +1,101 @@
+description: "Loop — SLM chapter inference eval (real WhatsApp groups)"
+
+prompts:
+  - id: chapter-v1
+    raw: |
+      Group name: {{groupName}}
+      Members: {{memberCount}}
+      Last active: {{lastMessageAt}}
+      Currently active: {{active}}
+
+      Is this WhatsApp group a life chapter?
+
+      A life chapter = a distinct recurring period defined by shared context: university cohort, city you lived in, a job era, an ongoing travel stint, a close crew you spent sustained time with.
+      NOT a chapter = family groups, large channels, logistics groups, one-off events (birthday parties, bachelor parties, housewarmings, single trips, holiday celebrations, gift coordination).
+
+      Respond ONLY with valid JSON, no other text:
+      {
+        "isChapter": boolean,
+        "chapterName": string,
+        "startYear": number | null,
+        "endYear": number | null,
+        "confidence": number,
+        "reason": string
+      }
+
+  - id: chapter-v2
+    raw: |
+      Group name: {{groupName}}
+      Members: {{memberCount}}
+      Last active: {{lastMessageAt}}
+      Currently active: {{active}}
+      Avg tie strength with members: {{avgTieStrength}}
+      I created this group: {{userIsCreator}}
+      My share of messages: {{mySharePercent}}
+      Last messages: {{lastMessagesSample}}
+
+      Is this WhatsApp group a life micro-chapter?
+
+      A micro-chapter = a meaningful memory cluster: a close crew, a shared trip with friends, a recurring ritual, a life milestone. Key test: "would I want to relive this period?"
+
+      HARD RULES — if any match, isChapter is false:
+      - Members > 30 AND avgTieStrength is "low" → community/broadcast channel, not personal
+      - Name signals pure logistics only: "insurance", "introducing [name]" only
+      - avgTieStrength is "low" AND members > 15 AND no warm message content → likely strangers
+
+      NOTE: avgTieStrength is derived from DM frequency — it can be "low" even for real friends if you mostly talk in groups, not 1:1. Do NOT use avgTieStrength as a hard veto on its own for small groups (≤ 15 members).
+
+      MESSAGE CONTENT OVERRIDES EVERYTHING — if lastMessagesSample is available, READ THE ROOM:
+      - Warm, personal, celebratory, nostalgic tone → TRUE even if name sounds like an event or avgTieStrength is low
+      - Scheduling logistics, payments, operational coordination → FALSE even if name sounds like a crew
+
+      SOCIAL GRAPH RULE:
+      - avgTieStrength "high" + members ≤ 20 → close friends group → very likely TRUE
+      - avgTieStrength "low" + members ≤ 10 → may still be a chapter; rely on name and message content
+      - avgTieStrength "medium" + operational message tone → lean FALSE
+
+      NOTE: lastMessageAt of "1970-01-01" means the date is unknown, not literally 1970.
+      NOTE: if lastMessagesSample is null or empty, rely on name + tie strength signals only.
+
+      EXAMPLES:
+      Input: name="Berlin Salsa Crew '21" members=6 avgTieStrength=high messages=[{"text":"miss you guys so much","fromMe":false},{"text":"those were the days 🥹","fromMe":true}]
+      {"isChapter":true,"chapterName":"Berlin Salsa Crew Era","startYear":2021,"endYear":null,"confidence":0.92,"reason":"Small close crew, warm nostalgic messages, high tie strength"}
+
+      Input: name="SalsOli: Salsa in Berlin" members=1755 avgTieStrength=low messages=[{"text":"Class at 8pm tonight","fromMe":false}]
+      {"isChapter":false,"chapterName":null,"startYear":null,"endYear":null,"confidence":0.97,"reason":"Large broadcast channel, operational scheduling messages, strangers"}
+
+      Input: name="Project Salsadad 🎁" members=15 avgTieStrength=high messages=[{"text":"He's going to be an amazing dad 🥹","fromMe":false},{"text":"So proud of him!!","fromMe":true}]
+      {"isChapter":true,"chapterName":"Salsadad Milestone","startYear":null,"endYear":null,"confidence":0.85,"reason":"Celebratory milestone messages, close friends marking a life moment"}
+
+      Respond ONLY with valid JSON, no other text:
+      {
+        "isChapter": boolean,
+        "chapterName": string | null,
+        "startYear": number | null,
+        "endYear": number | null,
+        "confidence": number,
+        "reason": string
+      }
+
+providers:
+  - id: anthropic:messages:claude-haiku-4-5-20251001
+    config:
+      temperature: 0.1
+      max_tokens: 200
+      system: |
+        You are a life micro-chapter inference engine for a relationship app called Loop.
+        You analyse WhatsApp group metadata to determine if the group represents a meaningful memory cluster in the user's life.
+        CRITICAL: Return ONLY the raw JSON object. Your entire response must start with { and end with }. No markdown, no ```json, no code fences, no explanation.
+        The avgTieStrength signal tells you how well the user knows the people in this group — weight it heavily.
+        Never fabricate high confidence on ambiguous inputs. If avgTieStrength is null or unknown, rely more on member count and name signals.
+    transform: "output.replace(/^```(?:json)?\\n?/,'').replace(/\\n?```$/,'').trim()"
+
+defaultTest:
+  assert:
+    - type: is-json
+    - type: javascript
+      value: "JSON.parse(output).isChapter === context.vars.expectedIsChapter"
+
+tests: real-groups.json
+
+outputPath: results-real.json
