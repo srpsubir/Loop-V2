@@ -223,12 +223,17 @@ class MessageStore {
   // Used by fetchOlderMessages() to anchor an on-demand deep-backfill
   // request. Returns null for a chat with no stored messages — callers
   // must no-op rather than throw.
-  getOldestMessage(chatId: string): { id: string; timestamp: number } | null {
+  getOldestMessage(
+    chatId: string
+  ): { id: string; timestamp: number; senderJid: string; fromMe: boolean } | null {
     if (!this.db) return null
     const row = this.db
-      .prepare('SELECT id, timestamp FROM messages WHERE chat_id = ? ORDER BY timestamp ASC LIMIT 1')
+      .prepare(
+        'SELECT id, timestamp, sender_jid AS senderJid, from_me AS fromMe FROM messages WHERE chat_id = ? ORDER BY timestamp ASC LIMIT 1'
+      )
       .get(chatId)
-    return row ?? null
+    if (!row) return null
+    return { ...row, fromMe: Boolean(row.fromMe) }
   }
 
   getMessageCount(chatId: string): number {

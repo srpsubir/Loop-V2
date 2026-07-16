@@ -251,6 +251,32 @@ app.whenReady().then(async () => {
   // Trigger launch scan if WhatsApp is connected and cooldown has elapsed
   Scanner.getInstance().maybeRunOnLaunch().catch(console.error)
 
+  // MAV-265 diagnostic lever, not a permanent feature: fetchOlderMessages()
+  // is fully wired end to end but nothing calls it yet (no UI/automatic
+  // trigger exists). Setting LOOP_BACKFILL_CHATS=jid1,jid2 triggers a
+  // one-shot on-demand backfill for those chats once connected, so the
+  // capability can be exercised against a real session without adding
+  // permanent UI ahead of a product decision on when/how to surface it.
+  if (process.env.LOOP_BACKFILL_CHATS) {
+    const chatIds = process.env.LOOP_BACKFILL_CHATS.split(',').map((s) => s.trim()).filter(Boolean)
+    const wa = WhatsAppManager.getInstance()
+    wa.once('connected', async () => {
+      console.log(`[main] LOOP_BACKFILL_CHATS: triggering fetchOlderMessages for ${chatIds.length} chats`)
+      // Sequential with a gap, not Promise.all — firing fetch-history
+      // concurrently hammers whatsmeow's own sqlite session store (signal
+      // session/identity writes for the peer-message encryption) and trips
+      // SQLITE_BUSY, silently dropping most of the requests. One at a time.
+      for (const chatId of chatIds) {
+        try {
+          await wa.fetchOlderMessages(chatId, 200)
+        } catch (err) {
+          console.error(`[main] LOOP_BACKFILL_CHATS: fetchOlderMessages(${chatId}) failed:`, err)
+        }
+        await new Promise((resolve) => setTimeout(resolve, 3000))
+      }
+    })
+  }
+
   app.on('activate', async () => {
     if (BrowserWindow.getAllWindows().length === 0) await createWindow()
   })

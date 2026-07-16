@@ -13,6 +13,7 @@ import (
 type fetchHistoryPayload struct {
 	ChatID               string `json:"chatId"`
 	OldestKnownMessageID string `json:"oldestKnownMessageId"`
+	OldestKnownSenderJID string `json:"oldestKnownSenderJid,omitempty"` // empty when OldestKnownFromMe is true
 	OldestKnownFromMe    bool   `json:"oldestKnownFromMe"`
 	OldestKnownTimestamp int64  `json:"oldestKnownTimestamp"` // unix seconds
 	Count                int    `json:"count"`
@@ -97,11 +98,14 @@ func emitCommandError(emitter *Emitter, env InEnvelope, err error) {
 
 // handleFetchHistory implements WhatsAppManager.fetchOlderMessages()'s
 // sidecar side (design.md Section 2, step 5): requests on-demand history
-// from the account's primary device via a peer message. The response
-// arrives asynchronously as a normal *events.HistorySync with
-// syncType=ON_DEMAND, which registerEventHandlers already forwards as
-// history-sync-chunk — this command just kicks that off, it doesn't return
-// the messages itself.
+// from the account's primary device via a peer message. Mirrors
+// mautrix-whatsapp's fetchMessagesFromPhone (pkg/connector/backfill.go) —
+// the anchor MessageInfo needs a real Sender/IsGroup, not just Chat/ID/
+// Timestamp, or BuildHistorySyncRequest builds a request the primary device
+// can't resolve. The response arrives asynchronously as a normal
+// *events.HistorySync with syncType=ON_DEMAND, which registerEventHandlers
+// already forwards as history-sync-chunk — this command just kicks that
+// off, it doesn't return the messages itself.
 func handleFetchHistory(ctx context.Context, client *whatsmeow.Client, emitter *Emitter, p fetchHistoryPayload) {
 	chatJID, err := types.ParseJID(p.ChatID)
 	if err != nil {
@@ -112,16 +116,32 @@ func handleFetchHistory(ctx context.Context, client *whatsmeow.Client, emitter *
 		p.Count = 50 // whatsmeow's own recommended default (BuildHistorySyncRequest doc)
 	}
 
-	lastKnown := &types.MessageInfo{
-		MessageSource: types.MessageSource{Chat: chatJID},
-		ID:            p.OldestKnownMessageID,
-		Timestamp:     time.Unix(p.OldestKnownTimestamp, 0),
+	senderJID := client.Store.ID.ToNonAD()
+	if !p.OldestKnownFromMe {
+		if p.OldestKnownSenderJID == "" {
+			emitter.Logf("fetch-history: no oldestKnownSenderJid for non-self anchor in chat %s, request may fail to resolve", p.ChatID)
+		} else if parsed, err := types.ParseJID(p.OldestKnownSenderJID); err == nil {
+			senderJID = parsed
+		} else {
+			emitter.Logf("fetch-history: invalid oldestKnownSenderJid %q: %v", p.OldestKnownSenderJID, err)
+		}
 	}
-	lastKnown.IsFromMe = p.OldestKnownFromMe
+
+	lastKnown := &types.MessageInfo{
+		MessageSource: types.MessageSource{
+			Chat:     chatJID,
+			Sender:   senderJID,
+			IsFromMe: p.OldestKnownFromMe,
+			IsGroup:  chatJID.Server == types.GroupServer,
+		},
+		ID:        p.OldestKnownMessageID,
+		Timestamp: time.Unix(p.OldestKnownTimestamp, 0),
+	}
 
 	req := client.BuildHistorySyncRequest(lastKnown, p.Count)
-	if _, err := client.SendPeerMessage(ctx, req); err != nil {
-		emitter.Logf("fetch-history: SendPeerMessage failed for chat %s: %v", p.ChatID, err)
+	msgID := client.GenerateMessageID()
+	if _, err := client.SendMessage(ctx, client.Store.ID.ToNonAD(), req, whatsmeow.SendRequestExtra{ID: msgID, Peer: true}); err != nil {
+		emitter.Logf("fetch-history: on-demand request failed for chat %s: %v", p.ChatID, err)
 	}
 }
 

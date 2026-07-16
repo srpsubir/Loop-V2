@@ -310,6 +310,19 @@ func emitHistorySync(emitter *Emitter, evt *events.HistorySync) {
 		chatID := conv.GetID()
 		name := conv.GetName()
 
+		// ON_DEMAND responses (fetch-history command results) carry a
+		// per-conversation transfer-completeness flag whatsmeow doesn't
+		// surface anywhere else. COMPLETE_BUT_MORE_MESSAGES_REMAIN_ON_PRIMARY
+		// means another fetch-history call (anchored on this response's
+		// oldest message) can pull further back; anything else means this
+		// chat is exhausted on the primary device. Log-only for now — no
+		// automatic re-paging exists yet, this just makes the boundary
+		// observable (mautrix-whatsapp gates re-fetching on this exact
+		// field, see pkg/connector/backfill.go).
+		if syncType == "ON_DEMAND" {
+			emitter.Logf("on-demand history response for chat %s: endOfHistoryTransferType=%s", chatID, conv.GetEndOfHistoryTransferType().String())
+		}
+
 		var pending []json.RawMessage
 		for _, hm := range msgs {
 			wmi := hm.GetMessage()

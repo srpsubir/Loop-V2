@@ -1013,10 +1013,11 @@ class WhatsAppManager extends EventEmitter {
   // history-sync-chunk event already wired (sidecar/commands.go), this
   // method's job is purely to trigger the additional sync, not process a
   // return value — same contract as the pre-MAV-265 version.
-  // messageStore.getOldestMessage() doesn't track fromMe, so
-  // oldestKnownFromMe is approximated as false — a known limitation (see
-  // report); it only affects whatsmeow's internal history-request anchor,
-  // not what's persisted.
+  // oldestKnownSenderJid/oldestKnownFromMe now come from the real stored
+  // row (messageStore.getOldestMessage) rather than being approximated —
+  // matches mautrix-whatsapp's fetchMessagesFromPhone anchor shape, which
+  // whatsmeow's BuildHistorySyncRequest needs a real Sender/IsFromMe on to
+  // build a correct on-demand request.
   async fetchOlderMessages(chatId: string, count = 50): Promise<void> {
     if (!this.sidecarProcess || !this.sidecarConnected) return
     const oldest = this.messageStore.getOldestMessage(chatId)
@@ -1027,7 +1028,8 @@ class WhatsAppManager extends EventEmitter {
     this.sendCommand('fetch-history', {
       chatId,
       oldestKnownMessageId: oldest.id,
-      oldestKnownFromMe: false,
+      oldestKnownSenderJid: oldest.fromMe ? undefined : oldest.senderJid,
+      oldestKnownFromMe: oldest.fromMe,
       oldestKnownTimestamp: oldest.timestamp,
       count,
     })

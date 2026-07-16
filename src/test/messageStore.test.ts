@@ -242,7 +242,7 @@ describe('MessageStore', () => {
       { id: 'm1', chatId: 'chatA', senderJid: 'chatA', fromMe: false, timestamp: 100, text: 'a' },
     ])
 
-    expect(store.getOldestMessage('chatA')).toEqual({ id: 'm1', timestamp: 100 })
+    expect(store.getOldestMessage('chatA')).toEqual({ id: 'm1', timestamp: 100, senderJid: 'chatA', fromMe: false })
   })
 
   it('clearAll() empties receipts, calls, labels, and label_associations alongside messages', async () => {
