@@ -257,7 +257,7 @@ app.whenReady().then(async () => {
   // one-shot on-demand backfill for those chats once connected, so the
   // capability can be exercised against a real session without adding
   // permanent UI ahead of a product decision on when/how to surface it.
-  if (process.env.LOOP_BACKFILL_CHATS) {
+  if (!app.isPackaged && process.env.LOOP_BACKFILL_CHATS) {
     const chatIds = process.env.LOOP_BACKFILL_CHATS.split(',').map((s) => s.trim()).filter(Boolean)
     const wa = WhatsAppManager.getInstance()
     wa.once('connected', async () => {
