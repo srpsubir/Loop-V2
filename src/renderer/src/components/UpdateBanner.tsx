@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 
 type UpdateState =
   | { phase: 'idle' }
+  | { phase: 'checking' }
   | { phase: 'available' }
   | { phase: 'downloading'; percent: number }
   | { phase: 'ready'; version: string }
@@ -10,6 +11,12 @@ export function UpdateBanner(): JSX.Element | null {
   const [state, setState] = useState<UpdateState>({ phase: 'idle' })
 
   useEffect(() => {
+    const offChecking = window.loop.update.onChecking(() =>
+      setState({ phase: 'checking' })
+    )
+    const offNotAvailable = window.loop.update.onNotAvailable(() =>
+      setState({ phase: 'idle' })
+    )
     const offAvailable = window.loop.update.onAvailable(() =>
       setState({ phase: 'available' })
     )
@@ -22,7 +29,9 @@ export function UpdateBanner(): JSX.Element | null {
     const offError = window.loop.update.onError(({ message }) =>
       console.error('[updater]', message)
     )
-    return () => { offAvailable(); offDownloading(); offReady(); offError() }
+    return () => {
+      offChecking(); offNotAvailable(); offAvailable(); offDownloading(); offReady(); offError()
+    }
   }, [])
 
   if (state.phase === 'idle') return null
@@ -42,6 +51,9 @@ export function UpdateBanner(): JSX.Element | null {
       justifyContent: 'space-between',
       zIndex: 9999,
     }}>
+      {state.phase === 'checking' && (
+        <span>Checking for updates...</span>
+      )}
       {state.phase === 'available' && (
         <span>A new version is available, downloading...</span>
       )}
