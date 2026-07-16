@@ -5,7 +5,7 @@ import * as path from 'path'
 import * as fs from 'fs'
 import { readState, patchState, listContacts, saveContact, deleteContact, LOOP_DIR, STATE_FILE, CONTACTS_DIR } from './store'
 import WhatsAppManager from './whatsapp'
-import Scanner, { registerScanHandlers } from './scanner'
+import Scanner, { initScanner } from './scanner'
 import { registerPhotosHandlers } from './photos'
 import { track, initAnalytics, initSentry } from './analytics'
 import { scoreGroups, clustersToCandidates } from './chapters'
@@ -231,7 +231,7 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
 
   // ── Scan ─────────────────────────────────────────────────────────────────
 
-  registerScanHandlers(getWindow)
+  initScanner(getWindow)
 
   // ── Story ─────────────────────────────────────────────────────────────────
 

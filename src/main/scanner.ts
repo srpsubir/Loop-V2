@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain } from 'electron'
+import { BrowserWindow } from 'electron'
 import { listContacts, readState, patchState } from './store'
 import WhatsAppManager from './whatsapp'
 import { track } from './analytics'
@@ -359,7 +359,6 @@ class Scanner {
 
       for (let i = 0; i < contacts.length; i++) {
         const contact = contacts[i]
-        this.send('scan:progress', contact.name, i + 1, contacts.length)
 
         const prevState = state.contacts[contact.id] ?? null
 
@@ -521,7 +520,6 @@ class Scanner {
       })
 
       await patchState({ chapters: updatedChapters, contacts: updatedContacts, lastScanAt: now, onThisDayMemory })
-      this.send('scan:complete')
       this.send('state:changed')
       console.log(`[Scanner] Complete — ${contacts.length} contacts scanned`)
     } catch (err) {
@@ -550,11 +548,6 @@ class Scanner {
 
 export default Scanner
 
-export function registerScanHandlers(getWindow: () => BrowserWindow | null): void {
-  const scanner = Scanner.getInstance()
-  scanner.init(getWindow)
-
-  ipcMain.handle('scan:run', async () => {
-    scanner.run().catch(console.error)
-  })
+export function initScanner(getWindow: () => BrowserWindow | null): void {
+  Scanner.getInstance().init(getWindow)
 }

@@ -69,20 +69,6 @@ const loopAPI = {
       ipcRenderer.invoke('whatsapp:sendMessage', jid, text, contactId),
   },
 
-  scan: {
-    run: (): Promise<void> => ipcRenderer.invoke('scan:run'),
-    onProgress: (cb: (name: string, current: number, total: number) => void) => {
-      const handler = (_e: Electron.IpcRendererEvent, name: string, n: number, total: number) =>
-        cb(name, n, total)
-      ipcRenderer.on('scan:progress', handler)
-      return () => ipcRenderer.off('scan:progress', handler)
-    },
-    onComplete: (cb: () => void) => {
-      ipcRenderer.on('scan:complete', cb)
-      return () => ipcRenderer.off('scan:complete', cb)
-    },
-  },
-
   story: {
     open: (contactId: string): Promise<Story | null> =>
       ipcRenderer.invoke('story:open', contactId),

@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { ipcMain } from 'electron'
 import type { Contact, AppState } from '../shared/types'
 
 // ─── Mock dependencies before importing scanner ───────────────────────────────
@@ -27,7 +26,7 @@ vi.mock('../main/whatsapp', () => ({
 const mockTrack = vi.fn()
 vi.mock('../main/analytics', () => ({ track: (...args: unknown[]) => mockTrack(...args) }))
 
-import Scanner, { registerScanHandlers } from '../main/scanner'
+import Scanner, { initScanner } from '../main/scanner'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -93,15 +92,15 @@ describe('Scanner.getInstance', () => {
   })
 })
 
-// ─── registerScanHandlers ─────────────────────────────────────────────────────
+// ─── initScanner ─────────────────────────────────────────────────────────────
 
-describe('registerScanHandlers', () => {
+describe('initScanner', () => {
   it('registers without throwing', () => {
-    expect(() => registerScanHandlers(getWindow)).not.toThrow()
+    expect(() => initScanner(getWindow)).not.toThrow()
   })
 
   it('stores the getWindow function on the scanner instance', () => {
-    registerScanHandlers(getWindow)
+    initScanner(getWindow)
     const scanner = Scanner.getInstance() as unknown as { getWindow: unknown }
     expect(scanner.getWindow).toBe(getWindow)
   })
@@ -125,7 +124,7 @@ describe('Scanner.run — running guard', () => {
 // ─── Scanner.run — empty contacts ─────────────────────────────────────────────
 
 describe('Scanner.run — empty contacts list', () => {
-  it('completes scan:complete + state:changed with no contacts', async () => {
+  it('completes with state:changed with no contacts', async () => {
     mockListContacts.mockResolvedValue([])
     mockReadState.mockResolvedValue(makeState())
 
@@ -133,7 +132,6 @@ describe('Scanner.run — empty contacts list', () => {
     scanner.init(getWindow)
     await scanner.run()
 
-    expect(mockSend).toHaveBeenCalledWith('scan:complete')
     expect(mockSend).toHaveBeenCalledWith('state:changed')
     expect(mockPatchState).toHaveBeenCalledWith(
       expect.objectContaining({ contacts: {}, lastScanAt: expect.any(String) })
@@ -144,7 +142,7 @@ describe('Scanner.run — empty contacts list', () => {
 // ─── Scanner.run — WA not connected ──────────────────────────────────────────
 
 describe('Scanner.run — WA not connected', () => {
-  it('emits scan:progress per contact without calling getMessages', async () => {
+  it('skips getMessages per contact when WA is not connected', async () => {
     mockListContacts.mockResolvedValue([makeContact()])
     mockReadState.mockResolvedValue(makeState())
     mockWAInstance.isConnected.mockReturnValue(false)
@@ -154,7 +152,7 @@ describe('Scanner.run — WA not connected', () => {
     await scanner.run()
 
     expect(mockWAInstance.getMessages).not.toHaveBeenCalled()
-    expect(mockSend).toHaveBeenCalledWith('scan:progress', 'Alice Test', 1, 1)
+    expect(mockSend).toHaveBeenCalledWith('state:changed')
   })
 })
 
@@ -175,7 +173,7 @@ describe('Scanner.run — WA connected', () => {
     await scanner.run()
 
     expect(mockWAInstance.getMessages).toHaveBeenCalledWith('447700900000@s.whatsapp.net', 50)
-    expect(mockSend).toHaveBeenCalledWith('scan:complete')
+    expect(mockSend).toHaveBeenCalledWith('state:changed')
   })
 
   it('continues gracefully when getMessages throws', async () => {
@@ -188,7 +186,7 @@ describe('Scanner.run — WA connected', () => {
     scanner.init(getWindow)
     await scanner.run()
 
-    expect(mockSend).toHaveBeenCalledWith('scan:complete')
+    expect(mockSend).toHaveBeenCalledWith('state:changed')
   })
 })
 
@@ -515,25 +513,3 @@ describe('Scanner.run — outer error catch', () => {
   })
 })
 
-// ─── registerScanHandlers — IPC callback body (line 558) ─────────────────────
-
-describe('registerScanHandlers — IPC scan:run callback', () => {
-  it('invokes scanner.run() when the scan:run IPC handler fires', async () => {
-    mockListContacts.mockResolvedValue([])
-    mockReadState.mockResolvedValue(makeState())
-
-    const handleSpy = vi.spyOn(ipcMain, 'handle')
-    registerScanHandlers(getWindow)
-
-    // Find the callback registered for 'scan:run'
-    const call = handleSpy.mock.calls.find(([channel]) => channel === 'scan:run')
-    expect(call).toBeDefined()
-    const callback = call![1] as () => Promise<void>
-
-    // Invoke the callback — this hits line 558 (fire-and-forget run().catch())
-    await expect(callback()).resolves.toBeUndefined()
-    // Flush the fire-and-forget promise so run() completes before teardown
-    await new Promise((r) => setTimeout(r, 0))
-    handleSpy.mockRestore()
-  })
-})

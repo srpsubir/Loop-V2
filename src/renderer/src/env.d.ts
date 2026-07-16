@@ -30,11 +30,6 @@ interface LoopAPI {
     retry: () => Promise<void>
     sendMessage: (jid: string, text: string, contactId?: string) => Promise<{ ok: boolean; error?: string }>
   }
-  scan: {
-    run: () => Promise<void>
-    onProgress: (cb: (name: string, current: number, total: number) => void) => () => void
-    onComplete: (cb: () => void) => () => void
-  }
   story: {
     open: (contactId: string) => Promise<Story | null>
   }
