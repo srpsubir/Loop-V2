@@ -140,7 +140,7 @@ describe('WhatsApp connect screen', () => {
     await act(async () => {
       fireDisconnected(false)
     })
-    expect(screen.getByText(/Could not connect/)).toBeInTheDocument()
+    expect(screen.getByText(/WhatsApp did not connect/)).toBeInTheDocument()
     expect(screen.getByText('Scan QR code')).toBeInTheDocument()
   })
 

@@ -179,7 +179,7 @@ function WhatsAppConnectScreen({ onConnected }: { onConnected: () => void }) {
         <div
           style={{
             fontFamily: 'var(--font-serif)',
-            fontSize: 20,
+            fontSize: 26,
             color: 'var(--positive)',
             fontStyle: 'italic',
           }}
@@ -193,7 +193,7 @@ function WhatsAppConnectScreen({ onConnected }: { onConnected: () => void }) {
           <div style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--accent)', marginBottom: 12 }}>
             {status === 'logged-out'
               ? 'WhatsApp session expired. Scan to reconnect.'
-              : 'Could not connect to WhatsApp.'}
+              : 'WhatsApp did not connect. Check your internet connection and try again.'}
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
             <Button variant="secondary" onClick={async () => {
@@ -210,7 +210,7 @@ function WhatsAppConnectScreen({ onConnected }: { onConnected: () => void }) {
       <p style={{
         fontFamily: 'var(--font-sans)',
         fontSize: 12,
-        color: '#BBA99E',
+        color: 'var(--text-muted)',
         textAlign: 'center',
         marginTop: 20,
         letterSpacing: '0.01em',
