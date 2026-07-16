@@ -65,9 +65,6 @@ interface LoopAPI {
     onError: (cb: (data: { message: string }) => void) => () => void
     installNow: () => Promise<void>
   }
-  analytics: {
-    track: (event: string, properties?: Record<string, unknown>) => void
-  }
   data: {
     getDir: () => Promise<string>
     deleteAll: () => Promise<void>

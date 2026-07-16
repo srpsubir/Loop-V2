@@ -477,25 +477,6 @@ export function registerAllHandlers(getWindow: () => BrowserWindow | null): void
     await shell.openExternal(url)
   })
 
-  // ── Analytics bridge ──────────────────────────────────────────────────────
-
-  const ALLOWED_EVENTS = new Set([
-    'app_opened', 'whatsapp_connected', 'whatsapp_disconnected', 'whatsapp_connection_failed',
-    'scan_completed', 'chapters_detected', 'chapters_confirmed',
-    'onboarding_step_completed', 'nudge_acted_on', 'suggestion_acted_on',
-  ])
-
-  ipcMain.handle('analytics:track', (_e, event: string, properties?: Record<string, unknown>) => {
-    if (typeof event !== 'string' || !ALLOWED_EVENTS.has(event)) return
-    // Strip non-primitive values — prevents accidental object exfiltration
-    const safe = properties
-      ? Object.fromEntries(
-          Object.entries(properties).filter(([, v]) => v === null || ['string', 'number', 'boolean'].includes(typeof v))
-        )
-      : undefined
-    track(event, safe)
-  })
-
   // ── Photos ────────────────────────────────────────────────────────────────
 
   registerPhotosHandlers()

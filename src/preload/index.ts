@@ -152,12 +152,6 @@ const loopAPI = {
     installNow: (): Promise<void> => ipcRenderer.invoke('update:install-now'),
   },
 
-  analytics: {
-    track: (event: string, properties?: Record<string, unknown>): void => {
-      ipcRenderer.invoke('analytics:track', event, properties)
-    },
-  },
-
   data: {
     getDir: (): Promise<string> => ipcRenderer.invoke('data:getDir'),
     // MAV-178: pass confirmed flag so the main-process guard lets the call through
